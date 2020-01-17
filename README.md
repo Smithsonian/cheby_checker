@@ -1,5 +1,5 @@
 # sifter 
-python code to search the ITF (isolated tracklet file) 
+python code to search the MPC's (Minor Planet Center's) ITF (isolated tracklet file) 
 
 # pre-calculation 
 background pre-calculations need to be performed on tracklets to facilitate rapid querying 
