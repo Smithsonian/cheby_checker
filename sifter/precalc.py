@@ -24,13 +24,15 @@ import sys, os
 import numpy as np
 import operator
 from collections import OrderedDict, defaultdict
-from astropy_healpix import HEALPix as hp
+import astropy_healpix.healpy as hp
 from functools import lru_cache
 import json
 
 
 # Import neighboring packages
 # --------------------------------------------------------------
+sys.path.append( os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'sifter') )
+import sql
 
 
 
@@ -49,50 +51,55 @@ class Base():
     def __init__(self):
 
         # Filing ...
-        self.HP     = '_healpix.txt'
+        #self.HP     = '_healpix.txt'
 
         # Healpix ...
         self.HP_nside=16
         self.HP_order='nested'
-        self.npix = hp(nside=self.HP_nside, order=self.HP_order)
+        self.npix = hp.nside2npix(self.HP_nside)
 
         # Default list of Julian Dates to use (2440000 ==> 1968, 2460000.0 ==> 2023)
         # - Should cover the required span of observations: TO BE CHECKED
-        self.JDlist = np.arange(2440000., 2460000.0, 1.0)
+        # *** PROBABLY DON'T EVEN NEED THIS ...
+        #self.JDlist = np.arange(2440000., 2460000.0, 1.0)
+        
+        # sqlite database specs ...
+        self.db_filename = 'sifter.db'
 
-    def _fetch_data_directory(self):
+
+    
+    def _fetch_data_directory(self, ):
         '''
-        Returns the default path to the directory where data will be downloaded.
-        
-        By default, this method will return ~/.mpchecker2/data
-        and create this directory if it does not exist.
-        
-        If the directory cannot be accessed or created, then it returns the local directory (".")
-        
-        Returns
-        -------
-        data_dir : str
-        Path to location of `data_dir` where data (FITs files) will be downloaded
-        '''
+            Returns the default path to the directory where data will be downloaded.
             
-        data_dir = os.path.join(os.path.expanduser('~'), '.mpchecker_data')
-
+            By default, this method will return ~/.sifter_data/data
+            and create this directory if it does not exist.
+            
+            If the directory cannot be accessed or created, then it returns the local directory (".")
+            
+            Returns
+            -------
+            data_dir : str
+            Path to location of `data_dir` where data (FITs files) will be downloaded
+            '''
+        
+        data_dir = os.path.join(os.path.expanduser('~'), '.sifter_data')
+        
         # If it doesn't exist, make a new data directory
         if not os.path.isdir(data_dir):
-
+            
             try:
                 os.mkdir(data_dir)
-
+        
             # downloads locally if OS error occurs
             except OSError:
                 warnings.warn('Warning: unable to create {}. '
-              'Download directory set to be the current working directory instead.'.format(data_dir))
+                              'Download directory set to be the current working directory instead.'.format(data_dir))
             data_dir = '.'
-
+    
         return data_dir
 
 
-# Need other class / func to get unique_integer_ID from unique_string / obs80 / tracklet_ID / whatever ...
 
 
 
@@ -100,82 +107,82 @@ class Base():
 class Tracklet(Base):
     '''
         What we need to do "precalculations" on an individual tracklet
-    '''
-
-    def __init__(self , observations , unique_integer_ID ):
+        '''
+    
+    def __init__(self , observations=None ):
+        
         # Give access to "Base" methods
         super().__init__()
-        # Read the observations
-        self.parse_observations(observations)
-
+        
+        # connect to db
+        self.conn = sql.create_connection( sql.fetch_db_filepath() )
+    
+        # if observations supplied, parse them ...
+        if observations != None:
+            parse_observations(observations)
+    
     def parse_observations(self, observations ):
         '''
             read observational input (probably be in obs80-string formats)
             
-            return 
+            return
             integer dates & HP for each observation (or just extremal observations?)
             also do RoM & angle
             
-        '''
-        pass
-
-    def save_results():
-        '''
-            This should use the r4esults from parse_observations and store them appropriately in a nice file/database structure
-        '''
-        pass
-
-    def remove_from_stored_results()
-        '''
-            We need some method to remove 
-        '''
-        pass
-
-
-# THIS IS NOT A PRE-CALC
-class Query(Base):
-    '''
-        How to perform a query for an input orbit-specification
-    '''
-    
-    def __init__(self , cheby_dict ):
-
-        # Get Nightly Healpix
-        self._get_nightly_healpix()
-    
-        # Query pre-calcs for approximate matches
-        self._query_precalc()
+            Returns
+            -------
+            JD: integer
+             - date
+            HP: integer 
+             - healpix
+            tracklet_name: string 
+             - unique name for tracklet
+            tracklet_dict: dictionary
+             - container for all other data 
+             - observations, RoM, angles, ..., ...,  ... 
+             - should be everything required for subsequent detailed calculations
+            '''
         
-        # Perhaps a refinement step using RoM & AoM
-        self._refine_using_RoMAoM()
+        # ***RANDOM DATA ***
+        JD = np.random.randint(1000)
+        HP = np.random.randint(self.npix)
         
-        # Refine approx matches to get "PRECISE" matches (within specified tollerance)
-        self._get_precise_matches()
-
-
+        alphanumeric = np.array( list('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') )
+        tracklet_name = ''.join(list(np.random.choice( alphanumeric , 10 )))
+        tracklet_dictionary{'qwe' : np.random.randint(333) ,
+                            'zxcv': ''.join(list(np.random.choice( alphanumeric , 7 )))}
+        
+        return JD, HP, tracklet_name, tracklet_dictionary
     
-
-    def _get_nightly_healpix(self):
+    def save_tracklet(self, JD, HP, tracklet_name, tracklet_dictionary):
         '''
-            Perhaps not *EVERY* night, but rather every POPULATED night
-            Evaluate the orbital position at integer JDs 
-            Not sure what to do about orbital uncertainties / variant orbits
+            This should use the results from parse_observations and store them appropriately in a nice file/database structure
             
-            Probably return a list of healpix for each JD
+            Inputs:
+            -------
+            JD : integer
+            - day
+            
+            HP : integer
+            - healpix
+            
+            tracklet_name: string ?
+             - unique identifier for tracklet
+            
+            tracklet_dictionary:
+             - all data that we want to save
+            
+            Returns
+            -------
+            
         '''
-        return
-
-    def _query_precalc()
-        pass
-
-    def._refine_using_RoMAoM()
-        pass
     
-    def._get_precise_matches()
-        pass
-
-    def get_results(self):
-        ''' 
-            return nicely formatted results
+        # upload data
+        return sql.upsert_tracklet(self.conn, JD HP, tracklet_name, tracklet_dict)
+    
+    def delete_tracklet(self, tracklet_name):
         '''
+            We need some method to remove
+        '''
+        return sql.delete_tracklet(self.conn, tracklet_name):
 
