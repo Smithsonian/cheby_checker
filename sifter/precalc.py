@@ -107,7 +107,7 @@ class Base():
 class Tracklet(Base):
     '''
         What we need to do "precalculations" on an individual tracklet
-        '''
+    '''
     
     def __init__(self , observations=None ):
         
@@ -124,11 +124,12 @@ class Tracklet(Base):
     def parse_observations(self, observations ):
         '''
             read observational input (probably be in obs80-string formats)
-            
-            return
-            integer dates & HP for each observation (or just extremal observations?)
-            also do RoM & angle
-            
+
+            Inputs:
+            -------
+            observations : list ???
+             - in obs80 format ???
+
             Returns
             -------
             JD: integer
@@ -149,7 +150,7 @@ class Tracklet(Base):
         
         alphanumeric = np.array( list('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') )
         tracklet_name = ''.join(list(np.random.choice( alphanumeric , 10 )))
-        tracklet_dictionary{'qwe' : np.random.randint(333) ,
+        tracklet_dictionary = {'qwe' : np.random.randint(333) ,
                             'zxcv': ''.join(list(np.random.choice( alphanumeric , 7 )))}
         
         return JD, HP, tracklet_name, tracklet_dictionary
@@ -178,11 +179,11 @@ class Tracklet(Base):
         '''
     
         # upload data
-        return sql.upsert_tracklet(self.conn, JD HP, tracklet_name, tracklet_dict)
+        return sql.upsert_tracklet(self.conn, JD,  HP, tracklet_name, tracklet_dict)
     
     def delete_tracklet(self, tracklet_name):
         '''
             We need some method to remove
         '''
-        return sql.delete_tracklet(self.conn, tracklet_name):
+        return sql.delete_tracklet(self.conn, tracklet_name)
 
