@@ -118,8 +118,8 @@ class Tracklet(Base):
         self.conn = sql.create_connection( sql.fetch_db_filepath() )
     
         # if observations supplied, parse them ...
-        if observations != None:
-            parse_observations(observations)
+        #if observations != None:
+        #    parse_observations(observations)
     
     def parse_observations(self, observations ):
         '''
@@ -155,7 +155,7 @@ class Tracklet(Base):
         
         return JD, HP, tracklet_name, tracklet_dictionary
     
-    def save_tracklet(self, JD, HP, tracklet_name, tracklet_dictionary):
+    def save_tracklet(self, JD, HP, tracklet_name, tracklet_dict):
         '''
             This should use the results from parse_observations and store them appropriately in a nice file/database structure
             
@@ -170,7 +170,7 @@ class Tracklet(Base):
             tracklet_name: string ?
              - unique identifier for tracklet
             
-            tracklet_dictionary:
+            tracklet_dict:
              - all data that we want to save
             
             Returns
