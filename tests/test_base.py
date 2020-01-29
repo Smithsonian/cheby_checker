@@ -43,3 +43,4 @@ def test_variables():
 # Call the tests while developing ...
 test_instantiation()
 test_variables()
+print('All tests of Base class passed')

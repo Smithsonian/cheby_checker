@@ -157,4 +157,4 @@ test_table_creation()
 test_tracklet_upsert()
 test_tracklet_query()
 test_tracklet_delete()
-
+print('All tests of SQL-LITE class passed')

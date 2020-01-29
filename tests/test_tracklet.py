@@ -35,12 +35,12 @@ def test_parse_observations():
     T = precalc.Tracklet()
     
     # define observations
-    # *** AT PRESENT THESE ARE JUST DUMMY OBS ***
-    observations = []
+    # *** AT PRESENT THESE ARE JUST DUMMY/BLANK OBS ***
+    observation_pair = []
 
     # call parse_observations
     # *** AT PRESENT THIS JUST RETURNS RANDOM VALUES
-    result = T.parse_observations( observations )
+    result = T.parse_observations( observation_pair )
     
     # check that the returned results are as expected
     assert len(result) == 4
@@ -50,12 +50,14 @@ def test_parse_observations():
     assert isinstance(tracklet_name, str)
     assert isinstance(tracklet_dictionary, dict)
 
+
+
 def test_save_tracklet():
 
     # Set up a Tracklet and use the parse_observations routine to get JD, HP, ...
     T = precalc.Tracklet()
-    observations = []
-    JD, HP, tracklet_name, tracklet_dictionary = T.parse_observations( observations )
+    observation_pair = []
+    JD, HP, tracklet_name, tracklet_dictionary = T.parse_observations( observation_pair )
 
     # In order to save data, we require sql-db to exist, so let's set that up...
     conn = sql.create_connection( sql.fetch_db_filepath() )
@@ -80,5 +82,5 @@ test_instantiation()
 #test_instantiation_with_observations()
 test_parse_observations()
 test_save_tracklet()
-
+print('All tests of Tracklet class passed')
 
