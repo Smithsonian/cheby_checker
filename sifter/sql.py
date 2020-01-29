@@ -27,7 +27,6 @@ import pickle
 
 # Import neighboring packages
 # --------------------------------------------------------------
-print(os.path.dirname(os.path.realpath(__file__)))
 sys.path.append( os.path.dirname(os.path.realpath(__file__)) )
 import precalc
 
@@ -152,7 +151,15 @@ def upsert_tracklet(conn, jd, hp, tracklet_name, tracklet_dict):
         return:
         -------
         
+        To insert multiple rows into a table, you use the following form of the INSERT statement:
         
+        INSERT INTO table1 (column1,column2 ,..)
+        VALUES
+        (value1,value2 ,...),
+        (value1,value2 ,...),
+        ...
+        (value1,value2 ,...);
+
     """
     
     pdata = pickle.dumps(tracklet_dict, pickle.HIGHEST_PROTOCOL)
@@ -163,6 +170,8 @@ def upsert_tracklet(conn, jd, hp, tracklet_name, tracklet_dict):
     cur = conn.cursor()
     cur.execute(sql, (jd, hp, tracklet_name, sqlite3.Binary(pdata),))
     conn.commit()
+
+
 
 
 def delete_tracklet(conn, tracklet_name):
@@ -182,6 +191,26 @@ def delete_tracklet(conn, tracklet_name):
     cur = conn.cursor()
     cur.execute(sql, (tracklet_name,))
     conn.commit()
+
+'''
+def delete_tracklets(conn, tracklet_name_list):
+    """
+        delete list of tracklet data
+        
+        inputs:
+        -------
+        tracklet_name: string
+        
+        return:
+        -------
+        
+        
+        """
+    sql = 'DELETE FROM tracklets WHERE tracklet_name IN (?)'
+    cur = conn.cursor()
+    cur.execute(sql, (tracklet_name_list,))
+    conn.commit()
+'''
 
 
 
