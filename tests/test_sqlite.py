@@ -151,7 +151,7 @@ def test_tracklet_delete():
 
 
 
-# Call the tests while developing ...
+# Call the tests while developing (should really learn how to use pytest... ) 
 test_db_creation()
 test_table_creation()
 test_tracklet_upsert()
