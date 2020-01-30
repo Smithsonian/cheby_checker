@@ -16,6 +16,9 @@
 # Import third-party packages
 # --------------------------------------------------------------
 import sys, os
+from astropy import units as u
+from astropy_healpix import healpy, HEALPix
+from obs80.obs80 import parse80
 
 # Import neighboring packages
 # --------------------------------------------------------------
@@ -31,25 +34,45 @@ def test_instantiation():
 
 
 def test_parse_observations():
+    '''
+        Test that precalc.Tracklet.parse_observations is working correctly.
+        Tacklet should contain integer healpix, integer Julian date,
+        rate of motion in angle per time units,
+        angle of motion relative to RA+ axis (between -180 and 180 deg).
+        Rate of motion and angle should be astropy Quantities with units. 
+    '''
+    T = precalc.Tracklet()  # Create tracklet object
 
-    T = precalc.Tracklet()
-    
-    # define observations
-    # *** AT PRESENT THESE ARE JUST DUMMY/BLANK OBS ***
-    observation_pair = []
+    # define observations  (test pair, snagged from 2011 QF99)
+    observation_pair = ['     K11Q99F*~C2011 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568', '     K11Q99F ~C2011 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568']
 
     # call parse_observations
     # *** AT PRESENT THIS JUST RETURNS RANDOM VALUES
     result = T.parse_observations( observation_pair )
     
-    # check that the returned results are as expected
+    # check that the returned results are formatted as expected
     assert len(result) == 4
     JD, HP, tracklet_name, tracklet_dictionary = result
     assert isinstance(JD, int)
     assert isinstance(HP, int)
     assert isinstance(tracklet_name, str)
+    assert len(tracklet_name) == 27
     assert isinstance(tracklet_dictionary, dict)
-
+    assert 'RoM' in tracklet_dictionary.keys()
+    assert isinstance(tracklet_dictionary['RoM'], u.quantity.Quantity)
+    assert tracklet_dictionary['RoM'].unit.is_equivalent(u.Unit("arcsec / h"))
+    assert tracklet_dictionary['RoM'] >= 0
+    assert 'angle' in tracklet_dictionary.keys()
+    assert isinstance(tracklet_dictionary['angle'], u.quantity.Quantity)
+    assert tracklet_dictionary['angle'].unit.is_equivalent(u.deg)
+    assert -180 * u.deg < tracklet_dictionary['angle'] <= 180 * u.deg
+    
+    # check that values for specific example pair are as expected
+    assert JD == 2455803   # Calculated independently
+    test_HP = healpy.ang2pix(16, 1.31605272338514, 0.51303437035803, nest=True)
+    assert HP == test_HP   # Calculated using ang2pix
+    assert HP == 34        # Calculated manually
+    assert tracklet_name == 'K11Q99F_20110829.52378__568'
 
 
 def test_save_tracklet():
