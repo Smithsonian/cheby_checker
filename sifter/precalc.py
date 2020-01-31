@@ -113,9 +113,8 @@ class Tracklet(Base):
         self.conn = sql.create_connection( sql.fetch_db_filepath() )
 
         # if observations supplied, process them ...
-        #if observations != None:
-        #    self.observations = observations
-        #    self.save_tracklet( *self.parse_observations(observations) )
+        if observations != None:
+            self.save_tracklet( *self.parse_observations(observations) )
     
     def parse_observations(self, observation_pair):
         '''
@@ -191,6 +190,9 @@ class Tracklet(Base):
         jdstr = str(JDfloat).ljust(14, '_')
         codstr = parsed[0].cod.ljust(3, '_')
         tracklet_name = '{}_{}_{}'.format(namestr, jdstr, codstr)
+        
+        # we should also pre-calc and save the observatory location for each observation
+        print(' we should also pre-calc and save the observatory location for each observation')
 
         # put everything of use in the tracklet_dictionary
         tracklet_dictionary = {
@@ -204,17 +206,10 @@ class Tracklet(Base):
                                'observations': observation_pair
                                }
         
-        # ***RANDOM DATA ***
-        #JD = np.random.randint(1000)
-        #HP = np.random.randint(self.npix)
-        
-        #alphanumeric = np.array( list('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') )
-        #tracklet_name = ''.join(list(np.random.choice( alphanumeric , 10 )))
-        #tracklet_dictionary = {'qwe' : np.random.randint(333) ,
-        #                    'zxcv': ''.join(list(np.random.choice( alphanumeric , 7 )))}
-        return JD, HP, tracklet_name, tracklet_dictionary
-    
-    def save_tracklet(self, JD, HP, tracklet_name, tracklet_dict):
+        return tracklet_dictionary
+        #return JD, HP, tracklet_name, tracklet_dictionary
+
+    def save_tracklet(self, tracklet_dict):
         '''
             This should use the results from parse_observations and store them appropriately in a nice file/database structure
             
@@ -238,8 +233,11 @@ class Tracklet(Base):
         '''
     
         # upload data
-        return sql.upsert_tracklet(self.conn, JD,  HP,
-                                   tracklet_name, tracklet_dict)
+        return sql.upsert_tracklet(self.conn,
+                                   tracklet_dict['JD'],
+                                   tracklet_dict['HP'],
+                                   tracklet_dict['tracklet_name'],
+                                   tracklet_dict)
     
     def delete_tracklet(self, tracklet_name):
         '''
@@ -250,22 +248,22 @@ class Tracklet(Base):
 
 
 
-"""
-
 class Tracklets(Base):
     '''
-        What we need to do "precalculations" on an individual tracklet
+        Class to facilitate "precalculations" on a list of tracklets
         '''
     
     def __init__(self , observations=None ):
         
         # Give access to "Base" methods
         super().__init__()
-    
-    
-    # if observations supplied, process them ...
-    if observations != None:
-        self.parse_observations(observations)
+        
+        # connect to db
+        self.conn = sql.create_connection( sql.fetch_db_filepath() )
+        
+        # if observations supplied, process them ...
+        if observations != None:
+            self.save_tracklets( *self.parse_observation_lists(observations) )
     
     def parse_observation_lists(self, list_of_observation_pairs ):
         '''
@@ -274,34 +272,110 @@ class Tracklets(Base):
             Inputs:
             -------
             list_of_observation_pairs : list-of-tuples/lists?
-            - in obs80 format ???
+            - each in obs80 format ???
+            
+            Returns
+            -------
+            list of tracklet dictionaries
+            - specified as per "parse_observation_pair" function
+        '''
+
+        return [ self.parse_observation_pair(observation_pair) for observation_pair in list_of_observation_pairs]
+
+    def parse_observation_pair(self, observation_pair):
+        '''
+            read observational input (probably be in obs80-string formats)
+            
+            Inputs:
+            -------
+            observation_pair : list
+            - list of strings containing obs80 lines
             
             Returns
             -------
             JD: integer
-            - date
+            - date of first observation
             HP: integer
-            - healpix
+            - healpix of first observations
             tracklet_name: string
-            - unique name for tracklet
+            - unique name for tracklet; 26 characters
             tracklet_dict: dictionary
-            - container for all other data
-            - observations, RoM, angles, ..., ...,  ...
-            - should be everything required for subsequent detailed calculations
+            - container for all data
+            - contains:
+            - JD: integer; date of first observation
+            - HP: integer;  Healpix of first observation
+            - JD2: integer; date of last observation
+            - HP2: integer; Healpix of last observations
+            - RoM: astropy Quantity; Rate of motion (angle per time)
+            - AoM: astropy Quantity; Angle of motion, positive,
+            measured from East towards North.
+            - tracklet_name: string; Unique ID for the tracklet
+            - observations: list of strings; the input obs80 lines
+            - should be everything needed for subsequent detailed calculations
             '''
+        # Check number of observations given.
+        nobs = len(observation_pair)
+        if nobs == 0:
+            raise RuntimeError("Received zero observations. Can't real.")
+        elif nobs == 1:
+            print("### WARNING ###\nReceived 1 observation.")
+            print("Will proceed, but RoM and AoM will be 0.\n### WARNING ###")
+        elif nobs > 2:
+            print("Received more than 2 observations.")
+            print("Only using first and last one.")
+        else:
+            pass
+        # Parse obs80 lines
+        parsed = [obs for obs in parse80(observation_pair)]
         
-        # ***RANDOM DATA ***
-        JD = np.random.randint(1000)
-        HP = np.random.randint(self.npix)
+        # Convert nteger julian date
+        JDfloat = parsed[0].jdutc
+        JDfloat2 = parsed[-1].jdutc
+        JD = round(JDfloat)
+        JD2 = round(JDfloat2)
+        # *** WILL WE EVER NEED INTEGER JD FOR LAST OBS??? ***
         
-        alphanumeric = np.array( list('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') )
-        tracklet_name = ''.join(list(np.random.choice( alphanumeric , 10 )))
-        tracklet_dictionary = {'qwe' : np.random.randint(333) ,
-            'zxcv': ''.join(list(np.random.choice( alphanumeric , 7 )))}
+        # Calculate Rate of Motion and Angle of Motion
+        Coord = SkyCoord(parsed[0].ra * u.hourangle, parsed[0].dec * u.deg)
+        Coord2 = SkyCoord(parsed[-1].ra * u.hourangle, parsed[-1].dec * u.deg)
+        Delta_JD = (JDfloat2 - JDfloat) * u.day
+        RoM = Coord.separation(Coord2) / Delta_JD
+        AoM = Coord.position_angle(Coord2)
         
-        return JD_list, HP_list, tracklet_name_list, tracklet_dictionary_list
-    
-    def save_tracklets(self, JD_list, HP_list, tracklet_name_list, tracklet_dictionary_list):
+        # Find the healpix that the coordinates are in.
+        HP = self.HPix.lonlat_to_healpix(Coord.ra, Coord.dec)
+        HP2 = self.HPix.lonlat_to_healpix(Coord.ra, Coord.dec)
+        # *** WILL WE EVER NEED HP FOR LAST OBS??? ***
+        
+        # Create a unique ID for the tracklet. This is done by combining
+        # the 5 digit number or 6-7 character temporary designation,
+        # the julian date of first obs (up to 14 characters),
+        # and the 3 digit observatory code. 26 characters total
+        namestr = parsed[0].num if parsed[0].num != '' else parsed[0].desig
+        namestr = namestr.ljust(7, '_')
+        jdstr = str(JDfloat).ljust(14, '_')
+        codstr = parsed[0].cod.ljust(3, '_')
+        tracklet_name = '{}_{}_{}'.format(namestr, jdstr, codstr)
+        
+        # we should also pre-calc and save the observatory location for each observation
+        print(' we should also pre-calc and save the observatory location for each observation')
+        
+        # put everything of use in the tracklet_dictionary
+        tracklet_dictionary = {
+                'JD' : JD,
+                'HP' : HP,
+                'JD2' : JD2,
+                'HP2' : HP2,
+                'tracklet_name' : tracklet_name,
+                'RoM' : RoM,
+                'AoM' : AoM,
+                'observations': observation_pair
+                }
+        
+        return tracklet_dictionary
+        #return JD, HP, tracklet_name, tracklet_dictionary
+
+    def save_tracklets(self, tracklet_dictionary_list):
         '''
             This should use the results from parse_observations and store them appropriately in a nice file/database structure
             
@@ -322,16 +396,20 @@ class Tracklets(Base):
             Returns
             -------
             
-            '''
-        
-        # upload data
-        return sql.upsert_tracklets(self.conn, JD_list, HP_list, tracklet_name_list, tracklet_dictionary_list)
-    
-    def delete_tracklets(self, tracklet_names):
         '''
-            We need some method to remove a tracklet
+        
+        # upload data (making equal-length lists)
+        return sql.upsert_tracklet(self.conn,
+                                   [tracklet_dict['JD'] for tracklet_dict in tracklet_dictionary_list],
+                                   [tracklet_dict['HP'] for tracklet_dict in tracklet_dictionary_list],
+                                   [tracklet_dict['tracklet_name'] for tracklet_dict in tracklet_dictionary_list],
+                                   tracklet_dictionary_list)
+    
+    def delete_tracklets(self, tracklet_name_list):
+        '''
+            We need some method to remove tracklets
             '''
         return sql.delete_tracklets(self.conn, tracklet_name_list)
 
-"""
+
 
