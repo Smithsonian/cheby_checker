@@ -18,7 +18,6 @@
 import sys, os
 from astropy import units as u
 from astropy_healpix import healpy
-from obs80.obs80 import parse80
 import numpy as np
 
 # Import neighboring packages
@@ -69,33 +68,30 @@ def test_parse_observations():
 
     # call parse_observations
     # *** AT PRESENT THIS JUST RETURNS RANDOM VALUES
-    result = T.parse_observations( observation_pair )
-    
+    tracklet_dictionary = T.parse_observations( observation_pair )
     # check that the returned results are formatted as expected
-    assert len(result) == 4
-    JD, HP, tracklet_name, tracklet_dictionary = result
-    assert isinstance(JD, int)
-    assert isinstance(HP, np.int64)
-    assert isinstance(tracklet_name, str)
-    assert len(tracklet_name) == 26
+    assert isinstance(tracklet_dictionary , dict )
+    assert isinstance(tracklet_dictionary['JD'], int)
+    assert isinstance(tracklet_dictionary['HP'], np.int64)
+    assert isinstance(tracklet_dictionary['tracklet_name'], str)
+    assert len(tracklet_dictionary['tracklet_name']) == 26
     assert isinstance(tracklet_dictionary, dict)
-    assert 'RoM' in tracklet_dictionary.keys()
+    assert 'RoM' in tracklet_dictionary
     assert isinstance(tracklet_dictionary['RoM'], u.quantity.Quantity)
     assert tracklet_dictionary['RoM'].unit.is_equivalent(u.Unit("arcsec / h"))
     assert tracklet_dictionary['RoM'] >= 0
-    assert 'AoM' in tracklet_dictionary.keys()
+    assert 'AoM' in tracklet_dictionary
     assert isinstance(tracklet_dictionary['AoM'], u.quantity.Quantity)
     assert tracklet_dictionary['AoM'].unit.is_equivalent(u.deg)
-    print(tracklet_dictionary['AoM'])
     assert 0 * u.deg <= tracklet_dictionary['AoM'] < 360 * u.deg
     
     # The above assertions should be true for any observation pair. 
     # The below assertions are only for the specific example pair. 
-    assert JD == 2455803   # Calculated independently
+    assert tracklet_dictionary['JD'] == 2455803   # Calculated independently
     test_HP = healpy.ang2pix(16, 1.31605272338514, 0.51303437035803, nest=True)
-    assert HP == test_HP   # Calculated using ang2pix
-    assert HP == 34        # Calculated manually
-    assert tracklet_name == 'K11Q99F_2455803.02378__568'
+    assert tracklet_dictionary['HP'] == test_HP   # Calculated using ang2pix
+    assert tracklet_dictionary['HP'] == 34        # Calculated manually
+    assert tracklet_dictionary['tracklet_name'] == 'K11Q99F_2455803.02378__568'
 
     # Completely delete db to facilitate future testing
     os.remove(sql.fetch_db_filepath())
@@ -109,16 +105,23 @@ def test_save_tracklet():
     # Set up a Tracklet and use the parse_observations routine to get JD, HP, ...
     T = precalc.Tracklet()
     observation_pair = ['     K11Q99F*~C2011 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568', '     K11Q99F ~C2011 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568']
-    JD, HP, tracklet_name, tracklet_dictionary = T.parse_observations( observation_pair )
+    tracklet_dictionary = T.parse_observations( observation_pair )
 
     # Now save the data
-    T.save_tracklet(JD, HP, tracklet_name, tracklet_dictionary)
+    T.save_tracklet(tracklet_dictionary)
 
     # Test the data was uploaded and can be downloaded
+    # N.B. We expect the returned data to look something like ...
+    #
+    #    id integer PRIMARY KEY,
+    #    jd integer NOT NULL,
+    #    hp integer NOT NULL,
+    #    tracklet_name text NOT NULL,
+    #    tracklet blob
     cur = T.conn.cursor()
     cur.execute('SELECT * from tracklets')
     f = cur.fetchone()
-    assert( len(f)>3 and f[3] == tracklet_name), 'data not uploaded'
+    assert( len(f)>3 and f[3] == tracklet_dictionary['tracklet_name']), 'data not uploaded'
 
     # Completely delete db to facilitate future testing
     os.remove(sql.fetch_db_filepath())

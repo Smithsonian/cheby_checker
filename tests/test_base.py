@@ -34,8 +34,8 @@ def test_variables():
     assert 'sifter' in B._fetch_data_directory()
     assert 'HP_nside' in B.__dict__
     assert 'HP_order' in B.__dict__
-    assert 'npix' in B.__dict__
-    assert isinstance(B.npix, np.int64)
+    assert 'HP_npix' in B.__dict__
+    assert isinstance(B.HP_npix, np.int64)
 
 
 

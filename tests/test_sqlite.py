@@ -56,10 +56,8 @@ def test_table_creation():
     # - if the count is 1, then table exists
     assert len(cur.fetchone()) == 1 , 'table does not exist'
     
-    # Drop the table to facilitate future testing
-    cur.execute("DROP TABLE tracklets;")
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
-    assert cur.fetchone() == None , 'table still exists'
+    # Delete the db to facilitate future testing
+    os.remove(sql.fetch_db_filepath())
 
 def test_tracklet_upsert():
 
@@ -82,10 +80,8 @@ def test_tracklet_upsert():
     f = cur.fetchone()
     assert( len(f)>3 and f[3] == tracklet_name), 'data not uploaded'
 
-    # Drop the table to facilitate future testing
-    cur.execute("DROP TABLE tracklets;")
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
-    assert cur.fetchone() == None , 'table still exists'
+    # Delete the db to facilitate future testing
+    os.remove(sql.fetch_db_filepath())
 
 
 def test_tracklets_upsert():
@@ -113,10 +109,8 @@ def test_tracklets_upsert():
         assert f[i][3] == tracklet_name_list[i], 'data not uploaded'
 
 
-    # Drop the table to facilitate future testing
-    cur.execute("DROP TABLE tracklets;")
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
-    assert cur.fetchone() == None , 'table still exists'
+    # Delete the db to facilitate future testing
+    os.remove(sql.fetch_db_filepath())
 
 
 
@@ -143,16 +137,15 @@ def test_tracklet_query():
     sql.upsert_tracklet(conn, jd, hp, tracklet_name2, tracklet_dict2)
 
     # query the data & check that two dictionaries are returned
-    result = sql.query_tracklets_jdhp(conn, jd, hp)
-    assert isinstance(result, dict) and len(result) == 2
-    assert tracklet_name1 in result and tracklet_name2 in result
-    assert isinstance(result[tracklet_name1] , dict)
-    assert isinstance(result[tracklet_name2] , dict)
-
-    # Drop the table to facilitate future testing
-    cur.execute("DROP TABLE tracklets;")
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
-    assert cur.fetchone() == None , 'table still exists'
+    list_of_tuples = sql.query_tracklets_jdhp(conn, jd, hp)
+    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 2
+    for tup in list_of_tuples:
+        assert isinstance( tup, (tuple, list,))
+        assert tup[0] in [tracklet_name1, tracklet_name2]
+        assert tup[1] in [tracklet_dict1, tracklet_dict2]
+ 
+    # Delete the db to facilitate future testing
+    os.remove(sql.fetch_db_filepath())
 
 def test_delete_tracklet():
     
@@ -176,23 +169,24 @@ def test_delete_tracklet():
     sql.upsert_tracklet(conn, jd, hp, tracklet_name2, tracklet_dict2)
     
     # query the data & check that two dictionaries are returned
-    result = sql.query_tracklets_jdhp(conn, jd, hp)
-    assert isinstance(result, dict) and len(result) == 2
-    assert tracklet_name1 in result and tracklet_name2 in result
-    assert isinstance(result[tracklet_name1] , dict)
-    assert isinstance(result[tracklet_name2] , dict)
+    list_of_tuples = sql.query_tracklets_jdhp(conn, jd, hp)
+    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 2
+    for tup in list_of_tuples:
+        assert isinstance( tup, (tuple, list,))
+        assert tup[0] in [tracklet_name1, tracklet_name2]
+        assert tup[1] in [tracklet_dict1, tracklet_dict2]
     
     # now delete a tracklet & check that only one dictionary is subsequently returned
     sql.delete_tracklet(conn, tracklet_name1)
-    result = sql.query_tracklets_jdhp(conn, jd, hp)
-    assert isinstance(result, dict) and len(result) == 1
-    assert tracklet_name1 not in result and tracklet_name2 in result
-    assert isinstance(result[tracklet_name2] , dict)
+    list_of_tuples = sql.query_tracklets_jdhp(conn, jd, hp)
+    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 1
+    for tup in list_of_tuples:
+        assert isinstance( tup, (tuple, list,))
+        assert tup[0] in [ tracklet_name2]
+        assert tup[1] in [ tracklet_dict2]
     
-    # Drop the table to facilitate future testing
-    cur.execute("DROP TABLE tracklets;")
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
-    assert cur.fetchone() == None , 'table still exists'
+    # Delete the db to facilitate future testing
+    os.remove(sql.fetch_db_filepath())
 
 def test_delete_tracklets():
     
@@ -225,25 +219,24 @@ def test_delete_tracklets():
 
 
     # query the data & check that 4 dictionaries are returned
-    result = sql.query_tracklets_jdhp(conn, jd, hp)
-    assert isinstance(result, dict) and len(result) == 4
-    assert tracklet_name1 in result and tracklet_name2 in result and tracklet_name3 in result and tracklet_name4 in result
-    assert isinstance(result[tracklet_name1] , dict)
-    assert isinstance(result[tracklet_name2] , dict)
-    assert isinstance(result[tracklet_name3] , dict)
-    assert isinstance(result[tracklet_name4] , dict)
+    list_of_tuples = sql.query_tracklets_jdhp(conn, jd, hp)
+    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 4
+    for tup in list_of_tuples:
+        assert isinstance( tup, (tuple, list,))
+        assert tup[0] in [tracklet_name1, tracklet_name2, tracklet_name3, tracklet_name4]
+        assert tup[1] in [tracklet_dict1, tracklet_dict2, tracklet_dict3, tracklet_dict4]
     
     # now delete two tracklets & check that two dictionaries remain
     sql.delete_tracklets(conn, [tracklet_name1 , tracklet_name3 ] )
-    result = sql.query_tracklets_jdhp(conn, jd, hp)
-    assert isinstance(result, dict) and len(result) == 2
-    assert tracklet_name1 not in result and tracklet_name3 not in result
-    assert tracklet_name2     in result and tracklet_name4     in result
-    
-    # Drop the table to facilitate future testing
-    cur.execute("DROP TABLE tracklets;")
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
-    assert cur.fetchone() == None , 'table still exists'
+    list_of_tuples = sql.query_tracklets_jdhp(conn, jd, hp)
+    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 2
+    for tup in list_of_tuples:
+        assert isinstance( tup, (tuple, list,))
+        assert tup[0] in [ tracklet_name2,  tracklet_name4]
+        assert tup[1] in [ tracklet_dict2,  tracklet_dict4]
+
+    # Delete the db to facilitate future testing
+    os.remove(sql.fetch_db_filepath())
 
 
 

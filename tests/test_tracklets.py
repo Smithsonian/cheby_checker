@@ -57,25 +57,22 @@ def test_parse_observations():
     
     # define observations
     # *** AT PRESENT THESE ARE JUST DUMMY/BLANK OBS ***
-    observation_pair = [ [],[] ]
+    observation_pairs= [[ '     K11Q99F*~C2011 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568',
+                          '     K11Q99F ~C2011 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568'],
+                        [ '     K11Q99F*~C2012 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568',
+                          '     K11Q99F ~C2012 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568']]
 
     # call parse_observations
     # *** AT PRESENT THIS JUST RETURNS RANDOM VALUES
-    result = T.parse_observation_lists( observation_pair )
-    
+    tracklet_dictionary_list = T.parse_observation_lists( observation_pairs )
+
     # check that the returned results are as expected
-    assert len(result) == 4
-    JD_list, HP_list, tracklet_name_list, tracklet_dictionary_list = result
-    assert isinstance(JD_list, list)
-    assert isinstance(HP_list, list)
-    assert isinstance(tracklet_name_list, list)
     assert isinstance(tracklet_dictionary_list, list)
-    assert len(JD_list) == len(HP_list) == len(tracklet_name_list) == len(tracklet_dictionary_list)
-    for JD, HP, tracklet_name, tracklet_dictionary in zip(JD_list, HP_list, tracklet_name_list, tracklet_dictionary_list):
-        assert isinstance(JD, int)
-        assert isinstance(HP, int)
-        assert isinstance(tracklet_name, str)
-        assert isinstance(tracklet_dictionary, dict)
+    assert len(observation_pairs) == len(tracklet_dictionary_list)
+    for tracklet_dictionary in tracklet_dictionary_list:
+        assert 'JD' in tracklet_dictionary
+        assert 'HP' in tracklet_dictionary
+        assert 'tracklet_name' in tracklet_dictionary
 
 
 def test_save_tracklets():
@@ -86,11 +83,14 @@ def test_save_tracklets():
 
     # Set up a Tracklet and use the parse_observations routine to get JD, HP, ...
     T = precalc.Tracklets()
-    observation_pair = [ [],[] ]
-    JD_list, HP_list, tracklet_name_list, tracklet_dictionary_list = T.parse_observation_lists( observation_pair )
+    observation_pairs= [[ '     K11Q99F*~C2011 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568',
+                         '     K11Q99F ~C2011 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568'],
+                        [ '     K11Q99F*~C2012 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568',
+                         '     K11Q99F ~C2012 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568']]
+    tracklet_dictionary_list = T.parse_observation_lists( observation_pairs )
 
     # Now save the data in the db
-    T.save_tracklets(JD_list, HP_list, tracklet_name_list, tracklet_dictionary_list)
+    T.save_tracklets(tracklet_dictionary_list)
 
     # Test the data was uploaded and can be downloaded
     cur = T.conn.cursor()
