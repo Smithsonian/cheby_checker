@@ -27,9 +27,20 @@ from collections import OrderedDict, defaultdict
 from astropy_healpix import HEALPix
 from astropy.coordinates import SkyCoord
 from astropy import units as u
-from obs80.obs80 import parse80
 from functools import lru_cache
 import json
+import getpass
+
+# Different machines set up differently ...
+# ... adding paths to force stuff to work while developing
+if getpass.getuser() in ['matthewjohnpayne']:
+    sys.path.append( '/Users/matthewjohnpayne/Envs/mpcvenv/obs80/' )
+elif False:
+    pass
+else :
+    pass
+from obs80 import parse80
+#from obs80.obs80 import parse80
 
 
 # Import neighboring packages
@@ -114,7 +125,7 @@ class Tracklet(Base):
 
         # if observations supplied, process them ...
         if observations != None:
-            self.save_tracklet( *self.parse_observations(observations) )
+            self.save_tracklet( self.parse_observations(observations) )
     
     def parse_observations(self, observation_pair):
         '''
@@ -127,12 +138,6 @@ class Tracklet(Base):
 
             Returns
             -------
-            JD: integer
-             - date of first observation
-            HP: integer 
-             - healpix of first observations
-            tracklet_name: string 
-             - unique name for tracklet; 26 characters
             tracklet_dict: dictionary
              - container for all data
              - contains: 
@@ -399,7 +404,7 @@ class Tracklets(Base):
         '''
         
         # upload data (making equal-length lists)
-        return sql.upsert_tracklet(self.conn,
+        return sql.upsert_tracklets(self.conn,
                                    [tracklet_dict['JD'] for tracklet_dict in tracklet_dictionary_list],
                                    [tracklet_dict['HP'] for tracklet_dict in tracklet_dictionary_list],
                                    [tracklet_dict['tracklet_name'] for tracklet_dict in tracklet_dictionary_list],

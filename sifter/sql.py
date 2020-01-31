@@ -258,7 +258,7 @@ def delete_tracklets(conn, tracklet_name_list):
 
 def query_tracklets_jdhp(conn, JD, HP):
     """
-       Define standard query used to find all tracklets for which jdhp == input
+       Standard query used to find all tracklets for which jd,hp matches input
        
        inputs:
        -------
@@ -274,5 +274,5 @@ def query_tracklets_jdhp(conn, JD, HP):
     cur.execute("SELECT tracklet_name, tracklet FROM tracklets WHERE jd=? AND hp=?", ( int(JD), int(HP) , ))
     
     # return a list-of-tuples: (tracklet_name, tracklet_dictionary)
-    return [ (row[0]: pickle.loads( row[1] ) ) for row in cur.fetchall() ]
+    return [ (row[0] , pickle.loads( row[1] ) ) for row in cur.fetchall() ]
 
