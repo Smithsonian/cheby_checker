@@ -28,6 +28,24 @@ import precalc
 import sql
 
 
+def convenience_func_create_db_and_tables():
+    
+    # In order to save data, we require sql-db to exist, so let's set that up...
+    # Force deletion then creation of db...
+    if os.path.isfile( sql.fetch_db_filepath() ):
+        os.remove(sql.fetch_db_filepath())
+    conn = sql.create_connection( sql.fetch_db_filepath() )
+    cur = conn.cursor()
+
+    # Create required table(s)
+    sql.create_specific_table(conn)
+    
+    # Double-check that this worked by getting the count of tables with the name
+    # - if the count is 1, then table exists
+    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
+    res =cur.fetchone()
+    assert len(res) == 1 , 'table does not exist'
+    conn.close()
 
 
 def test_instantiation():
@@ -70,6 +88,7 @@ def test_parse_observations():
     assert tracklet_dictionary['AoM'].unit.is_equivalent(u.deg)
     print(tracklet_dictionary['AoM'])
     assert 0 * u.deg <= tracklet_dictionary['AoM'] < 360 * u.deg
+    
     # The above assertions should be true for any observation pair. 
     # The below assertions are only for the specific example pair. 
     assert JD == 2455803   # Calculated independently
@@ -78,36 +97,58 @@ def test_parse_observations():
     assert HP == 34        # Calculated manually
     assert tracklet_name == 'K11Q99F_2455803.02378__568'
 
+    # Completely delete db to facilitate future testing
+    os.remove(sql.fetch_db_filepath())
+
 
 def test_save_tracklet():
+
+    # Create db from scratch
+    convenience_func_create_db_and_tables()
 
     # Set up a Tracklet and use the parse_observations routine to get JD, HP, ...
     T = precalc.Tracklet()
     observation_pair = ['     K11Q99F*~C2011 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568', '     K11Q99F ~C2011 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568']
     JD, HP, tracklet_name, tracklet_dictionary = T.parse_observations( observation_pair )
 
-    # In order to save data, we require sql-db to exist, so let's set that up...
-    conn = sql.create_connection( sql.fetch_db_filepath() )
-    cur = conn.cursor()
-    sql.create_specific_table(conn)
-
     # Now save the data
     T.save_tracklet(JD, HP, tracklet_name, tracklet_dictionary)
 
     # Test the data was uploaded and can be downloaded
+    cur = T.conn.cursor()
     cur.execute('SELECT * from tracklets')
     f = cur.fetchone()
     assert( len(f)>3 and f[3] == tracklet_name), 'data not uploaded'
 
-    # Drop the table to facilitate future testing
-    cur.execute("DROP TABLE tracklets;")
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
-    assert cur.fetchone() == None , 'table still exists'
+    # Completely delete db to facilitate future testing
+    os.remove(sql.fetch_db_filepath())
+
+
+def test_instantiation_with_observations():
+    
+    # Create db from scratch
+    convenience_func_create_db_and_tables()
+    
+    # define observations
+    observation_pair = ['     K11Q99F*~C2011 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568', '     K11Q99F ~C2011 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568']
+    
+    # instantiate with observation_pair
+    T = precalc.Tracklet( observation_pair )
+    
+    # test that the above caused the tracklet to be uploaded to db
+    cur = T.conn.cursor()
+    cur.execute('SELECT * from tracklets')
+    f = cur.fetchone()
+    assert( len(f)>3 ), 'data not uploaded'
+    
+    # Completely delete db to facilitate future testing
+    os.remove(sql.fetch_db_filepath())
+
 
 # Call the tests while developing (should really learn how to use pytest... )
 test_instantiation()
-#test_instantiation_with_observations()
 test_parse_observations()
 test_save_tracklet()
+test_instantiation_with_observations()
 print('All tests of Tracklet class passed')
 

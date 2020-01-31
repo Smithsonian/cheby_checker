@@ -30,6 +30,9 @@ def test_db_creation():
     # Where do we want the db to live
     assert 'sifter' in sql.fetch_db_filepath()
 
+    if os.path.isfile( sql.fetch_db_filepath() ):
+        os.remove(sql.fetch_db_filepath())
+
     # Does a db get created
     conn = sql.create_connection( sql.fetch_db_filepath() )
     assert os.path.isfile( os.path.join( sql.fetch_db_filepath() ) )
@@ -38,13 +41,15 @@ def test_db_creation():
 def test_table_creation():
     expected_table_name = 'tracklets'
     
+    # set up db & table
+    if os.path.isfile( sql.fetch_db_filepath() ):
+        os.remove(sql.fetch_db_filepath())
     conn = sql.create_connection( sql.fetch_db_filepath() )
     cur = conn.cursor()
 
     # Create the table
     sql.create_specific_table(conn)
 
-    # Should actually implement tests rather than just running ...
     # - get the count of tables with the name
     cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
 
@@ -59,6 +64,8 @@ def test_table_creation():
 def test_tracklet_upsert():
 
     # set up db & table
+    if os.path.isfile( sql.fetch_db_filepath() ):
+        os.remove(sql.fetch_db_filepath())
     conn = sql.create_connection( sql.fetch_db_filepath() )
     cur = conn.cursor()
     sql.create_specific_table(conn)
@@ -80,9 +87,45 @@ def test_tracklet_upsert():
     cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
     assert cur.fetchone() == None , 'table still exists'
 
+
+def test_tracklets_upsert():
+    """ Here we are updating/inserting **lists** of tracklet data """
+    
+    # set up db & table
+    if os.path.isfile( sql.fetch_db_filepath() ):
+        os.remove(sql.fetch_db_filepath())
+    conn = sql.create_connection( sql.fetch_db_filepath() )
+    cur = conn.cursor()
+    sql.create_specific_table(conn)
+    
+    # create some data and then upload it ...
+    jd_list = [123, 234]
+    hp_list = [456, 567]
+    tracklet_name_list = ['kjhdfasdf', 'iuyeruy']
+    tracklet_dict_list = [{'asd':'fgh' , 'ghfgh':987} , {'asd':'klhj' , 'ghfgh':4563} ]
+    sql.upsert_tracklets(conn, jd_list, hp_list, tracklet_name_list, tracklet_dict_list)
+    
+    # test that the data was actually uploaded
+    cur.execute('SELECT * from tracklets')
+    f = cur.fetchall()
+    assert( len(f) == 2 ) , 'data not uploaded'
+    for i in range(len(f)):
+        assert f[i][3] == tracklet_name_list[i], 'data not uploaded'
+
+
+    # Drop the table to facilitate future testing
+    cur.execute("DROP TABLE tracklets;")
+    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
+    assert cur.fetchone() == None , 'table still exists'
+
+
+
+
 def test_tracklet_query():
     
     # set up db & table
+    if os.path.isfile( sql.fetch_db_filepath() ):
+        os.remove(sql.fetch_db_filepath())
     conn = sql.create_connection( sql.fetch_db_filepath() )
     cur = conn.cursor()
     sql.create_specific_table(conn)
@@ -111,9 +154,11 @@ def test_tracklet_query():
     cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
     assert cur.fetchone() == None , 'table still exists'
 
-def test_tracklet_delete():
+def test_delete_tracklet():
     
     # set up db & table
+    if os.path.isfile( sql.fetch_db_filepath() ):
+        os.remove(sql.fetch_db_filepath())
     conn = sql.create_connection( sql.fetch_db_filepath() )
     cur = conn.cursor()
     sql.create_specific_table(conn)
@@ -149,12 +194,66 @@ def test_tracklet_delete():
     cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
     assert cur.fetchone() == None , 'table still exists'
 
+def test_delete_tracklets():
+    
+    # set up db & table
+    if os.path.isfile( sql.fetch_db_filepath() ):
+        os.remove(sql.fetch_db_filepath())
+    conn = sql.create_connection( sql.fetch_db_filepath() )
+    cur = conn.cursor()
+    sql.create_specific_table(conn)
+    
+    # create some data and then upload it ...
+    jd =123
+    hp = 456
+    
+    tracklet_name1 = 'kjhdfasdf'
+    tracklet_dict1 = {'asd':'fgh' , 'ghfgh':888}
+    sql.upsert_tracklet(conn, jd, hp, tracklet_name1, tracklet_dict1)
+    
+    tracklet_name2 = 'uituyiu'
+    tracklet_dict2 = {'asd':'gdhjdhjdhj' , 'ghfgh':985421}
+    sql.upsert_tracklet(conn, jd, hp, tracklet_name2, tracklet_dict2)
+
+    tracklet_name3 = 'sdfhsdfgh'
+    tracklet_dict3 = {'asd':'zbczbzfb' , 'ghfgh':34563}
+    sql.upsert_tracklet(conn, jd, hp, tracklet_name3, tracklet_dict3)
+
+    tracklet_name4 = 'oiippipi'
+    tracklet_dict4 = {'asd':'aeraer' , 'ghfgh':56856}
+    sql.upsert_tracklet(conn, jd, hp, tracklet_name4, tracklet_dict4)
+
+
+    # query the data & check that 4 dictionaries are returned
+    result = sql.query_tracklets_jdhp(conn, jd, hp)
+    assert isinstance(result, dict) and len(result) == 4
+    assert tracklet_name1 in result and tracklet_name2 in result and tracklet_name3 in result and tracklet_name4 in result
+    assert isinstance(result[tracklet_name1] , dict)
+    assert isinstance(result[tracklet_name2] , dict)
+    assert isinstance(result[tracklet_name3] , dict)
+    assert isinstance(result[tracklet_name4] , dict)
+    
+    # now delete two tracklets & check that two dictionaries remain
+    sql.delete_tracklets(conn, [tracklet_name1 , tracklet_name3 ] )
+    result = sql.query_tracklets_jdhp(conn, jd, hp)
+    assert isinstance(result, dict) and len(result) == 2
+    assert tracklet_name1 not in result and tracklet_name3 not in result
+    assert tracklet_name2     in result and tracklet_name4     in result
+    
+    # Drop the table to facilitate future testing
+    cur.execute("DROP TABLE tracklets;")
+    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "tracklets"')
+    assert cur.fetchone() == None , 'table still exists'
+
+
 
 
 # Call the tests while developing (should really learn how to use pytest... ) 
 test_db_creation()
 test_table_creation()
 test_tracklet_upsert()
+test_tracklets_upsert()
 test_tracklet_query()
-test_tracklet_delete()
+test_delete_tracklet()
+test_delete_tracklets()
 print('All tests of SQL-LITE class passed')
