@@ -24,7 +24,10 @@ import sys, os
 import numpy as np
 import operator
 from collections import OrderedDict, defaultdict
-import astropy_healpix.healpy as hp
+from astropy_healpix import HEALPix
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+from obs80.obs80 import parse80
 from functools import lru_cache
 import json
 
@@ -56,7 +59,8 @@ class Base():
         # Healpix ...
         self.HP_nside=16
         self.HP_order='nested'
-        self.npix = hp.nside2npix(self.HP_nside)
+        self.HPix = HEALPix(nside=self.HP_nside, order=self.HP_order)
+        self.HP_npix = self.HPix.npix
 
         # sqlite database specs ...
         self.db_filename = 'sifter.db'
@@ -95,15 +99,12 @@ class Base():
 
 
 
-
-
-
 class Tracklet(Base):
     '''
         What we need to do "precalculations" on an individual tracklet
     '''
     
-    def __init__(self , observations=None ):
+    def __init__(self, observations=None ):
         
         # Give access to "Base" methods
         super().__init__()
@@ -113,51 +114,104 @@ class Tracklet(Base):
 
         # if observations supplied, process them ...
         #if observations != None:
+        #    self.observations = observations
         #    self.save_tracklet( *self.parse_observations(observations) )
     
-    def parse_observations(self, observation_pair ):
+    def parse_observations(self, observation_pair):
         '''
             read observational input (probably be in obs80-string formats)
 
             Inputs:
             -------
-            observation_pair : list ???
-             - in obs80 format ???
+            observation_pair : list
+             - list of strings containing obs80 lines
 
             Returns
             -------
             JD: integer
-             - date
+             - date of first observation
             HP: integer 
-             - healpix
+             - healpix of first observations
             tracklet_name: string 
-             - unique name for tracklet
+             - unique name for tracklet; 26 characters
             tracklet_dict: dictionary
-             - container for all other data 
-             - observations, RoM, angles, ..., ...,  ... 
-             - should be everything required for subsequent detailed calculations
+             - container for all data
+             - contains: 
+                 - JD: integer; date of first observation
+                 - HP: integer;  Healpix of first observation
+                 - JD2: integer; date of last observation
+                 - HP2: integer; Healpix of last observations
+                 - RoM: astropy Quantity; Rate of motion (angle per time)
+                 - AoM: astropy Quantity; Angle of motion, positive, 
+                                          measured from East towards North.
+                 - tracklet_name: string; Unique ID for the tracklet
+                 - observations: list of strings; the input obs80 lines
+             - should be everything needed for subsequent detailed calculations
             '''
-        # something about parsing obs80
-        
-        # integer julian date
+        # Check number of observations given. 
+        nobs = len(observation_pair)
+        if nobs == 0:
+            raise RuntimeError("Received zero observations. Can't real.")
+        elif nobs == 1:
+            print("### WARNING ###\nReceived 1 observation.")
+            print("Will proceed, but RoM and AoM will be 0.\n### WARNING ###")
+        elif nobs > 2:
+            print("Received more than 2 observations.")
+            print("Only using first and last one.")
+        else:
+            pass
+        # Parse obs80 lines
+        parsed = [obs for obs in parse80(observation_pair)]
 
-        # something about healpix
-        
-        # something about RoM & angles
-        
-        # unique-name == tracklet_name
-        
+        # Convert nteger julian date
+        JDfloat = parsed[0].jdutc
+        JDfloat2 = parsed[-1].jdutc
+        JD = round(JDfloat)
+        JD2 = round(JDfloat2)
+        # *** WILL WE EVER NEED INTEGER JD FOR LAST OBS??? ***
+
+        # Calculate Rate of Motion and Angle of Motion
+        Coord = SkyCoord(parsed[0].ra * u.hourangle, parsed[0].dec * u.deg)
+        Coord2 = SkyCoord(parsed[-1].ra * u.hourangle, parsed[-1].dec * u.deg)
+        Delta_JD = (JDfloat2 - JDfloat) * u.day
+        RoM = Coord.separation(Coord2) / Delta_JD
+        AoM = Coord.position_angle(Coord2)
+
+        # Find the healpix that the coordinates are in.
+        HP = self.HPix.lonlat_to_healpix(Coord.ra, Coord.dec)
+        HP2 = self.HPix.lonlat_to_healpix(Coord.ra, Coord.dec)
+        # *** WILL WE EVER NEED HP FOR LAST OBS??? ***
+
+        # Create a unique ID for the tracklet. This is done by combining 
+        # the 5 digit number or 6-7 character temporary designation, 
+        # the julian date of first obs (up to 14 characters),
+        # and the 3 digit observatory code. 26 characters total
+        namestr = parsed[0].num if parsed[0].num != '' else parsed[0].desig
+        namestr = namestr.ljust(7, '_')
+        jdstr = str(JDfloat).ljust(14, '_')
+        codstr = parsed[0].cod.ljust(3, '_')
+        tracklet_name = '{}_{}_{}'.format(namestr, jdstr, codstr)
+
         # put everything of use in the tracklet_dictionary
+        tracklet_dictionary = {
+                               'JD' : JD,
+                               'HP' : HP,
+                               'JD2' : JD2,
+                               'HP2' : HP2,
+                               'tracklet_name' : tracklet_name,
+                               'RoM' : RoM,
+                               'AoM' : AoM,
+                               'observations': observation_pair
+                               }
         
         # ***RANDOM DATA ***
-        JD = np.random.randint(1000)
-        HP = np.random.randint(self.npix)
+        #JD = np.random.randint(1000)
+        #HP = np.random.randint(self.npix)
         
-        alphanumeric = np.array( list('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') )
-        tracklet_name = ''.join(list(np.random.choice( alphanumeric , 10 )))
-        tracklet_dictionary = {'qwe' : np.random.randint(333) ,
-                            'zxcv': ''.join(list(np.random.choice( alphanumeric , 7 )))}
-        
+        #alphanumeric = np.array( list('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') )
+        #tracklet_name = ''.join(list(np.random.choice( alphanumeric , 10 )))
+        #tracklet_dictionary = {'qwe' : np.random.randint(333) ,
+        #                    'zxcv': ''.join(list(np.random.choice( alphanumeric , 7 )))}
         return JD, HP, tracklet_name, tracklet_dictionary
     
     def save_tracklet(self, JD, HP, tracklet_name, tracklet_dict):
@@ -184,7 +238,8 @@ class Tracklet(Base):
         '''
     
         # upload data
-        return sql.upsert_tracklet(self.conn, JD,  HP, tracklet_name, tracklet_dict)
+        return sql.upsert_tracklet(self.conn, JD,  HP,
+                                   tracklet_name, tracklet_dict)
     
     def delete_tracklet(self, tracklet_name):
         '''
