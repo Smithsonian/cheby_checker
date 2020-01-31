@@ -27,105 +27,205 @@ from astropy_healpix import HEALPix as hp
 from functools import lru_cache
 import json
 
+import random # only necessary while developing
+
 
 # Import neighboring packages
 # --------------------------------------------------------------
-print(os.path.dirname(os.path.realpath(__file__)))
 sys.path.append( os.path.dirname(os.path.realpath(__file__)) )
 import sql
+import orbit_cheby as cheby
 
 
 
-class Query(Base):
+
+    
+def query( cheby_dict_for_orbit , param_dict , EXPLICIT_CHECK = False ):
     '''
-        How to perform a query for an input orbit-specification
+        Overall function to query ITF (& orbits) against supplied orbit(s)
+
+        inputs:
+        -------
+        cheby_dict_for_orbit : dictionary
+        - multi-sector (dict-of-dicts) to represent orbit using checbshev coeffs
+        - see ... for details
+        
+        param_dict: dictionary
+        - specify the search parameters/tolerances with which to match (tracklets to input orbit)
+        
+        return:
+        -------
+        ??? : tracklet_names ? tracklet_dictionaries ? other ?
     '''
     
-    def __init__(self , cheby_dict ):
-        
-        # Get Nightly Healpix
-        JD_list, HP_list = self._get_nightly_healpix()
-        
-        # Query pre-calcs for approximate matches
-        self.approx_dictionary = self._query_precalc(JD_list, HP_list)
-        
-        # Later could have a refinement step using RoM & AoM
-        # self._refine_using_RoMAoM()
-        
-        # Refine approx matches to get "PRECISE" matches (within specified tollerance)
-        self.precise_dictionary = self._get_precise_matches(self.approx_dictionary)
+    # Check whether the inputs are of the allowed format
+    if EXPLICIT_CHECK:
+        assert _check_query_inputs(  cheby_dict_for_orbit , param_dict )
     
+    # Get Nightly Healpix (evaluates orbital positions on integer days)
+    JD_list, HP_list = _get_nightly_healpix( cheby_dict_for_orbit )
     
+    # Query pre-calcs for approximate matches ( sql look-up)
+    approx_dictionary = self._query_precalc(JD_list, HP_list)
     
-    def _get_nightly_healpix(self):
-        '''
-            Perhaps not *EVERY* night, but rather every POPULATED night
-            Evaluate the orbital position at integer JDs
-            Not sure what to do about orbital uncertainties / variant orbits
-            
-            Probably return a list of healpix for each JD
-            '''
-        
-        JD_HP_dict = {}
-        
-        return JD_HP_dict
+    # Later could have a refinement step using RoM & AoM
+    # _refine_using_RoMAoM()
     
-    def _query_precalc(self, JD_list, HP_list):
-        '''
-            inputs:
-            -------
-            JD_list: list of integers
-             - dates to search
-            HP_list: list of integers
-             - healpix to search
-            
-            return:
-            -------
-            approx_dictionary
-             - keys == tracklet_name
-             - values == tracklet_dictionaries 
-             - same structure as the return from sql.query_tracklets
-             
-        '''
-        approx_dictionary = {}
-        for JD, HP in zip(D_list, HP_list):
-            approx_dictionary.update( query_tracklets_jdhp(JD, HP) )
-        return approx_dictionary
-    
-    #def._refine_using_RoMAoM()
-    #    pass
-    
-    def._get_precise_matches(self, approx_dictionary, tolerance_dict):
-        '''
-            Refine the approx matches (from _query_precalc) 
-            down to exact matches within the specified tollerances
-            
-            inputs:
-            -------
-            approx_dictionary
-            - keys == tracklet_name
-            - values == tracklet_dictionaries
-            - same structure as approx_dictionary from _query_precalc
-            
-            return:
-            -------
-            precise_dictionary
-            - keys == tracklet_name
-            - values == tracklet_dictionaries
-            - same structure as approx_dictionary
-            
-        '''
-        precise_dictionary = {}
-        
-        for tracklet_name, tracklet_dict in combined_dictionary.items():
-            # do something involving the contents of the tracklet_dict
-            pass
-        
-        return precise_dictionary
+    # Refine approx matches to get "PRECISE" matches (within specified tolerance)
+    list_of_tracklet_tuples_precise = self._get_precise_matches( self.approx_dictionary , cheby_dict_for_orbit , param_dict )
 
-    def get_results(self, precise_dictionary):
-        '''
-            return nicely formatted results (to be defined)
-        '''
-        return {} 
+    # Return data in desired format (can include screen-dump)
+    # - Command-line-options / input-variables may dictate format
+    return get_results( list_of_tracklet_tuples_precise , param_dict )
+
+
+def _check_query_inputs( cheby_dict_for_orbit , param_dict ):
+    '''
+        Check whether the inputs are of the allowed format
+    '''
+    # Are they both dictionaries ?
+    assert isinstance(cheby_dict_for_orbit , dict) and isinstance(param_dict , dict), \
+        ' ... not dictionaries ... types = [%r, %r]' % ( type(cheby_dict_for_orbit), type(param_dict) )
+    
+    # Does the cheby_dict have the correct content/format ?
+    # cheby.check_validity( cheby_dict_for_orbit )
+    
+    # Does the param_dict have the correct keys ?
+    
+    return True
+
+
+def _get_nightly_healpix( cheby_dict_for_orbit ):
+    '''
+        Generate a list of JD,HP pairs that will be searched 
+         - I.e. which healpix to search on which nights 
+         
+        Do this by evaluating the orbital position at integer JDs
+         
+        N.B.
+        (i)
+        We could search every night POPULATED in the ITF
+        However, the cheby_dict is only valid over a limited time range 
+        So let's just default to searching that valid JD-range 
+        
+        (ii)
+        Not sure what to do about orbital uncertainties / variant orbits
+        
+        Probably return a list of healpix for each JD
+    '''
+    
+    JD_list, HP_list = [],[]
+    
+    # Establish range of valid integer days from cheby-dictionary
+    print( '***DUMMY VALUES: NEED TO POPULATE CORRECTLY !!! ***' )
+    JDmin, JDmax = 40000, 60000 # cheby.get_valid_range_of_dates_from_cheby( cheby_dict_for_orbit )
+    
+    # Loop over valid integer days
+    for JDint in range( int(JDmin), int(JDmax), 1):
+        
+        # Evaluate the HP from the cheby_dict ( get XYZ, getRADEC, getHP )
+        print( '***DUMMY VALUES: NEED TO POPULATE CORRECTLY !!! ***' )
+        HPint = random.randrange(3072) # cheby.generate_HP_from_cheby( JDint , cheby_dict_for_orbit )
+        
+        # Save in lists
+        JD_list.append(JDint)
+        HP_list.append(HPint)
+    
+    return JD_list, HP_list
+
+def _query_precalc( JD_list, HP_list):
+    '''
+        Query pre-calculated data for *approximate* matches
+         - Looks for tracklets in the same HP on the same night
+         - Pre-calcs are accessed via sql query
+         
+        inputs:
+        -------
+        JD_list: list of integers
+         - dates to search
+        HP_list: list of integers
+         - healpix to search
+        
+        return:
+        -------
+        list_of_tracklet_tuples: (tracklet_name, tracklet_dictionary)
+         - same structure as the return from sql.query_tracklets
+         
+    '''
+    list_of_tracklet_tuples = []
+    for JD, HP in zip( JD_list, HP_list):
+        list_of_tracklet_tuples.extend( sql.query_tracklets_jdhp(JD, HP) )
+    return list_of_tracklet_tuples
+
+#def._refine_using_RoMAoM()
+#    pass
+
+def _get_precise_matches( list_of_tracklet_tuples_approx, cheby_dict_for_orbit , param_dict):
+    '''
+        Refine the approx matches (from _query_precalc) 
+        down to exact matches within the specified tollerances
+        
+        inputs:
+        -------
+        list_of_tracklet_tuples_approx: list of tuples
+        - each tuple is (tracklet_name, tracklet_dictionary)
+        - same structure as list_of_tracklet_tuples from _query_precalc
+        
+        cheby_dict_for_orbit : dictionary
+        - multi-sector (dict-of-dicts) to represent orbit using checbshev coeffs
+        - see ... for details
+        
+        param_dict: dictionary
+        - specify the search parameters/tolerances with which to match (tracklets to input orbit)
+        
+        
+        return:
+        -------
+        list_of_tracklet_tuples_precise: (tracklet_name, tracklet_dictionary)
+        - each tuple is (tracklet_name, tracklet_dictionary)
+        - same structure as list_of_tracklet_tuples from _query_precalc
+        - these are the tracklets which are "close" to the input orbit
+        
+    '''
+    # list to hold precise matches
+    list_of_tracklet_tuples_precise
+    
+    # loop over approx matches and evaluate
+    for tracklet_name, tracklet_dict in list_of_tracklet_tuples_approx:
+        
+        # do something involving the contents of the tracklet_dict
+        print( '***DUMMY VALUES: NEED TO POPULATE CORRECTLY !!! ***' )
+        if random.randrange(2):
+            list_of_tracklet_tuples_precise.append( ( tracklet_name, tracklet_dict ) )
+    
+    return precise_dictionary
+
+
+def get_results( list_of_tracklet_tuples_precise , param_dict ):
+    '''
+        Return nicely formatted results (to be defined)
+        - Command-line-options / input-variables may dictate format
+        
+        inputs:
+        -------
+        list_of_tracklet_tuples_precise: list of tuples
+        - each tuple is (tracklet_name, tracklet_dictionary)
+        - this is what is returned from from _get_precise_matches
+        
+        param_dict: dictionary
+        - specify the search parameters/tolerances with which to match (tracklets to input orbit)
+        
+        
+        return:
+        -------
+        Command-line-options / input-variables may dictate format
+        
+    '''
+    
+    # *** DEBUGGING : JUST PRINT EVERYTHING TO SCREEN FOR NOW ***
+    for tracklet_name, tracklet_dict in list_of_tracklet_tuples_precise:
+        print( tracklet_name )
+    
+    # *** DEBUGGING : JUST RETURN THE PRECISE LIST FOR NOW ***
+    return list_of_tracklet_tuples_precise
 

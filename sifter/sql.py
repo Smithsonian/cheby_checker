@@ -88,6 +88,7 @@ def create_table(conn, create_table_sql):
     try:
         c = conn.cursor()
         c.execute(create_table_sql)
+        conn.commit()
     except Error as e:
         print(e)
 
@@ -126,6 +127,9 @@ def create_specific_table(conn):
         # Create compound/combined index on the jd & hp columns
         createSecondaryIndex =  "CREATE INDEX index_jdhp ON tracklets (jd, hp);"
         conn.cursor().execute(createSecondaryIndex)
+    
+    # remember to commit ...
+    conn.commit()
 
 
 
@@ -151,24 +155,60 @@ def upsert_tracklet(conn, jd, hp, tracklet_name, tracklet_dict):
         return:
         -------
         
-        To insert multiple rows into a table, you use the following form of the INSERT statement:
-        
-        INSERT INTO table1 (column1,column2 ,..)
-        VALUES
-        (value1,value2 ,...),
-        (value1,value2 ,...),
-        ...
-        (value1,value2 ,...);
-
     """
     
-    pdata = pickle.dumps(tracklet_dict, pickle.HIGHEST_PROTOCOL)
-
+    # Make cursor ...
+    cur = conn.cursor()
+    
+    # Construct sql for tracklet insert ...
     sql =  ''' INSERT OR REPLACE INTO tracklets(jd,hp,tracklet_name,tracklet)
         VALUES(?,?,?,?)
         '''
+    
+    # Insert
+    cur.execute(sql, (jd, hp, tracklet_name, sqlite3.Binary( pickle.dumps(tracklet_dict, pickle.HIGHEST_PROTOCOL) ),))
+
+    # remember to commit ...
+    conn.commit()
+
+
+def upsert_tracklets(conn, jd_list, hp_list, tracklet_name_list, tracklet_dict_list):
+    """
+        insert/update lists of tracklet data
+        
+        N.B ...
+        https://stackoverflow.com/questions/198692/can-i-pickle-a-python-dictionary-into-a-sqlite3-text-field
+        pdata = cPickle.dumps(data, cPickle.HIGHEST_PROTOCOL)
+        curr.execute("insert into table (data) values (:data)", sqlite3.Binary(pdata))
+        
+        inputs:
+        -------
+        conn: Connection object
+        
+        jd_list :
+        hp_list :
+        tracklet_name_list :
+        tracklet_dict_list :
+        
+        return:
+        -------
+        
+        """
+    # Make cursor ...
     cur = conn.cursor()
-    cur.execute(sql, (jd, hp, tracklet_name, sqlite3.Binary(pdata),))
+
+    # construct "records" variable which is apparently ammenable to single insert statement ...
+    # https://pythonexamples.org/python-sqlite3-insert-multiple-records-into-table/
+    records = [ (jd, hp, tracklet_name, sqlite3.Binary(pickle.dumps(tracklet_dict, pickle.HIGHEST_PROTOCOL))) \
+               for jd, hp, tracklet_name, tracklet_dict \
+               in zip(jd_list, hp_list, tracklet_name_list, tracklet_dict_list) ]
+
+    sql = '''INSERT OR REPLACE INTO tracklets(jd,hp,tracklet_name,tracklet) VALUES(?,?,?,?);'''
+
+    # Insert
+    cur.executemany(sql, records)
+
+    # remember to commit ...
     conn.commit()
 
 
@@ -192,25 +232,26 @@ def delete_tracklet(conn, tracklet_name):
     cur.execute(sql, (tracklet_name,))
     conn.commit()
 
-'''
+
 def delete_tracklets(conn, tracklet_name_list):
     """
         delete list of tracklet data
         
         inputs:
         -------
-        tracklet_name: string
+        tracklet_name: list-of-strings
         
         return:
         -------
         
         
         """
-    sql = 'DELETE FROM tracklets WHERE tracklet_name IN (?)'
+    sql = '''DELETE FROM tracklets WHERE tracklet_name IN (?);'''
+    records = [ (tracklet_name,) for tracklet_name in tracklet_name_list ]
     cur = conn.cursor()
-    cur.execute(sql, (tracklet_name_list,))
+    cur.executemany(sql, records)
     conn.commit()
-'''
+
 
 
 
@@ -232,6 +273,6 @@ def query_tracklets_jdhp(conn, JD, HP):
     cur = conn.cursor()
     cur.execute("SELECT tracklet_name, tracklet FROM tracklets WHERE jd=? AND hp=?", ( int(JD), int(HP) , ))
     
-    # return a dictionary-of-dictionaries
-    return { row[0]: pickle.loads( row[1] ) for row in cur.fetchall() }
+    # return a list-of-tuples: (tracklet_name, tracklet_dictionary)
+    return [ (row[0]: pickle.loads( row[1] ) ) for row in cur.fetchall() ]
 
