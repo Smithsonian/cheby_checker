@@ -40,6 +40,18 @@ import random # only necessary while developing
 #import sql
 
 
+# Define top-line parameters
+# --------------------------------------------------------------
+
+# We will assume that all sectors are of length 32-days
+sector_length_days = 32
+
+# Healpix settings
+HP_nside    = 16
+HP_order    ='nested'
+HPix        = HEALPix(nside=self.HP_nside, order=self.HP_order)
+HP_npix     = self.HPix.npix
+
 
 def check_validity( cheby_dict ):
     '''
@@ -95,7 +107,7 @@ def check_single_sector_validity( cheby_dict ):
         "covyy": [-1.1781647338452167e-07, 2.366706496007191e-12, 2.3775116112926324e-17, 2.5432963232318836e-26, -2.3985756946519475e-27, -2.4095602055928056e-32, 2.4199931795456605e-37], 
         "covyz": [6.120262464698932e-09, -1.2209675296524746e-13, -1.2316579034720484e-18, -6.988301279608926e-26, 1.232238928073619e-28, 1.2430754116861151e-33, -1.2397514972563638e-38], 
         "covzz": [9.762550991163301e-09, -1.9376737309061606e-13, -1.9605897092496163e-18, -1.9014272048421186e-25, 1.9496268896533375e-28, 1.9727616324576733e-33, -1.9576115279111544e-38]
-    }
+        }
     '''
     # Expected keys & data-types
     expected_keys_and_types = [
@@ -150,6 +162,20 @@ def check_multi_sector_validity( cheby_dict ):
                         np.all( [ check_single_sector_validity( sector_dict ) for sector_dict in cheby_dict[sectors]] )
             else False
 
+def convert_single_to_multi_sector_cheby( single_sector_cheby_dict ):
+    '''
+       It will be generally convenient to be able to assume that
+       all cheby_dicts are multi-sector.
+       This function converts a single-sector dictionaary to a 
+       multi-sector dictionary
+    '''
+    return {    "name" : single_sector_cheby_dict["name"],
+                "t_init" : single_sector_cheby_dict["t_init"],
+                "t_final" : single_sector_cheby_dict["t_final"],
+                "sectors" : [single_sector_cheby_dict]
+            }
+
+
 
 def get_valid_range_of_dates_from_cheby( cheby_dict ):
     '''
@@ -157,29 +183,156 @@ def get_valid_range_of_dates_from_cheby( cheby_dict ):
         which the supplied dictionary has valid 
         chebyshev-coefficients
         
+        Will work on single- or multi- sectory cheby-dict
+        
         inputs:
         -------
         cheby_dict: dictionary
-        - multi-sector (dict-of-dicts) to represent orbit using checbshev coeffs
         - see ... for details
         
         return:
         -------
-        start_date : float
+        t_init : float
          - earliest valid date (time system may be MJD, but is implicit : depends on MPan;'s choice of zero-points ...)
          
-        end_date : float
+        t_final : float
          - latest valid date (time system may be MJD, but is implicit : depends on MPan;'s choice of zero-points ...)
         '''
-    return False
+    return cheby_dict["t_init"], cheby_dict["t_final"]
 
-def generate_HP_from_cheby( JD , cheby_dict ):
+
+def map_times_to_sectors( times , cheby_dict ):
     '''
-        Check that the input dictionary has the expected
-        structure / variables
+        Given query-times, it is likely to be useful to 
+        map each time to the relevant single-sector-dictionary
         
         inputs:
         -------
+        times : astropy.Time object
+        - Using these to stop making mistakes w.r.t utc/tt/tdb/...
+        - Can be singular or multiple
+        
+        cheby_dict: dictionary
+        - see ... for details
+        
+        return:
+        -------
+        np.array of integers
+        - sector # (zero-based) starting from the dictionary's "t_init"
+        - length of returned array = len(times)
+    '''
+    return ( (times.jd - multi_sector_cheby_dict["t_init"] ) // sector_length_days ).astype(int)
+
+
+
+
+def generate_HP_from_cheby( times , cheby_dict , observatoryXYZ , APPROX = False, CHECK = False ):
+    '''
+        Calculate apparent HP-locn from specified observatory-posn(s) at given time(s)
+        N.B. observatory-posn(s) must be externally calculated/supplied
+        
+        inputs:
+        -------
+        times : astropy.Time object
+        - Using these to stop making mistakes w.r.t utc/tt/tdb/...
+        - Can be singular or multiple 
+        
+        cheby_dict: dictionary
+        - multi-sector dictionary to represent orbit using checbshev coeffs
+        - see ... for details
+        
+        observatoryXYZ: np.array 
+        - Observatory positions at times.jd [utc]
+        - Dimension =3*len(times)
+        
+        APPROX: boolean
+        - Allow approximate calc ( *no* LTT-correction) of unit-vector
+        
+        CHECK: boolean 
+        - Allow validity-checking to be turned on/off
+        
+        return:
+        -------
+        np.array of integer healpix
+        - length of returned array = len(times)
+        
+    '''
+    
+    
+    # Get the unit vector
+    UV = generate_UnitVector_from_cheby(times ,
+                                        cheby_dict ,
+                                        observatoryXYZ,
+                                        APPROX = APPROX )
+    
+    # Calc the HP from the UV and return
+    return hp.vec2pix(HP_nside, UV[:,0], UV[:,1], UV[:,2], nest=HP_order)
+
+
+def generate_UnitVector_from_cheby( times , cheby_dict , observatoryXYZ, APPROX = False ):
+    '''
+        Calculate apparent UnitVector from specified observatory-posn(s) at given time(s)
+        N.B. observatory-posn(s) must be externally calculated/supplied
+        
+        *** WE ASSUME THE cheby_dict IS VALID FOR ALL SUPPLIED times *************
+        *** THIS IMPLIES PRE-CHECKING BY A HIGHER/PRECEEDING FUNCTION ************
+        
+        inputs:
+        -------
+        times : astropy.Time object
+        - Using these to stop making mistakes w.r.t utc/tt/tdb/...
+        - Can be singular or multiple
+        
+        cheby_dict: dictionary
+        - multi-sector dictionary to represent orbit using checbshev coeffs
+        - see ... for details
+        
+        observatoryXYZ: np.array
+        - Observatory positions at times.jd [utc]
+        - Dimension =3*len(times)
+        
+        return:
+        -------
+        
+        
+    '''
+    
+    # Get the LTT-corrected position
+    # - We allow for the possibility of *NOT* iterating (i.e. doing an approx calc.)
+    n_iterations    = 1 if APPROX else 3:
+    lightDelay      = np.zeroes(len(times))
+    for i in range(n_iterations):
+        
+        # Calculate delayed time (of emission)
+        delayedTimes    = times - lightDelay
+        
+        # Extract posn of objects at each delayed-time
+        objectXYZ       = generate_XYZ_from_cheby( delayedTimes, cheby_dict )
+        
+        # Calculate relative sepn-vector from observatory-to-object
+        sepn_vectors    = objectXYZ - observatoryXYZ
+        
+        # Calculate distance to object at each time
+        d               = np.linalg.norm(sepn_vectors, ord=2, axis=1, keepdims=True)
+        
+        # Calculate light-travel-time
+        lightDelay      = d.flatten()/MPCL.Constants.speed_of_light
+    
+    # Return unit-vector
+    return sepn_vectors / d
+
+
+
+
+def generate_XYZ_from_cheby( times , cheby_dict ):
+    '''
+        
+        inputs:
+        -------
+        times : astropy.Time object
+        - Using these to stop making mistakes w.r.t utc/tt/tdb/...
+        - Can be singular or multiple
+
         cheby_dict: dictionary
         - multi-sector (dict-of-dicts) to represent orbit using checbshev coeffs
         - see ... for details
@@ -190,45 +343,19 @@ def generate_HP_from_cheby( JD , cheby_dict ):
         - True if input is valid
         
         '''
-    return False
-
-def generate_XYZ_from_cheby( JD , cheby_dict ):
-    '''
-        Check that the input dictionary has the expected
-        structure / variables
-        
-        inputs:
-        -------
-        cheby_dict: dictionary
-        - multi-sector (dict-of-dicts) to represent orbit using checbshev coeffs
-        - see ... for details
-        
-        return:
-        -------
-        valid: boolean
-        - True if input is valid
-        
-        '''
-    return False
-
-def generate_UnitVector_from_cheby( JD , cheby_dict ):
-    '''
-        Check that the input dictionary has the expected
-        structure / variables
-        
-        inputs:
-        -------
-        cheby_dict: dictionary
-        - multi-sector (dict-of-dicts) to represent orbit using checbshev coeffs
-        - see ... for details
-        
-        return:
-        -------
-        valid: boolean
-        - True if input is valid
-        
-        '''
-    return False
+    
+    # Find which single-sector dictionary to use for a given time
+    sectors = map_times_to_sectors( times , multi_sector_cheby_dict )
+    
+    # Evaluate the chebyshev polynomial using the appropriate single-sector-dict
+    # - Seems likely that this current implementation is non-optimal ...
+    XYZs = [ np.array([
+                       np.polynomial.chebyshev.chebval( t, cheby_dict["sectors"][s]["x"] ),
+                       np.polynomial.chebyshev.chebval( t, cheby_dict["sectors"][s]["y"] ),
+                       np.polynomial.chebyshev.chebval( t, cheby_dict["sectors"][s]["z"] )
+                       ]) for t, s in zip(times.tdb, sectors) ]
+    
+    return np.array(XYZs)
 
 def generate_RaDec_from_cheby( JD , cheby_dict ):
     '''
