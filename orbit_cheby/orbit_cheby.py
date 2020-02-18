@@ -162,16 +162,13 @@ def check_multi_sector_validity( cheby_dict ):
     # (ii) have all the necessary keys
     # (iii) have all the correct data types
     # (iv) individual-sector dictionaries are all valid
-    return =  True if   isinstance(cheby_dict , dict ) and \
-                        np.all( [ key in cheby_dict and isinstance(cheby_dict[key], typ) for key, typ in expected_keys_and_types ] ) and \
-                        np.all( [ check_single_sector_validity( sector_dict ) for sector_dict in cheby_dict[sectors]] )
-            else False
-
-
-
-
-
-
+    return True if isinstance(cheby_dict , dict) and \
+                    np.all([key in cheby_dict and
+                            isinstance(cheby_dict[key], typ) for key, typ in
+                            expected_keys_and_types]) and \
+                    np.all([check_single_sector_validity(sector_dict) for
+                            sector_dict in cheby_dict[sectors]]) \
+                    else False
 
 
 # Functions to create cheby-dictionaries ...
@@ -317,7 +314,7 @@ def generate_UnitVector_from_cheby( times , cheby_dict , observatoryXYZ, APPROX 
     
     # Get the LTT-corrected position
     # - We allow for the possibility of *NOT* iterating (i.e. doing an approx calc.)
-    n_iterations    = 1 if APPROX else 3:
+    n_iterations    = 1 if APPROX else 3
     lightDelay      = np.zeroes(len(times))
     for i in range(n_iterations):
         
