@@ -38,12 +38,12 @@ from astropy import units as u
 # ... adding paths to force stuff to work while developing
 if getpass.getuser() in ['matthewjohnpayne']:
     sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/obs80/')
-elif False:
-    pass
+    from obs80 import parse80
+elif getpass.getuser() in ['malexand']:
+    sys.path.append('/data/mpc/share/apps/python_libs/mpcpp/obs80/')
+    from mpcpp.obs80.obs80 import parse80
 else:
-    pass
-from obs80 import parse80
-#from obs80.obs80 import parse80
+    from obs80 import parse80
 
 
 # Import neighboring packages
