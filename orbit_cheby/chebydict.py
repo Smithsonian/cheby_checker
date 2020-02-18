@@ -5,6 +5,14 @@ import math
 import numpy as np
 
 
+'''
+    
+   ORIGINAL CODE FROM MARGARET PAN
+   NOT USED IN PRACTICE
+   REQUIRED CODE-SEGMENTS HAVE BEEN PORTED INTO "ORBIT_CHEBY.PY"
+    
+'''
+
 def error(a, b):
 
     # get cheb polynomial approximation error at fitted points
@@ -85,7 +93,7 @@ def datediv(desig_up,coords,covs,mindate,maxdate,divsize,coordorder=['x','y','z'
         # initialize results dictionary, then generate desired chebyshev fits and store in dictionary
         dictnow = {}
         dictnow['name'] = desig_up
-        dictnow['t_init'] = int(mindatenow)
+        dictnow['t_init']  = int(mindatenow)
         dictnow['t_final'] = int(maxdatenow)
 
         for name in coordnames:

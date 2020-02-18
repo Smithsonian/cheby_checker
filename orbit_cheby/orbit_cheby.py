@@ -28,16 +28,17 @@ import numpy as np
 import operator
 from collections import OrderedDict, defaultdict
 from astropy_healpix import HEALPix as hp
+from astropy_healpix import healpy
+from astropy.time import Time
+import astropy.constants
 from functools import lru_cache
 import json
-
-import random # only necessary while developing
+import itertools
 
 
 # Import neighboring packages
 # --------------------------------------------------------------
-#sys.path.append( os.path.dirname(os.path.realpath(__file__)) )
-#import sql
+import nbody_reader
 
 
 # Define top-line parameters
@@ -49,8 +50,8 @@ sector_length_days = 32
 # Healpix settings
 HP_nside    = 16
 HP_order    ='nested'
-HPix        = HEALPix(nside=self.HP_nside, order=self.HP_order)
-HP_npix     = self.HPix.npix
+HPix        = hp(nside=HP_nside, order=HP_order)
+HP_npix     = HPix.npix
 
 
 
@@ -100,38 +101,16 @@ def check_single_sector_validity( cheby_dict ):
         "name": "1944", 
         "t_init": 49760, 
         "t_final": 49792, 
-        "x": [244465.07162892047, -4.795812061414727, -4.88760037011824e-05, -9.450376252320755e-12, 4.7892948845701174e-15, 4.8826394593871367e-20, -4.783299420901866e-25], 
-        "y": [-836482.904715676, 16.90794855499096, 0.00016922282769496152, -8.223932641793344e-12, -1.7198853957070552e-14, -1.7214110402272943e-19, 1.739459747175297e-24], 
-        "z": [80184.93827289087, -1.6132386474315321, -1.619155861851922e-05, 1.7356725519167324e-13, 1.6363774310415676e-15, 1.6424497980314655e-20, -1.6518634504667254e-25], 
-        "vx": [4364.8185161695465, -0.0879009728343899, -8.817109792731101e-07, 1.6524216830877022e-14, 8.921547512585386e-17, 8.949265030729895e-22, -9.009739411499051e-27], 
-        "vy": [-2751.6975750041033, 0.056005655649352996, 5.581842645445684e-07, -5.89418457087e-14, -5.721007680596395e-17, -5.701979009505037e-22, 5.8029333632453154e-27], 
-        "vz": [448.7843092088165, -0.009085492420776744, -9.084423045152489e-08, 5.613743655974416e-15, 9.250959564931443e-18, 9.250009494210746e-23, -9.362877488700637e-28], 
-        "covxx": [1.1672950021925413e-07, -2.342768511881258e-12, -2.3547286695595207e-17, -1.9429457370970903e-25, 2.3730430824373915e-27, 2.3851894824362616e-32, -2.3933800636502087e-37], 
-        "covxy": [-5.611521032219133e-08, 1.1399415538166368e-12, 1.137476558331536e-17, -1.0161053125775767e-24, -1.1630478999263563e-27, -1.1605827935612762e-32, 1.1786796942326325e-37], 
-        "covxz": [1.0105267139778303e-08, -2.0397042295327378e-13, -2.0431290020001503e-18, 7.673029741441885e-26, 2.0731213491075355e-28, 2.0766375217319983e-33, -2.095652594316162e-38], 
-        "covyy": [-1.1781647338452167e-07, 2.366706496007191e-12, 2.3775116112926324e-17, 2.5432963232318836e-26, -2.3985756946519475e-27, -2.4095602055928056e-32, 2.4199931795456605e-37], 
-        "covyz": [6.120262464698932e-09, -1.2209675296524746e-13, -1.2316579034720484e-18, -6.988301279608926e-26, 1.232238928073619e-28, 1.2430754116861151e-33, -1.2397514972563638e-38], 
-        "covzz": [9.762550991163301e-09, -1.9376737309061606e-13, -1.9605897092496163e-18, -1.9014272048421186e-25, 1.9496268896533375e-28, 1.9727616324576733e-33, -1.9576115279111544e-38]
+        "coeffs": [ [...] ... [...] ]
         }
     '''
     # Expected keys & data-types
     expected_keys_and_types = [
                                ("name", str),
-                               ("t_init", (int, float, np.int64, np.float64)),
-                               ("t_final", (int, float, np.int64, np.float64)),
-                               ("x", (list, np.ndarray) ),
-                               ("y", (list, np.ndarray) ),
-                               ("z",(list, np.ndarray) ),
-                               ("vx",(list, np.ndarray) ),
-                               ("vy",(list, np.ndarray) ),
-                               ("vz",(list, np.ndarray) ),
-                               ("covxx",(list, np.ndarray) ),
-                               ("covxy",(list, np.ndarray) ),
-                               ("covxz",(list, np.ndarray) ),
-                               ("covyy",(list, np.ndarray) ),
-                               ("covyz",(list, np.ndarray) ),
-                               ("covzz",(list, np.ndarray) )
-                               ]
+                               ("MJP_TDB_init", (int, float, np.int64, np.float64)),
+                               ("MJP_TDB_final", (int, float, np.int64, np.float64)),
+                               ("coeffs", (np.ndarray) ),
+                                                           ]
                                
     # Check data is as expected
     # Needs to
@@ -151,8 +130,8 @@ def check_multi_sector_validity( cheby_dict ):
     # Expected keys & data-types
     expected_keys_and_types = [
                                ("name", str),
-                               ("t_init", (int, float, np.int64, np.float64)),
-                               ("t_final", (int, float, np.int64, np.float64)),
+                               ("MJP_TDB_init", (int, float, np.int64, np.float64)),
+                               ("MJP_TDB_final", (int, float, np.int64, np.float64)),
                                ("sectors", (list, np.ndarray) )
                                ]
         
@@ -162,10 +141,11 @@ def check_multi_sector_validity( cheby_dict ):
     # (ii) have all the necessary keys
     # (iii) have all the correct data types
     # (iv) individual-sector dictionaries are all valid
-    return =  True if   isinstance(cheby_dict , dict ) and \
-                        np.all( [ key in cheby_dict and isinstance(cheby_dict[key], typ) for key, typ in expected_keys_and_types ] ) and \
-                        np.all( [ check_single_sector_validity( sector_dict ) for sector_dict in cheby_dict[sectors]] )
+    VALID = True if isinstance(cheby_dict , dict ) and \
+                np.all( [ key in cheby_dict and isinstance(cheby_dict[key], typ) for key, typ in expected_keys_and_types ] ) and \
+                np.all( [ check_single_sector_validity( sector_dict ) for sector_dict in cheby_dict[sectors] ] ) \
             else False
+    return VALID
 
 
 
@@ -185,13 +165,244 @@ def convert_single_to_multi_sector_cheby( single_sector_cheby_dict ):
        multi-sector dictionary
     '''
     return {    "name" : single_sector_cheby_dict["name"],
-                "t_init" : single_sector_cheby_dict["t_init"],
-                "t_final" : single_sector_cheby_dict["t_final"],
-                "sectors" : [single_sector_cheby_dict]
+                "MJP_TDB_init" : single_sector_cheby_dict["t_init"],
+                "MJP_TDB_final" : single_sector_cheby_dict["t_final"],
+                "sectors" : [single_sector_cheby_dict["coeffs"]]
             }
 
 
-# def more_functions_go_here():
+def generate_multi_sector_cheby_dict_from_nbody_json( json_filepath ,
+                                                     mindate,
+                                                     maxdate,
+                                                     minorder=17,
+                                                     maxorder=25,
+                                                     maxerr=1e-8,
+                                                     FORCE_DATES = False ,
+                                                     CHECK = False):
+    '''
+        Slightly rewritten version of Margaret's *datediv* routine 
+        
+        inputs:
+        -------
+        json_filepath   -- filepath of json file to be read
+        mindate,maxdate -- earliest and latest MJD dates for which you want chebyshev approximations
+        
+        returns:
+        --------
+        multi-sector cheby-dict
+    '''
+
+    # Read the nbody-json file
+    nbody_dict = nbody_reader.parse_nbody_json( json_filepath )
+        
+    # Check whether the supplied data can support the requested date-range
+    if FORCE_DATES :
+        mindate = max(mindate , nbody_dict[ nbody_reader.time_fieldname ][0] )
+        maxdate = min(maxdate , nbody_dict[ nbody_reader.time_fieldname ][-1] )
+    else:
+        if  mindate < nbody_dict[ nbody_reader.time_fieldname ][0] or \
+            maxdate > nbody_dict[ nbody_reader.time_fieldname ][-1]:
+            sys.exit(' nbody data does not support the requested dates ')
+
+    # Set up a (mostly-empty) multi-sector cheby-dict
+    mscd = {
+            nbody_reader.object_name : nbody_dict[nbody_reader.object_name],
+            'MJP_TDB_init'      : mindate,
+            'MJP_TDB_final'     : maxdate,
+            'sectors'           : []
+        }
+
+    # Split into sectors ...
+    numdivs = int(np.ceil((maxdate-mindate)/sector_length_days))
+
+    # Go through sectors
+    for ind in range(numdivs):
+        
+        # Set up a (mostly-empty) single-sector cheby-dict
+        sscd = { nbody_reader.object_name : nbody_dict[nbody_reader.object_name] }
+        
+        # Identify the indicees of the nbody times for this sector (i.e. those with min < t < max)
+        sscd['MJP_TDB_init']  = mindate + ind*sector_length_days
+        sscd['MJP_TDB_final'] = min(maxdate,mindate + (ind+1)*sector_length_days)
+        indicees           = np.where((nbody_dict[ nbody_reader.time_fieldname ]>=sscd['MJP_TDB_init']) & \
+                                      (nbody_dict[ nbody_reader.time_fieldname ]<=sscd['MJP_TDB_final']) )[0]
+
+
+        # Loop over all coordinates & covariances
+        lists = [nbody_reader.coord_names, nbody_reader.covar_names]
+        for item in itertools.chain(*lists):
+            # For each component, generate chebys & save into single-sector cheby-dict
+            maxorder    = min(maxorder,len(indicees))
+            sscd[item]  = generate_single_sector_cheb(nbody_dict[ nbody_reader.time_fieldname ][indicees],
+                                                      nbody_dict[item][indicees],
+                                                      minorder,
+                                                      maxorder,
+                                                      maxerr)
+        # append the single-sector cheby-dict into the multi-sector cheby-dict
+        mscd['sectors'].append(sscd)
+
+    # If being thorough, check that the produced object is valid
+    if CHECK:
+            check_multi_sector_validity( mscd )
+    return mscd
+
+def generate_single_sector_cheb(x,y,minorder,maxorder,maxerr):
+    
+    '''
+        Get lowest order sufficiently accurate Chebyshev polynomial fit
+        for a single sector of data
+        
+        Note recursion
+        
+        Inputs:
+        x,y -- lists of values to which to fit Chebyshev polynomial
+        minorder,maxorder -- lowest and highest orders of polynomials to consider fitting
+        maxerr -- maximum amount by which an acceptable fitted polynomial can be off
+        
+        returns:
+        --------
+        numpy array
+    '''
+    order           = minorder
+    chebCandidate   = np.polynomial.chebyshev.chebfit(x, y, int(np.ceil(order)) )
+    quickEval       = np.polynomial.chebyshev.chebval(x, chebCandidate)
+    if error(quickEval, y) <= maxerr:
+        return chebCandidate
+    else:
+        if int(np.ceil(order)) == maxorder:
+            return chebCandidate
+        else:
+            return generate_single_sector_cheb(x,y,(order + maxorder)/2, maxorder, maxerr)
+
+
+def error(a, b):
+    ''' get cheb polynomial approximation error at fitted points'''
+    
+    err = 0
+    for i in range(len(a)):
+        err = max(err, abs(a[i]-b[i]))
+    return err
+
+
+
+
+
+def generate_multi_sector_cheby_dict_from_nbody_text( text_filepath ,
+                                                     mindate,
+                                                     maxdate,
+                                                     minorder=17,
+                                                     maxorder=25,
+                                                     maxerr=1e-8,
+                                                     FORCE_DATES = False ,
+                                                     CHECK = False):
+    '''
+        Slightly rewritten version of Margaret's *datediv* routine
+        
+        inputs:
+        -------
+        json_filepath   -- filepath of json file to be read
+        mindate,maxdate -- earliest and latest MJD dates for which you want chebyshev approximations
+        
+        returns:
+        --------
+        multi-sector cheby-dict
+    '''
+    
+    # Read the nbody-json file
+    name, a = nbody_reader.parse_nbody_txt( text_filepath )
+    
+    # Check whether the supplied data can support the requested date-range
+    # a[0] == times
+    if FORCE_DATES :
+        mindate = max(mindate , a[0 ,0] )
+        maxdate = min(maxdate , a[-1,0] )
+    else:
+        if  mindate < a[0 ,0] or \
+            maxdate > a[-1,0]:
+            sys.exit(' nbody data does not support the requested dates ')
+
+    # Set up a (mostly-empty) multi-sector cheby-dict
+    mscd = {
+        nbody_reader.object_name : name,
+        'MJP_TDB_init'      : mindate,
+        'MJP_TDB_final'     : maxdate,
+        'sectors'           : []
+    }
+
+    # Split into sectors ...
+    numdivs = int(np.ceil((maxdate-mindate)/sector_length_days))
+    
+    # Go through sectors
+    for ind in range(numdivs):
+        
+        # Set up a (mostly-empty) single-sector cheby-dict
+        sscd = { nbody_reader.object_name : name }
+        
+        # Identify the indicees of the nbody times for this sector (i.e. those with min < t < max)
+        # N.B. a[:,0] == times
+        sscd['MJP_TDB_init']  = mindate + ind*sector_length_days
+        sscd['MJP_TDB_final'] = min(maxdate,mindate + (ind+1)*sector_length_days)
+        indicees           = np.where((a[:,0]>=sscd['MJP_TDB_init']) & \
+                                      (a[:,0]<=sscd['MJP_TDB_final']) )[0]
+            
+            
+        # Do all coordinates & covariances simultaneously
+
+        # For each component array, generate chebys
+        # N.B. time            == a[indicees,0]
+        #      coords at times == a[indicees,1:]
+        maxorder       = min(maxorder,len(indicees))
+        sscd['coeffs'] = generate_single_sector_cheb_multi_coord(   a[indicees,0],
+                                                                    a[indicees,1:],
+                                                                    minorder,
+                                                                    maxorder,
+                                                                    maxerr)
+        # save into multi-sector cheby-dict
+        mscd['sectors'].append(sscd)
+
+    return mscd
+
+
+
+def generate_single_sector_cheb_multi_coord(t, arr, minorder,maxorder,maxerr):
+    
+    '''
+        Get sufficiently accurate Chebyshev polynomial fit
+        for a single sector of data (multiple cooordinates)
+        
+        Note recursion
+        
+        Inputs:
+        t, arr -- arrays of values to which to fit Chebyshev polynomial
+        minorder,maxorder -- lowest and highest orders of polynomials to consider fitting
+        maxerr -- maximum amount by which an acceptable fitted polynomial can be off
+        
+        returns:
+        --------
+        numpy array
+    '''
+    # fit coefficients to the input coords/covar-components for the sector
+    order           = minorder
+    candidateCoeffs = np.polynomial.chebyshev.chebfit(t, arr, int(np.ceil(order)) )
+    
+    # evaluate the cheby-coeffs at the input times
+    quickEval       = np.polynomial.chebyshev.chebval(t, candidateCoeffs).T
+    
+    # calculate the difference between the input coords/covar-components & those calculated from the cheby-coeffs
+    evalError       = np.max(np.abs(quickEval - arr))
+    
+    # decide whether we neeed to use more coefficients in the fit : if so call recursively
+    if evalError <= maxerr:
+        return candidateCoeffs
+    else:
+        if int(np.ceil(order)) == maxorder:
+            return candidateCoeffs
+        else:
+            return generate_single_sector_cheb_multi_coord(t, arr ,(order + maxorder)/2, maxorder, maxerr)
+
+
+
+
 
 
 
@@ -219,7 +430,7 @@ def get_valid_range_of_dates_from_cheby( cheby_dict ):
         t_final : float
          - latest valid date (time system may be MJD, but is implicit : depends on MPan;'s choice of zero-points ...)
         '''
-    return cheby_dict["t_init"], cheby_dict["t_final"]
+    return cheby_dict["MJP_TDB_init"], cheby_dict["MJP_TDB_final"]
 
 
 def map_times_to_sectors( times , cheby_dict ):
@@ -242,12 +453,12 @@ def map_times_to_sectors( times , cheby_dict ):
         - sector # (zero-based) starting from the dictionary's "t_init"
         - length of returned array = len(times)
     '''
-    return ( (times.jd - multi_sector_cheby_dict["t_init"] ) // sector_length_days ).astype(int)
+    return ( (times.mjd - cheby_dict["MJP_TDB_init"] ) // sector_length_days ).astype(int)
 
 
 
 
-def generate_HP_from_cheby( times , cheby_dict , observatoryXYZ , APPROX = False, CHECK = False ):
+def generate_HP_from_cheby( times , multi_sector_cheby_dict , observatoryXYZ , APPROX = False, CHECK = False ):
     '''
         Calculate apparent HP-locn from specified observatory-posn(s) at given time(s)
         N.B. observatory-posn(s) must be externally calculated/supplied
@@ -263,7 +474,7 @@ def generate_HP_from_cheby( times , cheby_dict , observatoryXYZ , APPROX = False
         - see ... for details
         
         observatoryXYZ: np.array 
-        - Observatory positions at times.jd [utc]
+        - Observatory positions at times.mjd [utc]
         - Dimension =3*len(times)
         
         APPROX: boolean
@@ -282,15 +493,14 @@ def generate_HP_from_cheby( times , cheby_dict , observatoryXYZ , APPROX = False
     
     # Get the unit vector from observatory to object
     UV = generate_UnitVector_from_cheby(times ,
-                                        cheby_dict ,
+                                        multi_sector_cheby_dict ,
                                         observatoryXYZ,
                                         APPROX = APPROX )
     
     # Calc the HP from the UV and return
-    return hp.vec2pix(HP_nside, UV[:,0], UV[:,1], UV[:,2], nest=HP_order)
+    return healpy.vec2pix(HP_nside, UV[:,0], UV[:,1], UV[:,2], nest=True if HP_order=='nested' else False )
 
-
-def generate_UnitVector_from_cheby( times , cheby_dict , observatoryXYZ, APPROX = False ):
+def generate_UnitVector_from_cheby( times , multi_sector_cheby_dict , observatoryXYZ, APPROX = False ):
     '''
         Calculate apparent UnitVector from specified observatory-posn(s) at given time(s)
         N.B. observatory-posn(s) must be externally calculated/supplied
@@ -317,15 +527,15 @@ def generate_UnitVector_from_cheby( times , cheby_dict , observatoryXYZ, APPROX 
     
     # Get the LTT-corrected position
     # - We allow for the possibility of *NOT* iterating (i.e. doing an approx calc.)
-    n_iterations    = 1 if APPROX else 3:
-    lightDelay      = np.zeroes(len(times))
+    n_iterations    = 1 if APPROX else 3
+    lightDelay      = np.zeros(len(times))
     for i in range(n_iterations):
         
         # Calculate delayed time (of emission)
         delayedTimes    = times - lightDelay
         
         # Extract posn of objects at each delayed-time
-        objectXYZ       = generate_XYZ_from_cheby( delayedTimes, cheby_dict )
+        objectXYZ       = generate_XYZ_from_cheby( delayedTimes, multi_sector_cheby_dict )
         
         # Calculate relative sepn-vector from observatory-to-object
         sepn_vectors    = objectXYZ - observatoryXYZ
@@ -334,19 +544,19 @@ def generate_UnitVector_from_cheby( times , cheby_dict , observatoryXYZ, APPROX 
         d               = np.linalg.norm(sepn_vectors, ord=2, axis=1, keepdims=True)
         
         # Calculate light-travel-time
-        lightDelay      = d.flatten()/MPCL.Constants.speed_of_light
+        lightDelay      = d.flatten() / (astropy.constants.c * 86400 / astropy.constants.au ).value
     
     # Return unit-vector
     return sepn_vectors / d
 
 
-def generate_RaDec_from_cheby( JD , cheby_dict , observatoryXYZ, APPROX = False):
+def generate_RaDec_from_cheby( JD , multi_sector_cheby_dict , observatoryXYZ, APPROX = False):
     '''
         
     '''
     # Get the unit vector from observatory to object
     UV = generate_UnitVector_from_cheby(times ,
-                                        cheby_dict ,
+                                        multi_sector_cheby_dict ,
                                         observatoryXYZ,
                                         APPROX = APPROX )
         
@@ -356,7 +566,7 @@ def generate_RaDec_from_cheby( JD , cheby_dict , observatoryXYZ, APPROX = False)
 
 
 
-def generate_XYZ_from_cheby( times , cheby_dict ):
+def generate_XYZ_from_cheby( times , multi_sector_cheby_dict ):
     '''
         *** WE ASSUME THE cheby_dict IS VALID FOR ALL SUPPLIED times *************
         *** THIS IMPLIES PRE-CHECKING BY A HIGHER/PRECEEDING FUNCTION ************
@@ -383,13 +593,19 @@ def generate_XYZ_from_cheby( times , cheby_dict ):
     sectors = map_times_to_sectors( times , multi_sector_cheby_dict )
     
     # Evaluate the chebyshev polynomial using the appropriate single-sector-dict
+    #
+    # Approach for dictionary / json ...
+    #
     # - Seems likely that this current implementation is non-optimal ...
-    XYZs = [ np.array([
-                       np.polynomial.chebyshev.chebval( t, cheby_dict["sectors"][s]["x"] ),
-                       np.polynomial.chebyshev.chebval( t, cheby_dict["sectors"][s]["y"] ),
-                       np.polynomial.chebyshev.chebval( t, cheby_dict["sectors"][s]["z"] )
-                       ]) for t, s in zip(times.tdb, sectors) ]
-    
+    #XYZs = [ np.array([
+    #                   np.polynomial.chebyshev.chebval( t, cheby_dict["sectors"][s]["x"] ),
+    #                   np.polynomial.chebyshev.chebval( t, cheby_dict["sectors"][s]["y"] ),
+    #                   np.polynomial.chebyshev.chebval( t, cheby_dict["sectors"][s]["z"] )
+    #                   ]) for t, s in zip(times.tdb, sectors) ]
+    #
+    #
+    # Approach for arrays ...
+    XYZs = [ np.polynomial.chebyshev.chebval( times.mjd[n] , multi_sector_cheby_dict["sectors"][s]['coeffs'][:,0:3] ) for n, s in enumerate( sectors ) ]
     return np.array(XYZs)
 
 
