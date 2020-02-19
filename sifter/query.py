@@ -24,6 +24,7 @@ import numpy as np
 import operator
 from collections import OrderedDict, defaultdict
 from astropy_healpix import HEALPix as hp
+from astropy.time import Time
 from functools import lru_cache
 import json
 
@@ -66,13 +67,13 @@ def query( cheby_dict_for_orbit , param_dict , EXPLICIT_CHECK = False ):
     JD_list, HP_list = _get_nightly_healpix( cheby_dict_for_orbit )
     
     # Query pre-calcs for approximate matches ( sql look-up)
-    approx_dictionary = self._query_precalc(JD_list, HP_list)
+    list_of_tracklet_tuples = self._query_precalc(JD_list, HP_list)
     
     # Later could have a refinement step using RoM & AoM
     # _refine_using_RoMAoM()
     
     # Refine approx matches to get "PRECISE" matches (within specified tolerance)
-    list_of_tracklet_tuples_precise = self._get_precise_matches( self.approx_dictionary , cheby_dict_for_orbit , param_dict )
+    list_of_tracklet_tuples_precise = self._get_precise_matches( list_of_tracklet_tuples , cheby_dict_for_orbit , param_dict )
 
     # Return data in desired format (can include screen-dump)
     # - Command-line-options / input-variables may dictate format
@@ -114,24 +115,16 @@ def _get_nightly_healpix( cheby_dict_for_orbit ):
         Probably return a list of healpix for each JD
     '''
     
-    JD_list, HP_list = [],[]
     
     # Establish range of valid integer days from cheby-dictionary
     print( '***DUMMY VALUES: NEED TO POPULATE CORRECTLY !!! ***' )
-    JDmin, JDmax = 40000, 60000 # cheby.get_valid_range_of_dates_from_cheby( cheby_dict_for_orbit )
+    JDmin, JDmax = cheby.get_valid_range_of_dates_from_cheby( cheby_dict_for_orbit )
     
-    # Loop over valid integer days
-    for JDint in range( int(JDmin), int(JDmax), 1):
-        
-        # Evaluate the HP from the cheby_dict ( get XYZ, getRADEC, getHP )
-        print( '***DUMMY VALUES: NEED TO POPULATE CORRECTLY !!! ***' )
-        HPint = random.randrange(3072) # cheby.generate_HP_from_cheby( JDint , cheby_dict_for_orbit )
-        
-        # Save in lists
-        JD_list.append(JDint)
-        HP_list.append(HPint)
+    # Use orbit_cheby functionality, *generate_HP_from_cheby()*, to get the HP at nightly intervals
+    times = Time( 42000. + np.arange( nSample ) , format='mjd', scale='tdb')
+    HP_list = cheby.generate_HP_from_cheby( times , cheby_dict_for_orbit )
     
-    return JD_list, HP_list
+    return times, HP_list
 
 def _query_precalc( JD_list, HP_list):
     '''
@@ -153,8 +146,8 @@ def _query_precalc( JD_list, HP_list):
          
     '''
     list_of_tracklet_tuples = []
-    for JD, HP in zip( JD_list, HP_list):
-        list_of_tracklet_tuples.extend( sql.query_tracklets_jdhp(JD, HP) )
+    for MJD, HP in zip( times.mjd, HP_list):
+        list_of_tracklet_tuples.extend( sql.query_tracklets_jdhp(MJD, HP) )
     return list_of_tracklet_tuples
 
 #def._refine_using_RoMAoM()

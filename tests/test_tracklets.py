@@ -127,10 +127,3 @@ def test_instantiation_with_observations():
 
 
 
-# Call the tests while developing (should really learn how to use pytest... )
-test_instantiation()
-test_parse_observations()
-test_save_tracklets()
-test_instantiation_with_observations()
-print('All tests of Tracklets* class passed')
-
