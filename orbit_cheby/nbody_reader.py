@@ -70,7 +70,14 @@ def parse_nbody_json( json_filepath ):
 
 def parse_nbody_txt( text_filepath ):
     '''
-        Read a text file and return a dictionary
+        Read a text file
+        
+        returns:
+        --------
+        name: str
+         - name of object being processed: hopefully is an UNPACKED DESIGNATION
+        array:
+         - time, state, triangular-cov
     '''
     if os.path.isfile( text_filepath ):
         
@@ -156,13 +163,13 @@ def create_nbody_json( json_filepath ):
 def create_nbody_txt( text_filepath ):
     '''
         Convenience function to create a text-file of coordinates
-        Is only for the purposes of data exploration
+        ****This is only for the purposes of data exploration****
         
         #  I am constructing an array that is ~20,000 rows long
         # Each row stores 1-time, 6-posn&vel, and 21-CoVarCoeffs
         #
         #    ------ 28 ------>>>
-        #   |         [[ t, x, y, z, vx, vy, vz, x_x, ... ]
+        #   |         [[ t, x, y, z, vx, vy, vz, x_x, x_y, ... ]
         #   |         ...
         # 20,000      ...
         #   |         ...
@@ -189,11 +196,11 @@ def create_nbody_txt( text_filepath ):
     # Leave z == 0 to check whether zeros cause problems for cheby
     #a[3]
     
-    # Doing this to see if the # coefficients is stable
+    # Populate vel & CoVar components
     for n, v in enumerate(['vx','vy','vz']):
         a[:,4+n]  = 0.1*n*a[:,1]
     for n, c in enumerate(covar_names):
-        a[:,7+n]  = 0.01*n*a[:,1]
+        a[:,7+n]  = 1.e-9*n*a[:,1]
 
     # Save to file
     np.savetxt(text_filepath , a , header='2022 AA' )

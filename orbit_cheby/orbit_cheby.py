@@ -27,18 +27,20 @@ import sys, os
 import numpy as np
 import operator
 from collections import OrderedDict, defaultdict
+import astropy
 from astropy_healpix import HEALPix as hp
+from astropy_healpix import healpy
 from functools import lru_cache
 import json
+import itertools
 
-import random # only necessary while developing
 
 
 # Import neighboring packages
 # --------------------------------------------------------------
 #sys.path.append( os.path.dirname(os.path.realpath(__file__)) )
-#import sql
-
+# import sql
+import nbody_reader
 
 # Define top-line parameters
 # --------------------------------------------------------------
@@ -49,8 +51,8 @@ sector_length_days = 32
 # Healpix settings
 HP_nside    = 16
 HP_order    ='nested'
-HPix        = HEALPix(nside=self.HP_nside, order=self.HP_order)
-HP_npix     = self.HPix.npix
+HPix        = hp(nside=HP_nside, order=HP_order)
+HP_npix     = HPix.npix
 
 
 
@@ -93,60 +95,61 @@ def check_single_sector_validity( cheby_dict ):
     '''
         Check whether the input dictionary has the expected
         structure / variables of a SINGLE-SECTOR dictionary
-        
+
         An example is pasted below to aide comprehension
-        
+
         {
         "name": "1944",
         "t_init": 49760,
         "t_final": 49792,
         "coeffs": [ [...] ... [...] ]
-        }
-        '''
+    }
+    '''
     # Expected keys & data-types
     expected_keys_and_types = [
-                               ("name", str),
-                               ("MJP_TDB_init", (int, float, np.int64, np.float64)),
-                               ("MJP_TDB_final", (int, float, np.int64, np.float64)),
-                               ("coeffs", (np.ndarray) ),
-                               ]
-        
-                               # Check data is as expected
-                               # Needs to
-                               # (i) be a dict
-                               # (ii) have all the necessary keys
-                               # (iii) have all the correct data types
-                               return True if  isinstance(cheby_dict , dict ) and \
-                                   np.all( [ key in cheby_dict and isinstance(cheby_dict[key], typ) for key, typ in expected_keys_and_types ] ) \
-                                       else False
+                           ("name", str),
+                           ("MJP_TDB_init", (int, float, np.int64, np.float64)),
+                           ("MJP_TDB_final", (int, float, np.int64, np.float64)),
+                           ("coeffs", (np.ndarray) ),
+                           ]
+
+    # Check data is as expected
+    # Needs to
+    # (i) be a dict
+    # (ii) have all the necessary keys
+    # (iii) have all the correct data types
+    return True if  isinstance(cheby_dict , dict ) and \
+                np.all( [ key in cheby_dict and isinstance(cheby_dict[key], typ) for key, typ in expected_keys_and_types ] ) \
+                else False
+
 
 def check_multi_sector_validity( cheby_dict ):
     '''
         Check whether the input dictionary has the expected
         structure / variables of a MULTI-SECTOR dictionary
-        
-        '''
+
+    '''
     # Expected keys & data-types
     expected_keys_and_types = [
-                               ("name", str),
-                               ("MJP_TDB_init", (int, float, np.int64, np.float64)),
-                               ("MJP_TDB_final", (int, float, np.int64, np.float64)),
-                               ("sectors", (list, np.ndarray) )
-                               ]
-        
-                               # Check data is as expected
-                               # Needs to
-                               # (i) be a dict
-                               # (ii) have all the necessary keys
-                               # (iii) have all the correct data types
-                               # (iv) individual-sector dictionaries are all valid
-                               return True if isinstance(cheby_dict , dict) and \
-                                   np.all([key in cheby_dict and
-                                           isinstance(cheby_dict[key], typ) for key, typ in
-                                           expected_keys_and_types]) and \
-                                       np.all([check_single_sector_validity(sector_dict) for
-                                               sector_dict in cheby_dict[sectors]]) \
-                                           else False
+    ("name", str),
+    ("MJP_TDB_init", (int, float, np.int64, np.float64)),
+    ("MJP_TDB_final", (int, float, np.int64, np.float64)),
+    ("sectors", (list, np.ndarray) )
+    ]
+
+    # Check data is as expected
+    # Needs to
+    # (i) be a dict
+    # (ii) have all the necessary keys
+    # (iii) have all the correct data types
+    # (iv) individual-sector dictionaries are all valid
+    return True if isinstance(cheby_dict , dict) and \
+                    np.all([key in cheby_dict and
+                    isinstance(cheby_dict[key], typ) for key, typ in
+                    expected_keys_and_types]) and \
+                    np.all([check_single_sector_validity(sector_dict) for
+                       sector_dict in cheby_dict[sectors]]) \
+                else False
 
 
 # Functions to create cheby-dictionaries ...
@@ -199,17 +202,17 @@ def generate_multi_sector_cheby_dict_from_nbody_json( json_filepath ,
             maxdate > nbody_dict[ nbody_reader.time_fieldname ][-1]:
             sys.exit(' nbody data does not support the requested dates ')
 
-# Set up a (mostly-empty) multi-sector cheby-dict
-mscd = {
-    nbody_reader.object_name : nbody_dict[nbody_reader.object_name],
-        'MJP_TDB_init'      : mindate,
-            'MJP_TDB_final'     : maxdate,
-            'sectors'           : []
-    }
+    # Set up a (mostly-empty) multi-sector cheby-dict
+    mscd = {
+        nbody_reader.object_name    : nbody_dict[nbody_reader.object_name],
+                'MJP_TDB_init'      : mindate,
+                'MJP_TDB_final'     : maxdate,
+                'sectors'           : []
+        }
 
-# Split into sectors ...
-numdivs = int(np.ceil((maxdate-mindate)/sector_length_days))
-    
+    # Split into sectors ...
+    numdivs = int(np.ceil((maxdate-mindate)/sector_length_days))
+        
     # Go through sectors
     for ind in range(numdivs):
         
@@ -217,28 +220,30 @@ numdivs = int(np.ceil((maxdate-mindate)/sector_length_days))
         sscd = { nbody_reader.object_name : nbody_dict[nbody_reader.object_name] }
         
         # Identify the indicees of the nbody times for this sector (i.e. those with min < t < max)
-        sscd['MJP_TDB_init']  = mindate + ind*sector_length_days
-        sscd['MJP_TDB_final'] = min(maxdate,mindate + (ind+1)*sector_length_days)
-        indicees           = np.where((nbody_dict[ nbody_reader.time_fieldname ]>=sscd['MJP_TDB_init']) & \
-                                      (nbody_dict[ nbody_reader.time_fieldname ]<=sscd['MJP_TDB_final']) )[0]
+        sscd['MJP_TDB_init']    = mindate + ind*sector_length_days
+        sscd['MJP_TDB_final']   = min(maxdate,mindate + (ind+1)*sector_length_days)
+        indicees                = np.where((nbody_dict[ nbody_reader.time_fieldname ]>=sscd['MJP_TDB_init']) & \
+                                           (nbody_dict[ nbody_reader.time_fieldname ]<=sscd['MJP_TDB_final']) )[0]
             
             
-                                      # Loop over all coordinates & covariances
-                                      lists = [nbody_reader.coord_names, nbody_reader.covar_names]
-                                      for item in itertools.chain(*lists):
-                                          # For each component, generate chebys & save into single-sector cheby-dict
-                                          maxorder    = min(maxorder,len(indicees))
-                                              sscd[item]  = generate_single_sector_cheb(nbody_dict[ nbody_reader.time_fieldname ][indicees],
-                                                                                        nbody_dict[item][indicees],
-                                                                                        minorder,
-                                                                                        maxorder,
-                                                                                        maxerr)
-                                          # append the single-sector cheby-dict into the multi-sector cheby-dict
-    mscd['sectors'].append(sscd)
+        # Loop over all coordinates & covariances
+        lists = [nbody_reader.coord_names, nbody_reader.covar_names]
+        for item in itertools.chain(*lists):
+            
+            # For each component, generate chebys & save into single-sector cheby-dict
+            maxorder    = min(maxorder,len(indicees))
+            sscd[item]  = generate_single_sector_cheb(  nbody_dict[ nbody_reader.time_fieldname ][indicees],
+                                                        nbody_dict[item][indicees],
+                                                        minorder,
+                                                        maxorder,
+                                                        maxerr)
+            # append the single-sector cheby-dict into the multi-sector cheby-dict
+            mscd['sectors'].append(sscd)
 
-# If being thorough, check that the produced object is valid
-if CHECK:
-    check_multi_sector_validity( mscd )
+    # If being thorough, check that the produced object is valid
+    if CHECK:
+        check_multi_sector_validity( mscd )
+    
     return mscd
 
 def generate_single_sector_cheb(x,y,minorder,maxorder,maxerr):
@@ -316,13 +321,13 @@ def generate_multi_sector_cheby_dict_from_nbody_text( text_filepath ,
             maxdate > a[-1,0]:
             sys.exit(' nbody data does not support the requested dates ')
 
-# Set up a (mostly-empty) multi-sector cheby-dict
-mscd = {
-    nbody_reader.object_name : name,
-        'MJP_TDB_init'      : mindate,
-        'MJP_TDB_final'     : maxdate,
-        'sectors'           : []
-    }
+    # Set up a (mostly-empty) multi-sector cheby-dict
+    mscd = {
+        nbody_reader.object_name : name,
+            'MJP_TDB_init'      : mindate,
+            'MJP_TDB_final'     : maxdate,
+            'sectors'           : []
+        }
 
     # Split into sectors ...
     numdivs = int(np.ceil((maxdate-mindate)/sector_length_days))
@@ -335,27 +340,27 @@ mscd = {
         
         # Identify the indicees of the nbody times for this sector (i.e. those with min < t < max)
         # N.B. a[:,0] == times
-        sscd['MJP_TDB_init']  = mindate + ind*sector_length_days
-        sscd['MJP_TDB_final'] = min(maxdate,mindate + (ind+1)*sector_length_days)
-        indicees           = np.where((a[:,0]>=sscd['MJP_TDB_init']) & \
+        sscd['MJP_TDB_init']    = mindate + ind*sector_length_days
+        sscd['MJP_TDB_final']   = min(maxdate,mindate + (ind+1)*sector_length_days)
+        indicees                = np.where((a[:,0]>=sscd['MJP_TDB_init']) & \
                                       (a[:,0]<=sscd['MJP_TDB_final']) )[0]
             
             
-                                      # Do all coordinates & covariances simultaneously
-                                      
-                                      # For each component array, generate chebys
-                                      # N.B. time            == a[indicees,0]
-                                      #      coords at times == a[indicees,1:]
-                                      maxorder       = min(maxorder,len(indicees))
-                                      sscd['coeffs'] = generate_single_sector_cheb_multi_coord(   a[indicees,0],
-                                                                                               a[indicees,1:],
-                                                                                               minorder,
-                                                                                               maxorder,
-                                                                                               maxerr)
-                                      # save into multi-sector cheby-dict
+
+        # For each component array, generate chebys
+        # Do all coordinates & covariances simultaneously
+        # N.B. time            == a[indicees,0]
+        #      coords at times == a[indicees,1:]
+        maxorder       = min(maxorder,len(indicees))
+        sscd['coeffs'] = generate_single_sector_cheb_multi_coord(   a[indicees,0],
+                                                               a[indicees,1:],
+                                                               minorder,
+                                                               maxorder,
+                                                               maxerr)
+        # save into multi-sector cheby-dict
         mscd['sectors'].append(sscd)
 
-return mscd
+    return mscd
 
 
 
@@ -435,7 +440,7 @@ def map_times_to_sectors( times , cheby_dict ):
         inputs:
         -------
         times : astropy.Time object
-        - Using these to stop making mistakes w.r.t utc/tt/tdb/...
+        - Using astropy.Time object to stop making mistakes w.r.t utc/tt/tdb/...
         - Can be singular or multiple
         
         cheby_dict: dictionary
@@ -553,9 +558,9 @@ def generate_RaDec_from_cheby( JD , multi_sector_cheby_dict , observatoryXYZ, AP
                                         observatoryXYZ,
                                         APPROX = APPROX )
         
-                                        # Convert from unit-vector to RA, Dec and then return
-                                        theta_, RA_   = hp.vec2ang(np.dot( UV , np.transpose(PHYS.rot_mat))) # in equatorial
-                                        return RA_ , 0.5*np.pi - theta_
+    # Convert from unit-vector to RA, Dec and then return
+    theta_, RA_   = healpy.vec2ang(np.dot( UV , np.transpose(PHYS.rot_mat))) # in equatorial
+    return RA_ , 0.5*np.pi - theta_
 
 
 
