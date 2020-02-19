@@ -129,22 +129,22 @@ class Tracklets(Base):
             self.save_tracklets(*self.parse_observation_lists(observations))
 
     def parse_observation_lists(self, list_of_observation_pairs):
-    '''
-        read observational input (probably be in obs80-string formats)
-        
-        Inputs:
-        -------
-        list_of_observation_pairs : list-of-tuples/lists?
-        - each in obs80 format ???
-        
-        Returns
-        -------
-        list of tracklet dictionaries
-        - specified as per "parse_observation_pair" function
         '''
+            read observational input (probably be in obs80-string formats)
             
-            return [self.parse_observation_pair(observation_pair)
-                    for observation_pair in list_of_observation_pairs]
+            Inputs:
+            -------
+            list_of_observation_pairs : list-of-tuples/lists?
+            - each in obs80 format ???
+            
+            Returns
+            -------
+            list of tracklet dictionaries
+            - specified as per "parse_observation_pair" function
+        '''
+                
+        return [self.parse_observation_pair(observation_pair)
+                for observation_pair in list_of_observation_pairs]
         
     def parse_observation_pair(self, observation_pair):
         '''
@@ -187,7 +187,7 @@ class Tracklets(Base):
         elif nobs > 2:
             print("Received more than 2 observations.")
             print("Only using first and last one.")
-                    else:
+        else:
             pass
         # Parse obs80 lines
         parsed = [obs for obs in parse80(observation_pair)]
@@ -237,7 +237,7 @@ class Tracklets(Base):
                                 'observations': observation_pair
                                 }
 
-    return tracklet_dictionary
+        return tracklet_dictionary
 
 
     def save_tracklets(self, tracklet_dictionary_list):
