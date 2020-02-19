@@ -180,16 +180,54 @@ def _get_precise_matches( list_of_tracklet_tuples_approx, cheby_dict_for_orbit ,
         - these are the tracklets which are "close" to the input orbit
         
     '''
-    # list to hold precise matches
-    list_of_tracklet_tuples_precise
     
-    # loop over approx matches and evaluate
-    for tracklet_name, tracklet_dict in list_of_tracklet_tuples_approx:
-        
-        # do something involving the contents of the tracklet_dict
-        print( '***DUMMY VALUES: NEED TO POPULATE CORRECTLY !!! ***' )
-        if random.randrange(2):
-            list_of_tracklet_tuples_precise.append( ( tracklet_name, tracklet_dict ) )
+    """
+    # empty lists ...
+    list_of_tracklet_tuples_precise = []
+    startTimes , endTimes, start_observatoryXYZs, end_observatoryXYZs = [],[],[]
+    
+    for tracklet_tup in list_of_tracklet_tuples_approx:
+        # split tuple into key () and value (tracklet_dict made in *precalc.parse_observation_list()* )
+        key, tracklet_dict = tracklet_tup
+    
+        # Parse obs80 lines
+        # *** WE SHOULD PUSH AS MUCH AS POSSIBLE TO PREPROCESSING ***
+        parsed = [obs for obs in parse80(tracklet_dict['observations'])]
+    
+        # Get times
+        startTimes.append( parsed.jdutc )
+        endTimes.append( parsed.jdutc )
+
+        # - Extract observatory positions at times
+        start_observatoryXYZs.append( tracklet_dict['obsXYZ'][0] )
+        end_observatoryXYZs.append( tracklet_dict['obsXYZ'][-1] )
+
+    startTimes  = Time( startTimes , format='mjd', scale='tdb')
+    endTimes    = Time( endTimes , format='mjd', scale='tdb')
+    start_observatoryXYZs = np.array(start_observatoryXYZs)
+    end_observatoryXYZs   = np.array(end_observatoryXYZs)
+
+    # - Get precise unit vector to TRACKLET OBSERVATIONS at each time
+    # *** WE SHOULD PUSH AS MUCH AS POSSIBLE TO PREPROCESSING ***
+    start_trackletUV = ...
+    end_trackletUV = ...
+
+    # - Get precise unit vector to ORBIT at each time
+    start_orbitUV = generate_UnitVector_from_cheby( startTimes ,
+                                                    multi_sector_cheby_dict ,
+                                                    observatoryXYZ,
+                                                    APPROX = APPROX )
+
+    # - Get the dot-product, and hence angular-sepn, at each time
+    start_angles = np.dot(start_orbitUV , start_trackletUV)
+    
+    # - Select the subset of tracklets which match the criteria defined in the param_dict
+    
+    """
+    
+    print( '***DUMMY VALUES: NEED TO POPULATE CORRECTLY !!! ***' )
+    if random.randrange(2):
+        list_of_tracklet_tuples_precise.append( ( tracklet_name, tracklet_dict ) )
     
     return precise_dictionary
 
