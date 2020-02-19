@@ -108,10 +108,13 @@ def test_instantiation_with_observations():
     
     # define observations
     # *** AT PRESENT THESE ARE JUST DUMMY/BLANK OBS ***
-    observation_pair = [ [],[] ]
+    observation_pairs= [[ '     K11Q99F*~C2011 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568',
+                         '     K11Q99F ~C2011 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568'],
+                        [ '     K11Q99F*~C2012 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568',
+                         '     K11Q99F ~C2012 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568']]
     
     # instantiate with observation_pair
-    T = precalc.Tracklets( observation_pair )
+    T = precalc.Tracklets( observation_pairs )
     
     # test that the above caused the tracklet to be uploaded to db
     cur = T.conn.cursor()
@@ -128,6 +131,6 @@ def test_instantiation_with_observations():
 test_instantiation()
 test_parse_observations()
 test_save_tracklets()
-#test_instantiation_with_observations()
+test_instantiation_with_observations()
 print('All tests of Tracklets* class passed')
 

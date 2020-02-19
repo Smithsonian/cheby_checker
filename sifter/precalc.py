@@ -126,9 +126,9 @@ class Tracklets(Base):
         
         # if observations supplied, process them ...
         if observations is not None:
-            self.save_tracklets(*self.parse_observation_lists(observations))
+            self.save_tracklets( self.parse_observation_lists(observations) )
 
-    def parse_observation_lists(self, list_of_observation_pairs):
+    def parse_observation_lists(self, list_of_observation_lists ):
         '''
             read observational input (probably be in obs80-string formats)
             
@@ -143,28 +143,23 @@ class Tracklets(Base):
             - specified as per "parse_observation_pair" function
         '''
                 
-        return [self.parse_observation_pair(observation_pair)
-                for observation_pair in list_of_observation_pairs]
+        return [self.parse_observation_list(observation_list)
+                for observation_list in list_of_observation_lists]
         
-    def parse_observation_pair(self, observation_pair):
+    def parse_observation_list(self, observation_list):
         '''
             read observational input (probably be in obs80-string formats)
             
             Inputs:
             -------
-            observation_pair : list
+            observation_list : list
             - list of strings containing obs80 lines
             
             Returns
             -------
-            JD: integer
-            - date of first observation
-            HP: integer
-            - healpix of first observations
-            tracklet_name: string
-            - unique name for tracklet; 26 characters
             tracklet_dict: dictionary
             - container for all data
+            - should be everything needed for subsequent detailed calculations
             - contains:
             - JD: integer; date of first observation
             - HP: integer;  Healpix of first observation
@@ -175,10 +170,9 @@ class Tracklets(Base):
             measured from East towards North.
             - tracklet_name: string; Unique ID for the tracklet
             - observations: list of strings; the input obs80 lines
-            - should be everything needed for subsequent detailed calculations
             '''
         # Check number of observations given.
-        nobs = len(observation_pair)
+        nobs = len(observation_list)
         if nobs == 0:
             raise RuntimeError("Received zero observations. Can't real.")
         if nobs == 1:
@@ -190,7 +184,7 @@ class Tracklets(Base):
         else:
             pass
         # Parse obs80 lines
-        parsed = [obs for obs in parse80(observation_pair)]
+        parsed = [obs for obs in parse80(observation_list)]
 
         # Convert nteger julian date
         JDfloat = parsed[0].jdutc
@@ -234,7 +228,7 @@ class Tracklets(Base):
                                 'tracklet_name': tracklet_name,
                                 'RoM': RoM,
                                 'AoM': AoM,
-                                'observations': observation_pair
+                                'observations': observation_list
                                 }
 
         return tracklet_dictionary
@@ -247,15 +241,6 @@ class Tracklets(Base):
             
             Inputs:
             -------
-            JD_list : list-of-integers
-            - day
-            
-            HP_list : list-of-integers
-            - healpix
-            
-            tracklet_name_list: list-of-strings ?
-            - unique identifier for tracklet
-            
             tracklet_dictionary_list: list-of-dictionaries
             - all data that we want to save for each tracklet
             
