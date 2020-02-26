@@ -26,8 +26,7 @@ import argparse
 
 # Import neighboring packages
 # --------------------------------------------------------------
-sys.path.append( os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'sifter') )
-#import query
+from . import query  # Yay, python3 relative import :-)
 
 # Set default search parameters
 # --------------------------------------------------------------

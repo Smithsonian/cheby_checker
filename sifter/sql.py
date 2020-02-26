@@ -27,8 +27,7 @@ import pickle
 
 # Import neighboring packages
 # --------------------------------------------------------------
-sys.path.append( os.path.dirname(os.path.realpath(__file__)) )
-import precalc
+from . import precalc  # new better Python3 relative import
 
 
 
