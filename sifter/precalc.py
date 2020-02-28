@@ -328,6 +328,8 @@ def check_obsCode(obsCode=None):
     '''
     if obsCode is None:
         return '500'
+    if obsCode == 'XXX' or obsCode == '':	# Observations with no ObsCode
+        return '500'				# pretend Geocentre.
     if isinstance(obsCode, int):
         obsCode = str(obsCode)
     if len(obsCode) != 3:
