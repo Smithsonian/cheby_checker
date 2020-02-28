@@ -119,7 +119,7 @@ class Tracklets(Base):
         Class to facilitate "precalculations" on a list of tracklets
         '''
 
-    def __init__(self, observations=None):
+    def __init__(self, observations=None, verbose=False):
 
         # Give access to "Base" methods
         super().__init__()
@@ -129,9 +129,10 @@ class Tracklets(Base):
 
         # if observations supplied, process them ...
         if observations is not None:
-            self.save_tracklets(self.parse_all_observations(observations))
+            self.save_tracklets(self.parse_all_observations(observations,
+                                                            verbose))
 
-    def parse_all_observations(self, list_of_observations):
+    def parse_all_observations(self, list_of_observations, verbose=False):
         '''
             read observational input (probably be in obs80-string formats)
 
@@ -146,11 +147,11 @@ class Tracklets(Base):
             list of tracklet dictionaries
             - specified as per "parse_tracklet_observations" function
         '''
-        return [self.parse_tracklet_observations(tracklet_observations)
+        return [self.parse_tracklet_observations(tracklet_observations, verbose)
                 for tracklet_observations
                 in identify_tracklets(list_of_observations)]
 
-    def parse_tracklet_observations(self, observation_list):
+    def parse_tracklet_observations(self, observation_list, verbose=False):
         '''
             read observational input (probably be in obs80-string formats)
 
@@ -179,10 +180,10 @@ class Tracklets(Base):
         nobs = len(observation_list)
         if nobs == 0:
             raise RuntimeError("Received zero observations. Can't real.")
-        if nobs == 1:
-            print("### WARNING ###\nReceived 1 observation.")
+        if nobs == 1 and verbose:
+            print("********** WARNING **********\nReceived 1 observation.")
             print("Will proceed, but RoM and AoM will be 0.\n### WARNING ###")
-        elif nobs > 2:
+        elif nobs > 2 and verbose:
             print("Received more than 2 observations.")
             print("Only using first and last one.")
         else:
@@ -225,27 +226,30 @@ class Tracklets(Base):
         # We also pre-calculate and save the observatory location
         # for each observation
         observatory_heliocentric_ecliptic_xyz =\
-            [self.get_heliocentric_ecliptic_xyz(pi.jdutc, obsCode=pi.cod)
+            [self.get_heliocentric_ecliptic_xyz(pi.jdutc, obsCode=pi.cod,
+                                                verbose=verbose)
              for pi in parsed]
         tracklet_dictionary['obs_helio-ecliptic_xyz'] =\
             observatory_heliocentric_ecliptic_xyz
         return tracklet_dictionary
 
-    def get_heliocentric_equatorial_xyz(self, jd_utc, obsCode=None):
+    def get_heliocentric_equatorial_xyz(self, jd_utc, obsCode=None,
+                                        verbose=False):
         '''
             Get the heliocentric EQUATORIAL vector coordinates of the
             observatory at the time jd_utc.
         '''
-        obsCode = check_obsCode(obsCode)
+        obsCode = check_obsCode(obsCode, verbose)
         return self.obsCodes.getObservatoryPosition(obsCode, jd_utc,
                                                     old=False) * u.au
 
-    def get_heliocentric_ecliptic_xyz(self, jd_utc, obsCode=None):
+    def get_heliocentric_ecliptic_xyz(self, jd_utc, obsCode=None,
+                                      verbose=False):
         '''
             Get the heliocentric ECLIPTIC vector coordinates of the
             observatory at the time jd_utc.
         '''
-        obsCode = check_obsCode(obsCode)
+        obsCode = check_obsCode(obsCode, verbose)
         helio_OBS_equ = self.get_heliocentric_equatorial_xyz(jd_utc, obsCode)
         helio_OBS_ecl = equatorial_to_ecliptic(helio_OBS_equ)
         return helio_OBS_ecl
@@ -321,7 +325,7 @@ def equatorial_to_ecliptic(input_xyz, backwards=False):
     return output_xyz
 
 
-def check_obsCode(obsCode=None):
+def check_obsCode(obsCode=None, verbose=False):
     '''
         Check whether a valid Observatory Code has been supplied.
         If None, use 500 (Geocentre).
@@ -329,6 +333,7 @@ def check_obsCode(obsCode=None):
     if obsCode is None:
         return '500'
     if obsCode == 'XXX' or obsCode == '':	# Observations with no ObsCode
+        print('Bad ObsCode. Will use geocenter.\n' if verbose else '', end='')
         return '500'				# pretend Geocentre.
     if isinstance(obsCode, int):
         obsCode = str(obsCode)
