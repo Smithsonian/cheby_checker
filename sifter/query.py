@@ -33,8 +33,7 @@ import random # only necessary while developing
 
 # Import neighboring packages
 # --------------------------------------------------------------
-sys.path.append( os.path.dirname(os.path.realpath(__file__)) )
-import sql
+from . import sql
 import orbit_cheby as cheby
 
 
