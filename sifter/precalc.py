@@ -33,13 +33,16 @@ from astropy import units as u
 # Different machines set up differently ...
 # ... adding paths to force stuff to work while developing
 if getpass.getuser() in ['matthewjohnpayne']:
-    sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/obs80/')
-    from obs80 import parse80
-    sys.path.append('/data/mpc/share/apps/python_libs/mpcpp/')
+    #sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/obs80/')
+    sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/')
+    
+    #from obs80 import parse80
 elif False:
     pass
 else:
-    from mpcpp.obs80.obs80 import parse80
+    pass
+
+from mpcpp.obs80.obs80 import parse80
 from mpcpp import MPC_library as mpc
 
 

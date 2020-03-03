@@ -23,6 +23,7 @@ import pytest
 
 # Import neighboring packages
 # --------------------------------------------------------------
+#sys.path.append( os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'sifter') )
 from sifter import precalc, sql
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'dev_data')
 

@@ -16,9 +16,7 @@ print("Sifter unittests haven't been built into setup.py scripts. "
       "works before production use.")
 
 dependencies = ['numpy >= 1.15.0',
-                'json >= 2.0.9',
                 'argparse >= 1.1',
-                'sqlite >= 2.6.0',
                 'pytest >= 4.0.1',
                 'astropy >= 3.0.3',
                 'astropy_healpix >= 0.3.1'
