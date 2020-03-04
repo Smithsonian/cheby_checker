@@ -335,7 +335,7 @@ def check_obsCode(obsCode=None, verbose=False):
     '''
     if obsCode is None:
         return '500'
-    if obsCode == 'XXX' or obsCode == '':	# Observations with no ObsCode
+    if obsCode in ['XXX', '']:  # Observations with no ObsCode
         print('Bad ObsCode. Will use geocenter.\n' if verbose else '', end='')
         return '500'				# pretend Geocentre.
     if isinstance(obsCode, int):
