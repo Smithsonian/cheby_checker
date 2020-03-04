@@ -253,8 +253,6 @@ def delete_tracklets(conn, tracklet_name_list):
 
 
 
-
-
 def query_tracklets_jdhp(conn, JD, HP):
     """
        Standard query used to find all tracklets for which jd,hp matches input
@@ -274,4 +272,45 @@ def query_tracklets_jdhp(conn, JD, HP):
     
     # return a list-of-tuples: (tracklet_name, tracklet_dictionary)
     return [ (row[0] , pickle.loads( row[1] ) ) for row in cur.fetchall() ]
+
+
+def query_tracklets_jd_hplist(conn, JD, HP_list):
+    """
+        Standard query used to find all tracklets for which jd,hp_list matches input
+        
+        inputs:
+        -------
+        JD: integer
+        HP_list: list-of-integers
+        
+        return:
+        -------
+        list of tracklet_names
+        
+        """
+    assert isinstance(JD, int) and isinstance(HP_list, list), 'Cannot parse input types in query_tracklets_jd_hplist ... '
+
+    # Get cursor ...
+    cur = conn.cursor()
+
+    # Set up query:
+    #N.B. https://stackoverflow.com/questions/18363276/how-do-you-do-an-in-query-that-has-multiple-columns-in-sqlite
+    for sql in ['''CREATE TEMPORARY TABLE lookup(jd, hp);''',
+                '''INSERT OR REPLACE INTO lookup(jd,hp) VALUES(?,?);''',
+                '''CREATE INDEX lookup_jd_hp ON lookup(jd, hp);''',
+                '''SELECT tracklet_name, tracklet FROM tracklets JOIN lookup ON tracklets.jd = lookup.jd AND tracklets.hp = lookup.hp;''']:
+        
+        # Execute queries
+        print( ' ... = ', sql )
+        if 'INSERT' in sql:
+            records = [ (JD, hp) for hp in HP_list ]
+            cur.executemany(sql, records )
+        else:
+            cur.execute(sql)
+
+    # return a list-of-tuples: (tracklet_name, tracklet_dictionary)
+    return [ (row[0] , pickle.loads( row[1] ) ) for row in cur.fetchall() ]
+
+
+
 

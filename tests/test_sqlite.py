@@ -16,15 +16,33 @@
 # Import third-party packages
 # --------------------------------------------------------------
 import sys, os
+import pytest
+import random
+
 
 # Import neighboring packages
 # --------------------------------------------------------------
-sys.path.append( os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'sifter') )
-import sql
+from sifter import precalc, sql
 
 
+# Convenience data / functions to aid testing
+# --------------------------------------------------------------
+#test_tracklet = ['     K11Q99F*~C2011 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568', '     K11Q99F ~C2011 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568']
+
+test_tracklet_dict_list = []
+for i in range(4):
+    test_tracklet_dict_list.append(
+                              {
+                                'JD' : 123+i,
+                                'HP' : 456+i,
+                                'tracklet_name' : 'kjhdfasdf' + str(i),
+                                'asd'   : 'fgh' ,
+                                'ghfgh' : 987 }
+          )
 
 
+# Actual tests ...
+# --------------------------------------------------------------
 def test_db_creation():
 
     # Where do we want the db to live
@@ -59,7 +77,8 @@ def test_table_creation():
     # Delete the db to facilitate future testing
     os.remove(sql.fetch_db_filepath())
 
-def test_tracklet_upsert():
+@pytest.mark.parametrize('tracklet_dict_list', [test_tracklet_dict_list] )
+def test_tracklet_upsert( tracklet_dict_list ):
 
     # set up db & table
     if os.path.isfile( sql.fetch_db_filepath() ):
@@ -69,22 +88,20 @@ def test_tracklet_upsert():
     sql.create_specific_table(conn)
     
     # create some data and then upload it ...
-    jd =123
-    hp = 456
-    tracklet_name = 'kjhdfasdf'
-    tracklet_dict = {'asd':'fgh' , 'ghfgh':987}
-    sql.upsert_tracklet(conn, jd, hp, tracklet_name, tracklet_dict)
+    tracklet_dict = test_tracklet_dict_list[0]
+    sql.upsert_tracklet(conn, tracklet_dict['JD'] , tracklet_dict['HP'] , tracklet_dict['tracklet_name'],  tracklet_dict  )
 
     # test that the data was actually uploaded
     cur.execute('SELECT * from tracklets')
     f = cur.fetchone()
-    assert( len(f)>3 and f[3] == tracklet_name), 'data not uploaded'
+    assert( len(f)>3 and f[3] == tracklet_dict['tracklet_name']), 'data not uploaded'
 
     # Delete the db to facilitate future testing
     os.remove(sql.fetch_db_filepath())
 
 
-def test_tracklets_upsert():
+@pytest.mark.parametrize(('tracklet_dict_list'), [test_tracklet_dict_list])
+def test_tracklets_upsert(tracklet_dict_list):
     """ Here we are updating/inserting **lists** of tracklet data """
     
     # set up db & table
@@ -94,28 +111,27 @@ def test_tracklets_upsert():
     cur = conn.cursor()
     sql.create_specific_table(conn)
     
-    # create some data and then upload it ...
-    jd_list = [123, 234]
-    hp_list = [456, 567]
-    tracklet_name_list = ['kjhdfasdf', 'iuyeruy']
-    tracklet_dict_list = [{'asd':'fgh' , 'ghfgh':987} , {'asd':'klhj' , 'ghfgh':4563} ]
-    sql.upsert_tracklets(conn, jd_list, hp_list, tracklet_name_list, tracklet_dict_list)
+    # upload data ...
+    JD = [tracklet_dic['JD'] for tracklet_dic in tracklet_dict_list]
+    HP = [tracklet_dic['HP'] for tracklet_dic in tracklet_dict_list]
+    tracklet_name = [tracklet_dic['tracklet_name'] for tracklet_dic in tracklet_dict_list]
+
+    sql.upsert_tracklets(conn, JD, HP, tracklet_name, tracklet_dict_list)
     
     # test that the data was actually uploaded
     cur.execute('SELECT * from tracklets')
     f = cur.fetchall()
-    assert( len(f) == 2 ) , 'data not uploaded'
+    assert( len(f) == len(tracklet_dict_list) ) , 'data not uploaded'
     for i in range(len(f)):
-        assert f[i][3] == tracklet_name_list[i], 'data not uploaded'
-
+        assert f[i][3] == tracklet_name[i], 'data not uploaded'
 
     # Delete the db to facilitate future testing
     os.remove(sql.fetch_db_filepath())
 
 
 
-
-def test_tracklet_query():
+@pytest.mark.parametrize(('tracklet_dict_list'), [test_tracklet_dict_list])
+def test_tracklet_query(tracklet_dict_list):
     
     # set up db & table
     if os.path.isfile( sql.fetch_db_filepath() ):
@@ -124,71 +140,45 @@ def test_tracklet_query():
     cur = conn.cursor()
     sql.create_specific_table(conn)
     
-    # create some data and then upload it ...
-    jd =123
-    hp = 456
-    
-    tracklet_name1 = 'kjhdfasdf'
-    tracklet_dict1 = {'asd':'fgh' , 'ghfgh':888}
-    sql.upsert_tracklet(conn, jd, hp, tracklet_name1, tracklet_dict1)
+    # upload data ...
+    JD = [tracklet_dic['JD'] for tracklet_dic in tracklet_dict_list]
+    HP = [tracklet_dic['HP'] for tracklet_dic in tracklet_dict_list]
+    tracklet_name = [tracklet_dic['tracklet_name'] for tracklet_dic in tracklet_dict_list]
+    sql.upsert_tracklets(conn, JD, HP, tracklet_name, tracklet_dict_list)
 
-    tracklet_name2 = 'uituyiu'
-    tracklet_dict2 = {'asd':'gdhjdhjdhj' , 'ghfgh':985421}
-    sql.upsert_tracklet(conn, jd, hp, tracklet_name2, tracklet_dict2)
-
-    # query the data & check that two dictionaries are returned
-    list_of_tuples = sql.query_tracklets_jdhp(conn, jd, hp)
-    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 2
-    for tup in list_of_tuples:
-        assert isinstance( tup, (tuple, list,))
-        assert tup[0] in [tracklet_name1, tracklet_name2]
-        assert tup[1] in [tracklet_dict1, tracklet_dict2]
- 
-    # Delete the db to facilitate future testing
-    os.remove(sql.fetch_db_filepath())
-
-def test_delete_tracklet():
-    
-    # set up db & table
-    if os.path.isfile( sql.fetch_db_filepath() ):
-        os.remove(sql.fetch_db_filepath())
-    conn = sql.create_connection( sql.fetch_db_filepath() )
-    cur = conn.cursor()
-    sql.create_specific_table(conn)
-    
-    # create some data and then upload it ...
-    jd =123
-    hp = 456
-    
-    tracklet_name1 = 'kjhdfasdf'
-    tracklet_dict1 = {'asd':'fgh' , 'ghfgh':888}
-    sql.upsert_tracklet(conn, jd, hp, tracklet_name1, tracklet_dict1)
-    
-    tracklet_name2 = 'uituyiu'
-    tracklet_dict2 = {'asd':'gdhjdhjdhj' , 'ghfgh':985421}
-    sql.upsert_tracklet(conn, jd, hp, tracklet_name2, tracklet_dict2)
-    
-    # query the data & check that two dictionaries are returned
-    list_of_tuples = sql.query_tracklets_jdhp(conn, jd, hp)
-    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 2
-    for tup in list_of_tuples:
-        assert isinstance( tup, (tuple, list,))
-        assert tup[0] in [tracklet_name1, tracklet_name2]
-        assert tup[1] in [tracklet_dict1, tracklet_dict2]
-    
-    # now delete a tracklet & check that only one dictionary is subsequently returned
-    sql.delete_tracklet(conn, tracklet_name1)
-    list_of_tuples = sql.query_tracklets_jdhp(conn, jd, hp)
+    # query the data & check that requisite dictionaries are returned
+    list_of_tuples = sql.query_tracklets_jdhp(conn, JD[0], HP[0])
     assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 1
-    for tup in list_of_tuples:
-        assert isinstance( tup, (tuple, list,))
-        assert tup[0] in [ tracklet_name2]
-        assert tup[1] in [ tracklet_dict2]
+
+    # Delete the db to facilitate future testing
+    os.remove(sql.fetch_db_filepath())
+
+
+@pytest.mark.parametrize(('tracklet_dict_list'), [test_tracklet_dict_list])
+def test_tracklet_query_mutiple_HP(tracklet_dict_list):
+    # set up db & table
+    if os.path.isfile( sql.fetch_db_filepath() ):
+        os.remove(sql.fetch_db_filepath())
+    conn = sql.create_connection( sql.fetch_db_filepath() )
+    cur = conn.cursor()
+    sql.create_specific_table(conn)
+    
+    # upload data ...
+    JD = [tracklet_dic['JD'] for tracklet_dic in tracklet_dict_list]
+    HP = [tracklet_dic['HP'] for tracklet_dic in tracklet_dict_list]
+    tracklet_name = [tracklet_dic['tracklet_name'] for tracklet_dic in tracklet_dict_list]
+    sql.upsert_tracklets(conn, JD, HP, tracklet_name, tracklet_dict_list)
+
+    # query the data & check that requisite dictionaries are returned
+    list_of_tuples = sql.query_tracklets_jd_hplist(conn, JD[0], HP)
+    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 1
     
     # Delete the db to facilitate future testing
     os.remove(sql.fetch_db_filepath())
 
-def test_delete_tracklets():
+
+@pytest.mark.parametrize(('tracklet_dict_list'), [test_tracklet_dict_list])
+def test_delete_tracklet(tracklet_dict_list):
     
     # set up db & table
     if os.path.isfile( sql.fetch_db_filepath() ):
@@ -197,56 +187,57 @@ def test_delete_tracklets():
     cur = conn.cursor()
     sql.create_specific_table(conn)
     
-    # create some data and then upload it ...
-    jd =123
-    hp = 456
+    # upload data ...
+    JD = [tracklet_dic['JD'] for tracklet_dic in tracklet_dict_list]
+    HP = [tracklet_dic['HP'] for tracklet_dic in tracklet_dict_list]
+    tracklet_name = [tracklet_dic['tracklet_name'] for tracklet_dic in tracklet_dict_list]
+    sql.upsert_tracklets(conn, JD, HP, tracklet_name, tracklet_dict_list)
     
-    tracklet_name1 = 'kjhdfasdf'
-    tracklet_dict1 = {'asd':'fgh' , 'ghfgh':888}
-    sql.upsert_tracklet(conn, jd, hp, tracklet_name1, tracklet_dict1)
+    # query the data & check that required # of dictionaries are returned
+    list_of_tuples = sql.query_tracklets_jdhp(conn, JD[0], HP[0] )
+    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 1
+
+    # now delete a tracklet & check that one less dictionary is subsequently returned
+    sql.delete_tracklet(conn, tracklet_dict_list[0]['tracklet_name'])
+    list_of_tuples = sql.query_tracklets_jdhp(conn, JD[0], HP[0] )
+    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 0
+
+    # Delete the db to facilitate future testing
+    os.remove(sql.fetch_db_filepath())
+
+@pytest.mark.parametrize(('tracklet_dict_list'), [test_tracklet_dict_list])
+def test_delete_tracklets(tracklet_dict_list):
     
-    tracklet_name2 = 'uituyiu'
-    tracklet_dict2 = {'asd':'gdhjdhjdhj' , 'ghfgh':985421}
-    sql.upsert_tracklet(conn, jd, hp, tracklet_name2, tracklet_dict2)
-
-    tracklet_name3 = 'sdfhsdfgh'
-    tracklet_dict3 = {'asd':'zbczbzfb' , 'ghfgh':34563}
-    sql.upsert_tracklet(conn, jd, hp, tracklet_name3, tracklet_dict3)
-
-    tracklet_name4 = 'oiippipi'
-    tracklet_dict4 = {'asd':'aeraer' , 'ghfgh':56856}
-    sql.upsert_tracklet(conn, jd, hp, tracklet_name4, tracklet_dict4)
-
-
-    # query the data & check that 4 dictionaries are returned
-    list_of_tuples = sql.query_tracklets_jdhp(conn, jd, hp)
-    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 4
-    for tup in list_of_tuples:
-        assert isinstance( tup, (tuple, list,))
-        assert tup[0] in [tracklet_name1, tracklet_name2, tracklet_name3, tracklet_name4]
-        assert tup[1] in [tracklet_dict1, tracklet_dict2, tracklet_dict3, tracklet_dict4]
+    # set up db & table
+    if os.path.isfile( sql.fetch_db_filepath() ):
+        os.remove(sql.fetch_db_filepath())
+    conn = sql.create_connection( sql.fetch_db_filepath() )
+    cur = conn.cursor()
+    sql.create_specific_table(conn)
     
-    # now delete two tracklets & check that two dictionaries remain
-    sql.delete_tracklets(conn, [tracklet_name1 , tracklet_name3 ] )
-    list_of_tuples = sql.query_tracklets_jdhp(conn, jd, hp)
-    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 2
-    for tup in list_of_tuples:
-        assert isinstance( tup, (tuple, list,))
-        assert tup[0] in [ tracklet_name2,  tracklet_name4]
-        assert tup[1] in [ tracklet_dict2,  tracklet_dict4]
+    # upload data ...
+    JD = [tracklet_dic['JD'] for tracklet_dic in tracklet_dict_list]
+    HP = [tracklet_dic['HP'] for tracklet_dic in tracklet_dict_list]
+    tracklet_name = [tracklet_dic['tracklet_name'] for tracklet_dic in tracklet_dict_list]
+    sql.upsert_tracklets(conn, JD, HP, tracklet_name, tracklet_dict_list)
+
+    # query the data & check that required # of dictionaries are returned
+    list_of_tuples = sql.query_tracklets_jdhp(conn, JD[0], HP[0] )
+    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 1
+    list_of_tuples = sql.query_tracklets_jdhp(conn, JD[1], HP[1] )
+    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 1
+    
+    # now delete two tracklets & check that two fewer dictionaries remain
+    sql.delete_tracklets(conn, [ tracklet_dict_list[0]['tracklet_name'] , tracklet_dict_list[1]['tracklet_name'] ] )
+
+    list_of_tuples = sql.query_tracklets_jdhp(conn, JD[0], HP[0] )
+    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 0
+    list_of_tuples = sql.query_tracklets_jdhp(conn, JD[1], HP[1] )
+    assert isinstance(list_of_tuples, list) and len(list_of_tuples) == 0
 
     # Delete the db to facilitate future testing
     os.remove(sql.fetch_db_filepath())
 
 
 
-
-# Call the tests while developing (should really learn how to use pytest... ) 
-test_db_creation()
-test_table_creation()
-test_tracklet_upsert()
-test_tracklets_upsert()
-test_tracklet_query()
-test_delete_tracklet()
-test_delete_tracklets()
-print('All tests of SQL-LITE class passed')
+# End of file.

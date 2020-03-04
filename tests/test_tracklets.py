@@ -18,8 +18,6 @@ import sys
 import os
 import numpy as np
 import pytest
-# Pytest allows for better testing and better test feedback.
-# Tests should be functions, with names that start with "test".
 
 # Import neighboring packages
 # --------------------------------------------------------------
@@ -28,6 +26,8 @@ from sifter import precalc, sql
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'dev_data')
 
 
+# Convenience data / functions to aid testing
+# --------------------------------------------------------------
 test_tracklet = ['     K11Q99F*~C2011 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568', '     K11Q99F ~C2011 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568']
 
 def convenience_func_create_db_and_tables():
@@ -53,6 +53,8 @@ def convenience_func_create_db_and_tables():
     conn.close()
 
 
+# Actual tests ...
+# --------------------------------------------------------------
 def test_instantiation():
     '''Test instantiation of the Tracklets class with no observations.'''
     assert isinstance(precalc.Tracklets(), precalc.Tracklets)
@@ -114,10 +116,6 @@ def test_instantiation_with_observations(observation_pairs):
 
     # Completely delete db to facilitate future testing
     os.remove(sql.fetch_db_filepath())
-
-
-print("******** HEY, YOU! ********\n""        Use pytest!\n"
-      "$ pytest test_tracklets.py\n""***************************")
 
 
 # End of file.

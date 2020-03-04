@@ -15,12 +15,13 @@
 # Import third-party packages
 # --------------------------------------------------------------
 import sys, os
+import pytest
 import numpy as np
 
 # Import neighboring packages
 # --------------------------------------------------------------
-sys.path.append( os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'sifter') )
-import precalc
+from sifter import precalc
+
 
 
 
@@ -39,8 +40,4 @@ def test_variables():
 
 
 
-
-# Call the tests while developing ...
-test_instantiation()
-test_variables()
-print('All tests of Base class passed')
+# End of file.
