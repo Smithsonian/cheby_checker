@@ -211,10 +211,10 @@ class Tracklets(Base):
         tracklet_dictionary['AoM'] = Coord.position_angle(Coord2)
 
         # Find the healpix that the coordinates are in.
-        tracklet_dictionary['HP'] = self.HPix.lonlat_to_healpix(Coord.ra,
-                                                                Coord.dec)
-        tracklet_dictionary['HP2'] = self.HPix.lonlat_to_healpix(Coord2.ra,
-                                                                 Coord2.dec)
+        tracklet_dictionary['HP'] = int(self.HPix.lonlat_to_healpix(
+                                        Coord.ra, Coord.dec))
+        tracklet_dictionary['HP2'] = int(self.HPix.lonlat_to_healpix(
+                                         Coord2.ra, Coord2.dec))
 
         # Create a unique ID for the tracklet. This is done by combining
         # the 5 digit number or 6-7 character temporary designation,
