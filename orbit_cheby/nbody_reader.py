@@ -39,8 +39,10 @@ import itertools
 object_name     = 'unpacked_designation'
 time_fieldname  = 'MJD_TDB' # To be clarified if this is correct
 coord_names     = ['x','y','z','vx','vy','vz']
+
 # This generates a 'triangular' list of 21-combinations of coord-names
 covar_names     = [ "_".join([coord_names[i], coord_names[j]]) for i in range(len(coord_names)) for j in range(i,len(coord_names))  ]
+
 # Number of fields
 nCovars     = len( covar_names )
 nComponents = nCovars + len(coord_names)
@@ -118,7 +120,8 @@ def check_nbody_dict( nbody_dict ):
 
     return nbody_dict
 
-# Functions to create json
+
+# Functions to create json : *FAKE DATA*
 # --------------------------------------------------------------
 
 def create_nbody_json( json_filepath ):
