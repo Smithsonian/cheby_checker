@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 # sifter/sifter/query
 
 '''
@@ -74,71 +74,73 @@ HP_order    ='nested'
 HPix        = hp(nside=HP_nside, order=HP_order)
 HP_npix     = HPix.npix
 
-class MSC():
-    ''' 
-            Multi-Sector Cheby Class
-            
-            Will hold chebyshev coeeficients for a given object
-             
-            *** TO DO *** 
-            on init:
-             - from filepath
-             - from array ( & name/label)
-             - from database
-            on init (2) 
-             - populate standard variables (global_standard_JDmin, supported_standard_JDmin, ... )
-            on eval / look-up
-             - map JD-to-sector
+
+
+
+
+
+
+class MSC_Loader():
+    '''
+        Multi-Sector Cheby -Loader Function
+        
+        Will load/create/return instances of MSC : Multi-Sector Cheby objects
+        
+        Will handle multi-particle instantiation: will return **LIST** of *MSC* objects
+        
     '''
 
     # allow different init depending on source ...
     def __init__(self, **kwargs):
+        print('INIT MSC_Loader...')
         
         # Initialization of default standard PARAMETERS / OPTIONS we use for chebyshevs, etc
         # - These may be overwritten by kwargs
-        self.minorder       = 17                                    # : Fitting Chebys
-        self.maxorder       = 25                                    # : Fitting Chebys
-        self.maxerr         = 1e-8                                  # : Fitting Chebys
         self.FORCE_DATES    = False                                 # : Sector Ranges
         self.TDB_init       = None                                  # : Cheby Span
         self.TDB_final      = None                                  # : Cheby Span
         self.FROM_FILE      = False                                 # : Ingest method
         self.filepath       = False                                 # : Ingest method
         self.FROM_ARRAY     = False                                 # : Ingest method
-        self.unpacked_provisional_designation            = None     # : Ingest method
+        self.unpacked_provisional_designations           = None     # : Ingest method
         self.times_TDB      = None                                  # : Ingest method
         self.statearray     = None                                  # : Ingest method
         self.FROM_DATABASE  = None                                  # : Ingest method
+        
+        # The list of MSCs that will be instantiated & returned
+        self.MSCs           = []
         
         
         # Do a loop over the parameters and see if any attributes need updating (because they were supplied)
         for attribute, value in kwargs.items():
             if hasattr(self, attribute):
                 setattr(self, attribute, value)
-        
-        # Initialization of the default fundamental MSC sectors
-        # - These will be populated by the *_populate_from...()* functions below
-        self.sectors                            = []
-       
+
         # Allow initialization of ARRAYS / COEFFICIENTS from different sources
-        if  self.FROM_FILE and self.filepath != None :                                                          ##<<-- Mainly for development
+        # (i) From text file ( Mainly for development )
+        if  self.FROM_FILE and self.filepath != None :
             self._populate_from_nbody_text(self.filepath)
         
-        elif self.FROM_ARRAY and self.unpacked_provisional_designation != None and self.statearray != None :    ##<<-- From NBody
-            self._populate_from_nbody_array(self.unpacked_provisional_designation, self.times_TDB, self.statearray)
+        # (ii) From numpy array (from nbody)
+        elif self.FROM_ARRAY and self.unpacked_provisional_designations != None and isinstance(self.statearray , (list,tuple,np.ndarray)) :
+            self._populate_from_nbody_array(self.unpacked_provisional_designations, self.times_TDB, self.statearray)
         
-        elif self.FROM_DATABASE:                                                                                ##<<-- From database
+        # (iii) From database (of pre-calculated chebyshevs)
+        elif self.FROM_DATABASE:
             self._populate_from_database(**kwargs)
         
-        else:                                                                                                   ##<<-- An empty instance ...
+        # (iv) An empty instance ...
+        else:
             self._generate_empty()
                 
 
 
     def _generate_empty(self,  ):
-        ''' only making this a function on the off-chance that I need to dump other init. stuff in here '''
-        print('Defaulting to the production of an empty MSCD')
-    
+        '''  '''
+        print('Defaulting to the production of a list of empty MSCs')
+        self.MSCs.append(MSC())
+
+
 
     # Functions to handle different instantiaion methods
     #  - Take input and generate the chebyshev coefficients
@@ -172,12 +174,13 @@ class MSC():
 
 
     def _populate_from_nbody_array(self,
-                                   unpacked_provisional_designation ,
+                                   unpacked_provisional_designations ,
                                    times_TDB,
                                    states,
                                    ):
         '''
-            Slightly/Highly rewritten version of Margaret's *datediv* routine
+            Will initialize MSC(s) from supplied arrays
+            This handles the partitioning of data into multiple MSCs as required
             
             inputs:
             -------
@@ -191,21 +194,22 @@ class MSC():
             returns:
             --------
             
-            '''
-        
+        '''
         
         # I am going to adopt a fairly strict standardized approach:
         # *** Only sectors within standardized ranges will be generated ***
-        # E.g. sector-zero ==>> standard_MJD0 -to- standard_MJD0 + sector_length_days, ...
+        # E.g. sector-zero ==>> standard_MJD0   -to-   standard_MJD0 + sector_length_days, ...
         #
         # (0) Catch problem of incomplete info
         if   self.FORCE_DATES and (self.TDB_init == None or self.TDB_final == None):
             sys.exit('Cannot force when TDB_init and TDB_final not supplied')
+        
         # (1) Allow the user to force specific start/end dates
         elif self.FORCE_DATES and self.TDB_init != None and self.TDB_final != None:
             print('Forcing, but will still use standard %r-day blocks...' % sector_length_days )
             if  self.TDB_init < times_TDB[0] or self.TDB_final > times_TDB[-1]:
                 sys.exit(' nbody data does not support the requested dates ')
+        
         # (2) Generate the start/end dates programatically (if not supplied/forced by user)
         elif not self.FORCE_DATES:
             # Here we compare the supplied JDs to the standard end-points
@@ -216,16 +220,100 @@ class MSC():
             sys.exit('Do not know how to calculate limits in *_generate_multi_sector_cheby_dict_from_nbody_array()* ')
 
 
+
+
+        # Check that the dimensionality of the coordinates is consistent with the number of names
+        # - N.B. We expect states.shape = (Nt, Nc, Np) or (Nt,Nc), where
+        #        Nt = Number of times
+        #        Nc = Number of coords/components being fitted
+        #        Np = Number of particles
+        self.unpacked_provisional_designations = np.atleast_1d(unpacked_provisional_designations)
+        # (i) Single Object
+        if len(self.unpacked_provisional_designations) == 1 and states.ndim == 2 :
+            pass
+        # (ii) Multiple Objects
+        elif len(self.unpacked_provisional_designations) > 1 and states.ndim == 3 and (len(self.unpacked_provisional_designations) == states.shape[-1]) :
+            pass
+        # (iii) Problem
+        else:
+            sys.exit('Inconsistent dimensionality : len(self.unpacked_provisional_designations) = %r and states.ndim = %r and states.shape = %r' % \
+                     (len(self.unpacked_provisional_designations) , states.ndim ,  states.shape) )
+
+
+
+
+
+
+        # Loop over each of the objects and create a MSC-object for each ...
+        for i, unpacked in enumerate(self.unpacked_provisional_designations):
+            
+            # Get the slice of states corresponding to the particular named object
+            state_slice = states if states.ndim == 2 else states[:,:,i]
+            
+            # Create the MSC (using the appropriate *from_coord_arrays()* function )
+            M = MSC()
+            M.from_coord_arrays(self.TDB_init , self.TDB_final , times_TDB , state_slice )
+            self.MSCs.append( M )
+
+        return self.MSCs
+
+
+
+    def _populate_from_database(self, args):
+        '''
+            Will need method to construct MSC from 1-or-many sectors stored in the sqlite db as coeffs
+        '''
+        pass
+
+
+
+
+
+
+
+
+
+
+class MSC():
+    '''
+            Multi-Sector Cheby Class
+            
+            Will hold chebyshev coefficients for a **SINGLE** object
+            
+             
+    '''
+    def __init__(self, **kwargs):
+    
+
+        # Initialization of default standard PARAMETERS / OPTIONS we use for chebyshevs, etc
+        self.minorder       = 17                                    # : Fitting Chebys
+        self.maxorder       = 25                                    # : Fitting Chebys
+        self.maxerr         = 1e-8                                  # : Fitting Chebys
+
+        # Storing the all-important cheby-coeffs on a sector-by-sector-basis
+        self.sector_coeffs  = []
+
+    def from_coord_arrays(self, TDB_init , TDB_final , times_TDB , states ):
+        '''
+           Populate the MSC starting from supplied numpy-arrays
+            
+        '''
+        # Store the important quantities
+        self.TDB_init , self.TDB_final = TDB_init , TDB_final
+        
+        # Double-check that input states are as desired
+        assert states.ndim == 2, 'states.ndim = %d' % states.ndim
+
         # Here we compare the endpoints to sector-endpoints to ensure sectors are fully supported by supplied data
-        sector_numbers, sector_JD0s = self.map_JD_to_sector_number_and_sector_start_JD( [TDB_init,TDB_final] )
-        sector_numbers[0]           = sector_numbers[0]  if TDB_init - sector_JD0s[0]                        < 1 else sector_numbers[0]  + 1
-        sector_numbers[-1]          = sector_numbers[-1] if sector_JD0s[-1] + sector_length_days - TDB_final  < 1 else sector_numbers[-1] - 1
+        sector_numbers, sector_JD0s = self.map_JD_to_sector_number_and_sector_start_JD( [self.TDB_init,self.TDB_final] )
+        sector_numbers[0]           = sector_numbers[0]  if self.TDB_init - sector_JD0s[0]   < 1                       else sector_numbers[0]  + 1
+        sector_numbers[-1]          = sector_numbers[-1] if sector_JD0s[-1] + sector_length_days - self.TDB_final  < 1 else sector_numbers[-1] - 1
 
 
         # Sanity-checks
-        assert TDB_init < TDB_final,   \
-            ' Problem with TDB_init [%r] > TDB_init [%r] : likely due to supplied JDs falling outside standard ranges' % \
-                (TDB_init , TDB_init)
+        assert self.TDB_init < self.TDB_final,   \
+            ' Problem with TDB_init [%r] > TDB_final [%r] : likely due to supplied JDs falling outside standard ranges' % \
+                (self.TDB_init , self.TDB_final)
         assert sector_numbers[0] <= sector_numbers[-1] , \
             ' Problem with sector numbers [%r, %r] : likely due to supplied JDs falling outside standard ranges' % \
                 (sector_numbers[0] , sector_numbers[-1])
@@ -238,27 +326,59 @@ class MSC():
             # N.B. a[:,0] == times
             sector_TDB_init    = standard_MJDmin + ind     * sector_length_days
             sector_TDB_final   = standard_MJDmin + (ind+1) * sector_length_days
-            indicees           = np.where((times_TDB >=sector_TDB_ini t)   & \
+            indicees           = np.where((times_TDB >=sector_TDB_init )   & \
                                           (times_TDB <=sector_TDB_final)    )[0]
 
-            # For each component array, generate chebys
-            # Do all coordinates & covariances simultaneously
-            maxorder       = min(maxorder,len(indicees))
-            self.sectors.append(generate_single_sector_cheb_multi_coord( times_TDB[indicees],
-                                                                            states[indicees],
-                                                                            minorder,
-                                                                            maxorder,
-                                                                            maxerr))
+            # Order used for cheby fitting
+            self.maxorder   = min(self.maxorder,len(indicees))
+            
+            # Calc the coeffs: Do all coordinates & covariances simultaneously
+            # N.B. (1) For a single particle, states.shape = (33, 27)
+            # - Where 33 = Number times, and 27=Number of components (x,y,z,u,v,w,...)
+            # N.B. (2) cheb_coeffs.shape ~ (18, 27)
+            # - Where 18 = Number of coeffs and 27=Number of components (x,y,z,u,v,w,...)
+            cheb_coeffs = self.generate_cheb_for_sector( times_TDB[indicees], states[indicees] )
+        
+            # Save the fitted coefficients into the sector_coeff variable
+            self.sector_coeffs.append( cheb_coeffs )
 
-        return True
 
 
 
-    def _populate_from_database(self, args):
+    # Function(s) to fit supplied chebys to coords/data
+    # --------------------------------------------------------------
+    def generate_cheb_for_sector(self, t, y):
+        
         '''
-            Will need method to construct MSC from 1-or-many sectors stored in the sqlite db as coeffs
+            Get lowest order sufficiently accurate Chebyshev polynomial fit
+            for a single sector of data
+            
+            Note recursion
+            
+            Inputs:
+            t: np.array
+             - indep variable, expected to be times for this application
+             
+            y: np.array
+             - dep. var. for which we fit cheby-polynomials
+            
+            returns:
+            --------
+            np.array
+            
         '''
-        pass
+        order           = self.minorder
+        chebCandidate   = np.polynomial.chebyshev.chebfit(t, y, int(np.ceil(order)) )
+        quickEval       = np.polynomial.chebyshev.chebval(t, chebCandidate).T
+        if np.max( np.abs(quickEval - y) ) <= self.maxerr or int(np.ceil(order)) == self.maxorder :
+            return chebCandidate
+        else:
+            return self.generate_cheb_for_sector(t,y)
+
+
+
+
+
 
 
     # Assorted Utility Functions ...
@@ -359,12 +479,13 @@ class MSC():
         
         
         # Get the unit vector from observatory to object
+        # NB UV.shape =  (3, len(times_tdb) )
         UV = self.generate_UnitVector(   times_tdb ,
                                     observatoryXYZ,
                                     APPROX = APPROX )
-                                            
+
         # Calc the HP from the UV and return
-        return healpy.vec2pix(HP_nside, UV[:,0], UV[:,1], UV[:,2], nest=True if HP_order=='nested' else False )
+        return healpy.vec2pix(HP_nside, UV[0], UV[1], UV[2], nest=True if HP_order=='nested' else False )
 
 
     def generate_UnitVector( self, times_tdb , observatoryXYZ, APPROX = False ):
@@ -389,29 +510,35 @@ class MSC():
             unit-vectors: np.array 
              - apparent UnitVector from specified observatory-posn(s) at given time(s)
             
-            '''
+        '''
         
         # Get the LTT-corrected position
         # - We allow for the possibility of *NOT* iterating (i.e. doing an approx calc.)
         n_iterations    = 1 if APPROX else 3
-        lightDelay      = np.zeros(len(times_tdb))
+        
+        # Init light-delay to 0
+        lightDelay      = np.zeros( len(times_tdb) )
+        
         for i in range(n_iterations):
-            
+
             # Calculate delayed time (of emission)
+            # N.B. delayedTimes.shape = (len(times_tdb) )
             delayedTimes    = times_tdb - lightDelay
             
             # Extract posn of objects at each delayed-time
+            # N.B. objectXYZ.shape    = (3, len(times_tdb) )
             objectXYZ       = self.generate_XYZ( delayedTimes )
             
             # Calculate relative sepn-vector from observatory-to-object
             sepn_vectors    = objectXYZ - observatoryXYZ
             
-            # Calculate distance to object at each time
-            d               = np.linalg.norm(sepn_vectors, ord=2, axis=1, keepdims=True)
+            # Calculate distance to object at each time.
+            # N.B. sepn_vectors.shape == (3, len(times_tdb)), d.shape=(Np,len(times_tdb))
+            d               = np.linalg.norm(sepn_vectors, axis=0)
             
             # Calculate light-travel-time
-            lightDelay      = d.flatten() / (astropy.constants.c * secsPerDay / astropy.constants.au ).value
-        
+            lightDelay      = d / (astropy.constants.c * secsPerDay / astropy.constants.au ).value
+    
         # Return unit-vector
         return sepn_vectors / d
 
@@ -452,9 +579,8 @@ class MSC():
 
     def generate_XYZ( self, times_tdb ):
         '''
-            *** WE ASSUME THE cheby_dict IS VALID FOR ALL SUPPLIED times *************
-            *** THIS IMPLIES PRE-CHECKING BY A HIGHER/PRECEEDING FUNCTION ************
-            
+            Convenience wrapper around *evaluate_components()* func
+            Ensures we only evaluate XYZ components of the coefficients 
             
             inputs:
             -------
@@ -463,31 +589,58 @@ class MSC():
             
             return:
             -------
-            XYZ posn
-            - It is assumed that the chebys & hence the calculated XYZ are in barycentric, equatorial coords
-              (this is to facilitate calc of RA,Dec)
-            - shape = (3,len(times) )
-            - in whatever frame cheby_dict
+            XYZ_posns : np.ndarray
+             - N.B. XYZ_posns.shape = (3, Np, len(times_tdb) )
+               where Np = Number of particles (==1 for single-particle case)
+        '''
+        
+        
+        # Just select/evaluate the first 3-sets of components (X,Y,Z)
+        # - See link for specifying slices & ellipsis  : https://docs.scipy.org/doc/numpy/user/basics.indexing.html
+        if self.sector_coeffs[ 0 ].ndim == 2  :
+            slice_spec = (slice(0,len(self.sector_coeffs[ 0 ])), slice(0,3))
+        else:
+            sys.exit('self.sector_coeffs[ 0 ].ndim = %d : unable  to proceed if ndim != 2 ' % self.sector_coeffs[ 0 ].ndim  )
+        
+        # Evaluate only the XYZ coefficients
+        XYZs = self.evaluate_components( times_tdb , slice=slice_spec )
+        
+        # Reshape the output so that we always have the same structure and dimensionality
+        # I.e. shape = (3, len(times_tdb) )
+        return self.evaluate_components( times_tdb , slice=slice_spec )
+
+
+
+    def evaluate_components( self, times_tdb , slice=() ):
+        '''
+            
+            inputs:
+            -------
+            times_tdb : np.array
+            - JD TDB of times at which positions are to be calculated
+            
+            return:
+            -------
+            components
             '''
         
-        # Find which single-sector dictionary to use for a given time
-        sectors = self.map_times_to_sectors( times_tdb , multi_sector_cheby_dict )
+        # Find which single-sector dictionary to use for each given time
+        # Then make a dictionary with key=sector-number, and value=list-of-times
+        times_for_each_sector= defaultdict(list)
+        for t , s in zip( times_tdb , self.map_times_to_sectors( times_tdb  )):
+            times_for_each_sector[s].append(t)
         
-        # Evaluate the chebyshev polynomial using the appropriate single-sector-dict
-        #
-        # Approach for dictionary / json ...
-        #
-        # - Seems likely that this current implementation is non-optimal ...
-        #XYZs = [ np.array([
-        #                   np.polynomial.chebyshev.chebval( t, cheby_dict["sectors"][s]["x"] ),
-        #                   np.polynomial.chebyshev.chebval( t, cheby_dict["sectors"][s]["y"] ),
-        #                   np.polynomial.chebyshev.chebval( t, cheby_dict["sectors"][s]["z"] )
-        #                   ]) for t, s in zip(times.tdb, sectors) ]
-        #
-        #
-        # Approach for arrays ...
-        XYZs = [ np.polynomial.chebyshev.chebval( times.mjd[n] , multi_sector_cheby_dict["sectors"][s]['coeffs'][:,0:3] ) for n, s in enumerate( sectors ) ]
-        return np.array(XYZs)
+        # Evaluate the chebyshev polynomial
+        # - Note we do all of the evaluations for a single sector in one go
+        # - So we only need to loop over the sectors
+        for n, s in enumerate(sorted(list(set(times_for_each_sector)))):
+            XYZs = np.polynomial.chebyshev.chebval( times_for_each_sector[ s ] , self.sector_coeffs[ s ][slice] )
+            if n == 0 :
+                combinedXYZs = XYZs
+            else :
+                combinedXYZs = np.append( combinedXYZs, XYZs, axis = -1 )
+
+        return combinedXYZs
 
 
 
