@@ -75,7 +75,15 @@ HP_order    ='nested'
 HPix        = hp(nside=HP_nside, order=HP_order)
 HP_npix     = HPix.npix
 
-
+'''
+>>> coord_names     = ['x','y','z','vx','vy','vz']
+                        0   1   2   3    4    5
+>>> covar_names     = [ "_".join([coord_names[i], coord_names[j]]) for i in range(len(coord_names)) for j in range(i,len(coord_names))  ]
+>>> covar_names
+['x_x', 'x_y', 'x_z', 'x_vx', 'x_vy', 'x_vz', 'y_y', 'y_z', 'y_vx', 'y_vy', 'y_vz', 'z_z', 'z_vx', 'z_vy', 'z_vz', 'vx_vx', 'vx_vy', 'vx_vz', 'vy_vy', 'vy_vz', 'vz_vz']
+  6      7      8      9      10      11      12     13     14      15      16      17     18      19      20      21       22       23       24       25       26
+  *      *      *                             *      *                              *
+'''
 
 
 
@@ -565,6 +573,15 @@ class MSC():
                -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, 0,-0]) ) )
     
         return np.stack(np.array( (_dX, _dY, _dZ) ), axis=1).T / (2*d)
+    
+    def covUV(self, times_tdb , observatoryXYZ ):
+        '''
+            Evaluate the covariance in unit vectors
+            This is calculated using the covariance in XYZ & the gradient of the UV components w.r.t. XYZ
+            '''
+        dUV     = self.dUVdXYZ( times_tdb , observatoryXYZ )
+        cov_XYZ = self.covXYZ( times_tdb  )
+        return np.array( [ np.linalg.multi_dot([dUV[i].T , cov_XYZ[i], dUV[i]]) for i in range(len(dUV)) ] )
 
     def generate_RaDec(self,  times_tdb  , observatoryXYZ=None, APPROX = False , DELTASWITCH = False, delta=np.array([0,0,0])):
         '''
@@ -585,7 +602,7 @@ class MSC():
             
             return:
             -------
-            RA, Dec: np.array, np.array
+            RA_Dec: np.array
             - *** degrees ***
             
         '''
@@ -599,9 +616,11 @@ class MSC():
         # Convert from unit-vector to RA, Dec and then return
         return np.array(healpy.vec2ang( UV.T , lonlat = True ))
 
-    def dRaDecdXYZ( self, times_tdb , observatoryXYZ ):
+    def dRaDecdXYZ( self, times_tdb , observatoryXYZ ,         d = 1e-6):
         '''
             Gradient of Ra & Dec w.r.t. the Cartesian X,Y,Z positions
+            
+            Assumed d = 1e-8 => 1e-8 AU => 1e3m
             
             inputs:
             -------
@@ -609,7 +628,6 @@ class MSC():
             returns:
             --------
             '''
-        d = 1e-6
         _dX = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([d, 0, 0]) ) \
                -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([-d,0, 0]) ) )
         _dY = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, d, 0]) ) \
@@ -619,9 +637,20 @@ class MSC():
     
         return np.stack(np.array( (_dX, _dY, _dZ) ), axis=1).T / (2*d)
     
+    def covRaDec(self, times_tdb , observatoryXYZ ):
+        '''
+            Evaluate the covariance in RA, Dec 
+            This is calculated using the covariance in XYZ & the gradient of RA,Dec w.r.t. XYZ
+        '''
+        dRD     = self.dRaDecdXYZ( times_tdb , observatoryXYZ )
+        cov_XYZ = self.covXYZ( times_tdb  )
+        return np.array( [ np.linalg.multi_dot([dRD[i].T , cov_XYZ[i], dRD[i]]) for i in range(len(dRD)) ] )
+
+    
 
     def generate_XYZ( self, times_tdb  ):
         '''
+            Evaluate the XYZ positions at the supplied times
             Convenience wrapper around *evaluate_components()* func
             Ensures we only evaluate XYZ components of the coefficients 
             
@@ -647,12 +676,35 @@ class MSC():
         
         # Evaluate only the XYZ coefficients
         # NB: to try to increase accuracy, use times relative to standard_MJDmin
-        XYZs = self.evaluate_components( times_tdb - standard_MJDmin , slice=slice_spec )
+        return self.evaluate_components( times_tdb - standard_MJDmin , slice=slice_spec )
+
+    def covXYZ( self, times_tdb  ):
+        '''
+            Evaluate the covariance in XYZ positions at the supplied times
+            Convenience wrapper around *evaluate_components()* func
+            Follows the approach in *generate_XYZ()* used to select required coefficients
+            
+            returns 
+            -------
+            np.ndarray
+             - shape = ( len(times_tdb) ,3, 3 )
+        '''
+        # Select/evaluate the appropriate covariance components (...)
+        # ['x_x', 'x_y', 'x_z', 'x_vx', 'x_vy', 'x_vz', 'y_y', 'y_z', 'y_vx', 'y_vy', 'y_vz', 'z_z', 'z_vx', 'z_vy', 'z_vz', 'vx_vx', 'vx_vy', 'vx_vz', 'vy_vy', 'vy_vz', 'vz_vz']
+        #    6      7      8      9      10      11      12     13     14      15      16      17     18      19      20      21       22       23       24       25       26
+        #    *      *      *                             *      *                              *
+        cov = self.evaluate_components( times_tdb - standard_MJDmin , slice=(slice(0,len(self.sector_coeffs[ 0 ])), np.array([6,7,8,12,13,17]) ) )
         
-        return XYZs
+        # Reproduce & reshape to get 3x3 matrix for each time
+        # 'x_x', 'x_y', 'x_z',  'y_y', 'y_z',  'z_z' -->> 'x_x', 'x_y', 'x_z',  'x_y', 'y_y', 'y_z',  'x_z', 'y_z','z_z'
+        #  0      1       2      3      4       5          0      1      2       1      3      4       2      4     5
+        #                                                  0      1      2       3      4      5       6      7     8
+        #
+        # Transpose to make it come out as shape = (Nt,3,3), so that its comparable to dRaDecdXYZ & dUVdXYZ
+        return np.array( [cov[0:3,:], np.vstack( (cov[1], cov[3:5,:]) ), np.vstack( (cov[2], cov[4:6,:]) ) ] ).T
 
 
-    def generate_gradientXYZ(self,  times_tdb  , dt=1e-5):
+    def dXYZdt(self,  times_tdb  , dt=1e-5):
         ''' 
             Use calculate the gradient in XYZ at supplied times
             
@@ -680,7 +732,7 @@ class MSC():
             
             return:
             -------
-            components
+            components calculated from coefficient evaluation at times_tdb
         '''
         # Make sure that the supplied times are *RELATIVE*
         # - Going to do this by demanding that the times be larger than ~0
