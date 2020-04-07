@@ -50,6 +50,7 @@ from astropy_healpix import healpy
 from functools import lru_cache
 import json
 import itertools
+import numdifftools as nd
 
 # Import neighboring packages
 # --------------------------------------------------------------
@@ -65,8 +66,8 @@ sector_length_days = 32
 
 # We will assume that the earliest standard epoch to be used will be JD:2440000
 # - This will set the enumeration of the sectors
-standard_MJDmin = 40000 # 1968
-standard_MJDmax = 64000 # 2034
+standard_MJDmin = 2440000 # 1968
+standard_MJDmax = 2460000 # 2034
 
 # Healpix settings
 HP_nside    = 16
@@ -196,8 +197,7 @@ class MSC_Loader():
             
         '''
         
-        # I am going to adopt a fairly strict standardized approach:
-        # *** Only sectors within standardized ranges will be generated ***
+        # *** Strict standardized approach: Only sectors within standardized ranges will be generated ***
         # E.g. sector-zero ==>> standard_MJD0   -to-   standard_MJD0 + sector_length_days, ...
         #
         # (0) Catch problem of incomplete info
@@ -252,7 +252,7 @@ class MSC_Loader():
             
             # Create the MSC (using the appropriate *from_coord_arrays()* function )
             M = MSC()
-            M.from_coord_arrays(self.TDB_init , self.TDB_final , times_TDB , state_slice )
+            M.from_coord_arrays(unpacked , self.TDB_init , self.TDB_final , times_TDB , state_slice )
             self.MSCs.append( M )
 
         return self.MSCs
@@ -289,58 +289,69 @@ class MSC():
         self.minorder       = 17                                    # : Fitting Chebys
         self.maxorder       = 25                                    # : Fitting Chebys
         self.maxerr         = 1e-8                                  # : Fitting Chebys
+        
+        
+        # Time-related quantities
+        
+        # Fundamental identifiying data for MSC
+        self.unpacked_provisional_designation   = None
+        self.sector_coeffs                      = {}        # the all-important cheby-coeffs
 
-        # Storing the all-important cheby-coeffs on a sector-by-sector-basis
-        self.sector_coeffs  = []
-
-    def from_coord_arrays(self, TDB_init , TDB_final , times_TDB , states ):
+    def from_coord_arrays(self, unpacked_provisional_designation, TDB_init , TDB_final , times_TDB , states ):
         '''
            Populate the MSC starting from supplied numpy-arrays
             
         '''
-        # Store the important quantities
-        self.TDB_init , self.TDB_final = TDB_init , TDB_final
         
-        # Double-check that input states are as desired
-        assert states.ndim == 2, 'states.ndim = %d' % states.ndim
+        # Store the important quantities
+        self.unpacked_provisional_designation, self.TDB_init , self.TDB_final = unpacked_provisional_designation, TDB_init , TDB_final
 
-        # Here we compare the endpoints to sector-endpoints to ensure sectors are fully supported by supplied data
-        sector_numbers, sector_JD0s = self.map_JD_to_sector_number_and_sector_start_JD( [self.TDB_init,self.TDB_final] )
-        sector_numbers[0]           = sector_numbers[0]  if self.TDB_init - sector_JD0s[0]   < 1                       else sector_numbers[0]  + 1
-        sector_numbers[-1]          = sector_numbers[-1] if sector_JD0s[-1] + sector_length_days - self.TDB_final  < 1 else sector_numbers[-1] - 1
-
-
-        # Sanity-checks
+        # Sanity-checks on the supplied start & end times (generally the Loader should have got things right) ...
+        assert self.TDB_init >= standard_MJDmin and self.TDB_final <= standard_MJDmax, ' TDB_init & TDB_final not in allowed range'
         assert self.TDB_init < self.TDB_final,   \
             ' Problem with TDB_init [%r] > TDB_final [%r] : likely due to supplied JDs falling outside standard ranges' % \
                 (self.TDB_init , self.TDB_final)
-        assert sector_numbers[0] <= sector_numbers[-1] , \
+
+        # Sanity-check on dimensionality of input states
+        assert states.ndim == 2, 'states.ndim = %d' % states.ndim
+
+
+        # Here we compare the endpoints to sector-endpoints to ensure sectors are fully supported by supplied data
+        sector_numbers, sector_JD0s = self.map_JD_to_sector_number_and_sector_start_JD( [self.TDB_init,self.TDB_final] )
+        init           = (sector_numbers[0], sector_JD0s[0] ) if self.TDB_init - sector_JD0s[0]   < 1                       else (sector_numbers[0] + 1 , sector_JD0s[0] + sector_length_days)
+        final          = (sector_numbers[-1],sector_JD0s[-1]) if sector_JD0s[-1] + sector_length_days - self.TDB_final  < 1 else (sector_numbers[-1] - 1, sector_JD0s[-1]- sector_length_days)
+
+        # Sanity check
+        assert init[0] <= final[0] , \
             ' Problem with sector numbers [%r, %r] : likely due to supplied JDs falling outside standard ranges' % \
-                (sector_numbers[0] , sector_numbers[-1])
+                (init[0] , final[0])
 
 
-        # Go through sectors
-        for ind in range(sector_numbers[0] , sector_numbers[-1] ):
+        # Go through sector-numbers
+        for sector_num in range(init[0] , final[0] ):
             
             # Identify the indicees of the nbody times for this sector (i.e. those with min < t < max)
             # N.B. a[:,0] == times
-            sector_TDB_init    = standard_MJDmin + ind     * sector_length_days
-            sector_TDB_final   = standard_MJDmin + (ind+1) * sector_length_days
+            sector_TDB_init    = standard_MJDmin + sector_num     * sector_length_days
+            sector_TDB_final   = standard_MJDmin + (sector_num+1) * sector_length_days
             indicees           = np.where((times_TDB >=sector_TDB_init )   & \
                                           (times_TDB <=sector_TDB_final)    )[0]
 
             # Order used for cheby fitting
             self.maxorder   = min(self.maxorder,len(indicees))
             
+            # To try and improve accuracy, make times relative to standard_MJDmin
+            relative_times = times_TDB - standard_MJDmin
+            
             # Calc the coeffs: Do all coordinates & covariances simultaneously
             # N.B. (1) For a single particle, states.shape = (33, 27)
             # - Where 33 = Number times, and 27=Number of components (x,y,z,u,v,w,...)
             # N.B. (2) cheb_coeffs.shape ~ (18, 27)
             # - Where 18 = Number of coeffs and 27=Number of components (x,y,z,u,v,w,...)
-            cheb_coeffs = self.generate_cheb_for_sector( times_TDB[indicees], states[indicees] )
+            cheb_coeffs = self.generate_cheb_for_sector( relative_times[indicees], states[indicees] )
         
-            # Save the fitted coefficients into the sector_coeff variable
-            self.sector_coeffs.append( cheb_coeffs )
+            # Save the fitted coefficients into the sector_coeff dict
+            self.sector_coeffs[sector_num] =  cheb_coeffs
 
 
 
@@ -358,6 +369,7 @@ class MSC():
             Inputs:
             t: np.array
              - indep variable, expected to be times for this application
+             - to try and improve accuracy, assume times relative to standard_MJDmin
              
             y: np.array
              - dep. var. for which we fit cheby-polynomials
@@ -384,6 +396,12 @@ class MSC():
     # Assorted Utility Functions ...
     # --------------------------------------------------------------
 
+    def map_JD_to_sector_number(self, JD_TDB , JD0=standard_MJDmin):
+        return ( np.asarray( JD_TDB ) - JD0).astype(int) // sector_length_days
+    
+    def map_sector_number_to_sector_start_JD(self, sector_number, JD0=standard_MJDmin):
+        return JD0 + sector_number * sector_length_days
+    
     def map_JD_to_sector_number_and_sector_start_JD(self, JD_TDB, JD0=standard_MJDmin):
         '''
             For a given JD_TDB, calculate the sector number it will be in
@@ -395,41 +413,18 @@ class MSC():
             return:
             -------
             '''
-        sector_number   = ( np.asarray( JD_TDB ) - JD0).astype(int) // sector_length_days
-        sector_JD0      = JD0 + sector_number * sector_length_days
-        return sector_number , sector_JD0
+        sector_number   = self.map_JD_to_sector_number(JD_TDB , JD0=JD0)
+        return sector_number , self.map_sector_number_to_sector_start_JD( sector_number, JD0=JD0)
 
 
-
-
-
-    # Functions to evaluate supplied multi-sector-cheby-dictionary
-    # --------------------------------------------------------------
 
     def get_valid_range_of_dates( self,  ):
         '''
-            Extract the minimum and maximum dates for
-            which the supplied dictionary has valid
-            chebyshev-coefficients
-            
-            Will work on single- or multi-sector cheby-dict
-            
-            inputs:
-            -------
-            cheby_dict: dictionary
-            - see ... for details
-            
-            return:
-            -------
-            t_init : float
-            - earliest valid date (time system may be MJD, but is implicit : depends on MPan;'s choice of zero-points ...)
-            
-            t_final : float
-            - latest valid date (time system may be MJD, but is implicit : depends on MPan;'s choice of zero-points ...)
-            '''
+            Return the minimum and maximum dates for which this MSC is valid
+        '''
         return self.TDB_init , self.TDB_final
 
-
+    """
     def map_times_to_sectors( self, times_tdb ):
         '''
             Given query-times, it is likely to be useful to
@@ -446,9 +441,16 @@ class MSC():
             - sector # (zero-based) starting from the dictionary's "t_init"
             - length of returned array = len(times)
             '''
-        return ( (times_tdb - self.TDB_init ) // sector_length_days ).astype(int)
+        if RELATIVE:
+            return ( (times_tdb ) // sector_length_days ).astype(int)
+        else:
+            return ( (times_tdb - self.TDB_init ) // sector_length_days ).astype(int)
+    """
+    
 
 
+    # Functions to evaluate supplied multi-sector-cheby-dictionary
+    # --------------------------------------------------------------
 
     def generate_HP( self, times_tdb , observatoryXYZ , APPROX = False, CHECK = False ):
         '''
@@ -480,15 +482,15 @@ class MSC():
         
         # Get the unit vector from observatory to object
         # NB UV.shape =  (3, len(times_tdb) )
-        UV = self.generate_UnitVector(   times_tdb ,
-                                    observatoryXYZ,
-                                    APPROX = APPROX )
+        UV = self.generate_UnitVector(  times_tdb ,
+                                        observatoryXYZ,
+                                        APPROX = APPROX )
 
         # Calc the HP from the UV and return
         return healpy.vec2pix(HP_nside, UV[0], UV[1], UV[2], nest=True if HP_order=='nested' else False )
 
 
-    def generate_UnitVector( self, times_tdb , observatoryXYZ, APPROX = False ):
+    def generate_UnitVector( self, times_tdb , observatoryXYZ, APPROX = False , DELTASWITCH = False, delta=np.array([0,0,0]) ):
         '''
             Calculate apparent UnitVector from specified observatory-posn(s) at given time(s)
             
@@ -528,6 +530,8 @@ class MSC():
             # Extract posn of objects at each delayed-time
             # N.B. objectXYZ.shape    = (3, len(times_tdb) )
             objectXYZ       = self.generate_XYZ( delayedTimes )
+            if DELTASWITCH :
+                objectXYZ += np.stack([delta for i in range(objectXYZ.shape[-1])], axis=1)
             
             # Calculate relative sepn-vector from observatory-to-object
             sepn_vectors    = objectXYZ - observatoryXYZ
@@ -542,8 +546,27 @@ class MSC():
         # Return unit-vector
         return sepn_vectors / d
 
+    def dUVdXYZ( self, times_tdb , observatoryXYZ ):
+        '''
+            Gradient of the UnitVector w.r.t. the Cartesian X,Y,Z positions
+            
+            inputs:
+            -------
+            
+            returns:
+            --------
+        '''
+        d = 1e-6
+        _dX = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([d, 0, 0]) ) \
+               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([-d,0, 0]) ) )
+        _dY = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, d, 0]) ) \
+               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0,-d, 0]) ) )
+        _dZ = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, 0, d]) ) \
+               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, 0,-0]) ) )
+    
+        return np.stack(np.array( (_dX, _dY, _dZ) ), axis=1).T / (2*d)
 
-    def generate_RaDec(self,  times_tdb  , observatoryXYZ, APPROX = False):
+    def generate_RaDec(self,  times_tdb  , observatoryXYZ=None, APPROX = False , DELTASWITCH = False, delta=np.array([0,0,0])):
         '''
             Calculate apparent RA,DEC (Radians???) from specified observatory-posn(s) at given time(s)
             
@@ -562,22 +585,42 @@ class MSC():
             
             return:
             -------
-            unit-vectors: np.array
-            - apparent UnitVector from specified observatory-posn(s) at given time(s)
+            RA, Dec: np.array, np.array
+            - *** degrees ***
             
         '''
         # Get the unit vector from observatory to object
-        UV = self.generate_UnitVector_from_cheby(times_tdb ,
-                                            observatoryXYZ,
-                                            APPROX = APPROX )
+        UV = self.generate_UnitVector(times_tdb ,
+                                      observatoryXYZ,
+                                      APPROX = APPROX,
+                                      DELTASWITCH=DELTASWITCH,
+                                      delta = delta)
             
         # Convert from unit-vector to RA, Dec and then return
-        theta_, RA_   = healpy.vec2ang(UV)
-        return RA_ , 0.5*np.pi - theta_
+        return np.array(healpy.vec2ang( UV.T , lonlat = True ))
 
+    def dRaDecdXYZ( self, times_tdb , observatoryXYZ ):
+        '''
+            Gradient of Ra & Dec w.r.t. the Cartesian X,Y,Z positions
+            
+            inputs:
+            -------
+            
+            returns:
+            --------
+            '''
+        d = 1e-6
+        _dX = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([d, 0, 0]) ) \
+               -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([-d,0, 0]) ) )
+        _dY = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, d, 0]) ) \
+               -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0,-d, 0]) ) )
+        _dZ = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, 0, d]) ) \
+               -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, 0,-0]) ) )
+    
+        return np.stack(np.array( (_dX, _dY, _dZ) ), axis=1).T / (2*d)
+    
 
-
-    def generate_XYZ( self, times_tdb ):
+    def generate_XYZ( self, times_tdb  ):
         '''
             Convenience wrapper around *evaluate_components()* func
             Ensures we only evaluate XYZ components of the coefficients 
@@ -597,39 +640,61 @@ class MSC():
         
         # Just select/evaluate the first 3-sets of components (X,Y,Z)
         # - See link for specifying slices & ellipsis  : https://docs.scipy.org/doc/numpy/user/basics.indexing.html
-        if self.sector_coeffs[ 0 ].ndim == 2  :
+        if self.sector_coeffs[ list(self.sector_coeffs.keys())[0] ].ndim == 2  :
             slice_spec = (slice(0,len(self.sector_coeffs[ 0 ])), slice(0,3))
         else:
             sys.exit('self.sector_coeffs[ 0 ].ndim = %d : unable  to proceed if ndim != 2 ' % self.sector_coeffs[ 0 ].ndim  )
         
         # Evaluate only the XYZ coefficients
-        XYZs = self.evaluate_components( times_tdb , slice=slice_spec )
+        # NB: to try to increase accuracy, use times relative to standard_MJDmin
+        XYZs = self.evaluate_components( times_tdb - standard_MJDmin , slice=slice_spec )
         
-        # Reshape the output so that we always have the same structure and dimensionality
-        # I.e. shape = (3, len(times_tdb) )
-        return self.evaluate_components( times_tdb , slice=slice_spec )
+        return XYZs
 
 
+    def generate_gradientXYZ(self,  times_tdb  , dt=1e-5):
+        ''' 
+            Use calculate the gradient in XYZ at supplied times
+            
+            *** DO I EVER NEED dX/dt ??? ***
+            
+            returns:
+            --------
 
-    def evaluate_components( self, times_tdb , slice=() ):
+            
+        '''
+        # numdifftools ~10x slower than direct method below ...
+        # return nd.Gradient( self.generate_XYZ )(times_tdb)
+        #
+        # dt~1e-5 => ~1sec
+        return ( self.generate_XYZ( times_tdb + dt ) - self.generate_XYZ( times_tdb - dt ) ) / (2*dt)
+    
+
+    def evaluate_components( self, relative_times , slice=() ):
         '''
             
             inputs:
             -------
             times_tdb : np.array
-            - JD TDB of times at which positions are to be calculated
+            - to try to increase accuracy, use times relative to standard_MJDmin
             
             return:
             -------
             components
-            '''
+        '''
+        # Make sure that the supplied times are *RELATIVE*
+        # - Going to do this by demanding that the times be larger than ~0
+        # - But because of the LTT calculations reqd in *generate_UnitVector()*, I'm going to allow extra negative time ...
+        #   1000AU => ~6days LTT, which should be more than plenty.
+        assert relative_times[0] >= -6 and relative_times[-1] < (standard_MJDmax - standard_MJDmin), ' times do not seem to be relative: relative_times[0] = %r' % (relative_times[0] )
         
         # Find which single-sector dictionary to use for each given time
         # Then make a dictionary with key=sector-number, and value=list-of-times
+        # N.B. we use JD0 = 0 because we have already been supplied with *relative* times
         times_for_each_sector= defaultdict(list)
-        for t , s in zip( times_tdb , self.map_times_to_sectors( times_tdb  )):
+        for t , s in zip( relative_times , self.map_JD_to_sector_number(relative_times, JD0=0) ):
             times_for_each_sector[s].append(t)
-        
+    
         # Evaluate the chebyshev polynomial
         # - Note we do all of the evaluations for a single sector in one go
         # - So we only need to loop over the sectors
