@@ -50,11 +50,11 @@ from astropy_healpix import healpy
 from functools import lru_cache
 import json
 import itertools
-import numdifftools as nd
+#import numdifftools as nd  # Unused
 
 # Import neighboring packages
 # --------------------------------------------------------------
-import nbody_reader
+from . import nbody_reader
 
 # Define top-line parameters
 # --------------------------------------------------------------
@@ -366,7 +366,7 @@ class MSC():
 
     # Function(s) to fit supplied chebys to coords/data
     # --------------------------------------------------------------
-    def generate_cheb_for_sector(self, t, y):
+    def generate_cheb_for_sector(self, t, y, order=None):
         
         '''
             Get lowest order sufficiently accurate Chebyshev polynomial fit
@@ -387,13 +387,15 @@ class MSC():
             np.array
             
         '''
-        order           = self.minorder
+        order           = self.minorder if order is None else order
+        print(f"Order used: {order}")
         chebCandidate   = np.polynomial.chebyshev.chebfit(t, y, int(np.ceil(order)) )
         quickEval       = np.polynomial.chebyshev.chebval(t, chebCandidate).T
         if np.max( np.abs(quickEval - y) ) <= self.maxerr or int(np.ceil(order)) == self.maxorder :
             return chebCandidate
         else:
-            return self.generate_cheb_for_sector(t,y)
+            neworder = order + int(np.ceil((self.maxorder - order) / 2))
+            return self.generate_cheb_for_sector(t, y, neworder)
 
 
 
