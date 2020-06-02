@@ -50,161 +50,46 @@ from astropy_healpix import healpy
 from functools import lru_cache
 import json
 import itertools
-import numdifftools as nd
+#import numdifftools as nd  # Unused
 
 # Import neighboring packages
 # --------------------------------------------------------------
-try:
-    import nbody_reader
-except ImportError:
-    from . import nbody_reader
-
+from . import nbody_reader
 
 # Define top-line parameters
 # --------------------------------------------------------------
 
-class Base():
-    '''
-        Parent class to hold fundamental definitions / settings used across ...
-        ... various ChebyChecker components.
-        
-        [[ much of this originally in precalc.py ]]
-        
-    '''
-        
-    # --- Notes on the expected mapping of coord-components to position ...
-    # --- ... required in order to allow functions ** and ** to work properly ...
-    # --- These are fundamental to the proper operation of much of MSC.
-    # ------------------------------------------
-    '''
-        >>> coord_names     = ['x','y','z','vx','vy','vz']
-        0   1   2   3    4    5
-        >>> covar_names     = [ "_".join([coord_names[i], coord_names[j]]) for i in range(len(coord_names)) for j in range(i,len(coord_names))  ]
-        >>> covar_names
-        ['x_x', 'x_y', 'x_z', 'x_vx', 'x_vy', 'x_vz', 'y_y', 'y_z', 'y_vx', 'y_vy', 'y_vz', 'z_z', 'z_vx', 'z_vy', 'z_vz', 'vx_vx', 'vx_vy', 'vx_vz', 'vy_vy', 'vy_vz', 'vz_vz']
-        6      7      8      9      10      11      12     13     14      15      16      17     18      19      20      21       22       23       24       25       26
-        *      *      *                             *      *                              *
-    '''
+secsPerDay = 86400
 
-    
-    # --- Params / Constants ... ---------------
-    # ------------------------------------------
-    secsPerDay = 86400
-    epsilon    = 1e-6
-    
-    # --- Healpix settings ---------------------
-    # ------------------------------------------
-    HP_nside    = 16
-    HP_order    ='nested'
-    HPix        = hp(nside=HP_nside, order=HP_order)
-    HP_npix     = HPix.npix
-    '''
-    self.HP_nside=16
-    self.HP_order='nested'
-    self.hp = HEALPix(nside=self.HP_nside, order=self.HP_order)
-    self.npix = self.hp.npix
-    '''
-    
-    # --- Date settings ------------------------
-    # ------------------------------------------
-    
-    # We will assume that all sectors are of length 32-days
-    sector_length_days = 32
+# We will assume that all sectors are of length 32-days
+sector_length_days = 32
 
-    # We will assume that the earliest standard epoch to be used will be JD:2440000
-    # - This will set the enumeration of the sectors
-    standard_MJDmin = 2440000 # 1968
-    standard_MJDmax = 2460000 # 2034
+# We will assume that the earliest standard epoch to be used will be JD:2440000
+# - This will set the enumeration of the sectors
+standard_MJDmin = 2440000 # 1968
+standard_MJDmax = 2460000 # 2034
 
-    # Default list of Julian Dates to use (2440000 ==> 1968, 2460000.0 ==> 2023)
-    # - Could/Should change this so that the end date is checked to be X-days in the future, or something similar
-    JDlist = np.arange(standard_MJDmin, standard_MJDmax, 1)
-    
-    
-    # --- Data / File / DB settings ------------
-    # ------------------------------------------
-    # sqlite database specs ...
-    db_dir         = '.cheby_checker_data'
-    db_filename    = 'cheby_checker.db'
-    
+# Healpix settings
+HP_nside    = 16
+HP_order    ='nested'
+HPix        = hp(nside=HP_nside, order=HP_order)
+HP_npix     = HPix.npix
 
-    # Data Function(s) ...
-    # --------------------------------------------------------------
-
-    def _fetch_data_directory(self):
-        '''
-            Returns the default path to the directory where data will be downloaded.
-            
-            By default, this method will return ~/.mpchecker2/data
-            and create this directory if it does not exist.
-            
-            If the directory cannot be accessed or created, then it returns the local directory (".")
-            
-            Returns
-            -------
-            data_dir : str
-            Path to location of `data_dir` where data (FITs files) will be downloaded
-            '''
-        
-        data_dir = os.path.join(os.path.expanduser('~'), self.db_dir)
-        print(" *** WARNING TO MPC STAFF *** \n THIS DEVELOPMENTAL CODE IS SAVING TO THE USERS-DIRECTORY \n THIS SHOULD BE CHANGED TO A SINGLE LOCN ON MARSDEN \n *** END OF WARNING ***" )
-        
-        
-        # If it doesn't exist, make a new data directory
-        if not os.path.isdir(data_dir):
-            
-            try:
-                os.mkdir(data_dir)
-            
-            # downloads locally if OS error occurs
-            except OSError:
-                warnings.warn('Warning: unable to create {}. '
-                              'Download directory set to be the current working directory instead.'.format(data_dir))
-                data_dir = '.'
-    
-        return data_dir
-
-
-    # Date Functions ...
-    # --------------------------------------------------------------
-    @staticmethod
-    def map_JD_to_sector_number( JD_TDB , JD0):
-        return ( np.asarray( JD_TDB ) - JD0).astype(int) // Base.sector_length_days
-    
-    @staticmethod
-    def map_sector_number_to_sector_start_JD( sector_number, JD0):
-        return JD0 + sector_number * Base.sector_length_days
-
-    @staticmethod
-    def map_JD_to_sector_number_and_sector_start_JD(JD_TDB, JD0):
-        '''
-            For a given JD_TDB, calculate the sector number it will be in
-            Assumes a standard starting julian date
-            
-            inputs:
-            -------
-            
-            return:
-            -------
-        '''
-        sector_number   = Base.map_JD_to_sector_number(JD_TDB , JD0)
-        return sector_number , Base.map_sector_number_to_sector_start_JD( sector_number, JD0)
-
-
-    @classmethod
-    def get_required_sector_dict(cls):
-        '''
-            Understand the basic sector-size used in constructing cheby-coefficients
-            - Use that to define a complete list of sectors spanning the JDs in JDlist
-            Will look like {0: 2440000, 1: 2440032, ...}
-            - N.B. The dictionary automatically handles making a "set" of the keys
-        '''
-        return {a:b for a,b in zip(*cls.map_JD_to_sector_number_and_sector_start_JD( cls.JDlist , cls.standard_MJDmin ))}
+'''
+>>> coord_names     = ['x','y','z','vx','vy','vz']
+                        0   1   2   3    4    5
+>>> covar_names     = [ "_".join([coord_names[i], coord_names[j]]) for i in range(len(coord_names)) for j in range(i,len(coord_names))  ]
+>>> covar_names
+['x_x', 'x_y', 'x_z', 'x_vx', 'x_vy', 'x_vz', 'y_y', 'y_z', 'y_vx', 'y_vy', 'y_vz', 'z_z', 'z_vx', 'z_vy', 'z_vz', 'vx_vx', 'vx_vy', 'vx_vz', 'vy_vy', 'vy_vz', 'vz_vz']
+  6      7      8      9      10      11      12     13     14      15      16      17     18      19      20      21       22       23       24       25       26
+  *      *      *                             *      *                              *
+'''
 
 
 
 
-class MSC_Loader(Base):
+
+class MSC_Loader():
     '''
         Multi-Sector Cheby -Loader Function
         
@@ -217,10 +102,7 @@ class MSC_Loader(Base):
     # allow different init depending on source ...
     def __init__(self, **kwargs):
         print('INIT MSC_Loader...')
-
-        # Give access to "Base" methods & attributes
-        Base.__init__(self)
-
+        
         # Initialization of default standard PARAMETERS / OPTIONS we use for chebyshevs, etc
         # - These may be overwritten by kwargs
         self.FORCE_DATES    = False                                 # : Sector Ranges
@@ -229,7 +111,7 @@ class MSC_Loader(Base):
         self.FROM_FILE      = False                                 # : Ingest method
         self.filepath       = False                                 # : Ingest method
         self.FROM_ARRAY     = False                                 # : Ingest method
-        self.primary_unpacked_provisional_designations   = None     # : Ingest method
+        self.unpacked_provisional_designations           = None     # : Ingest method
         self.times_TDB      = None                                  # : Ingest method
         self.statearray     = None                                  # : Ingest method
         self.FROM_DATABASE  = None                                  # : Ingest method
@@ -249,8 +131,8 @@ class MSC_Loader(Base):
             self._populate_from_nbody_text(self.filepath)
         
         # (ii) From numpy array (from nbody)
-        elif self.FROM_ARRAY and self.primary_unpacked_provisional_designations != None and isinstance(self.statearray , (list,tuple,np.ndarray)) :
-            self._populate_from_nbody_array(self.primary_unpacked_provisional_designations, self.times_TDB, self.statearray)
+        elif self.FROM_ARRAY and self.unpacked_provisional_designations != None and isinstance(self.statearray , (list,tuple,np.ndarray)) :
+            self._populate_from_nbody_array(self.unpacked_provisional_designations, self.times_TDB, self.statearray)
         
         # (iii) From database (of pre-calculated chebyshevs)
         elif self.FROM_DATABASE:
@@ -264,7 +146,7 @@ class MSC_Loader(Base):
 
     def _generate_empty(self,  ):
         '''  '''
-        print('\n','*'*6,'Defaulting to the production of a list of empty MSCs','*'*6,'\n')
+        print('Defaulting to the production of a list of empty MSCs')
         self.MSCs.append(MSC())
 
 
@@ -301,7 +183,7 @@ class MSC_Loader(Base):
 
 
     def _populate_from_nbody_array(self,
-                                   primary_unpacked_provisional_designations ,
+                                   unpacked_provisional_designations ,
                                    times_TDB,
                                    states,
                                    ):
@@ -332,15 +214,15 @@ class MSC_Loader(Base):
         
         # (1) Allow the user to force specific start/end dates
         elif self.FORCE_DATES and self.TDB_init != None and self.TDB_final != None:
-            print('Forcing, but will still use standard %r-day blocks...' % self.sector_length_days )
+            print('Forcing, but will still use standard %r-day blocks...' % sector_length_days )
             if  self.TDB_init < times_TDB[0] or self.TDB_final > times_TDB[-1]:
                 sys.exit(' nbody data does not support the requested dates ')
         
         # (2) Generate the start/end dates programatically (if not supplied/forced by user)
         elif not self.FORCE_DATES:
             # Here we compare the supplied JDs to the standard end-points
-            self.TDB_init  = int(max(self.standard_MJDmin , times_TDB[0] ))
-            self.TDB_final = int(min(self.standard_MJDmax , times_TDB[-1] ))
+            self.TDB_init  = int(max(standard_MJDmin , times_TDB[0] ))
+            self.TDB_final = int(min(standard_MJDmax , times_TDB[-1] ))
 
         else:
             sys.exit('Do not know how to calculate limits in *_generate_multi_sector_cheby_dict_from_nbody_array()* ')
@@ -353,17 +235,17 @@ class MSC_Loader(Base):
         #        Nt = Number of times
         #        Nc = Number of coords/components being fitted
         #        Np = Number of particles
-        self.primary_unpacked_provisional_designations = np.atleast_1d(primary_unpacked_provisional_designations)
+        self.unpacked_provisional_designations = np.atleast_1d(unpacked_provisional_designations)
         # (i) Single Object
-        if len(self.primary_unpacked_provisional_designations) == 1 and states.ndim == 2 :
+        if len(self.unpacked_provisional_designations) == 1 and states.ndim == 2 :
             pass
         # (ii) Multiple Objects
-        elif len(self.primary_unpacked_provisional_designations) > 1 and states.ndim == 3 and (len(self.primary_unpacked_provisional_designations) == states.shape[-1]) :
+        elif len(self.unpacked_provisional_designations) > 1 and states.ndim == 3 and (len(self.unpacked_provisional_designations) == states.shape[-1]) :
             pass
         # (iii) Problem
         else:
             sys.exit('Inconsistent dimensionality : len(self.unpacked_provisional_designations) = %r and states.ndim = %r and states.shape = %r' % \
-                     (len(self.primary_unpacked_provisional_designations) , states.ndim ,  states.shape) )
+                     (len(self.unpacked_provisional_designations) , states.ndim ,  states.shape) )
 
 
 
@@ -371,7 +253,7 @@ class MSC_Loader(Base):
 
 
         # Loop over each of the objects and create a MSC-object for each ...
-        for i, unpacked in enumerate(self.primary_unpacked_provisional_designations):
+        for i, unpacked in enumerate(self.unpacked_provisional_designations):
             
             # Get the slice of states corresponding to the particular named object
             state_slice = states if states.ndim == 2 else states[:,:,i]
@@ -400,7 +282,7 @@ class MSC_Loader(Base):
 
 
 
-class MSC(Base):
+class MSC():
     '''
             Multi-Sector Cheby Class
             
@@ -410,8 +292,6 @@ class MSC(Base):
     '''
     def __init__(self, **kwargs):
     
-        # Give access to "Base" methods & attributes
-        Base.__init__(self)
 
         # Initialization of default standard PARAMETERS / OPTIONS we use for chebyshevs, etc
         self.minorder       = 17                                    # : Fitting Chebys
@@ -422,21 +302,20 @@ class MSC(Base):
         # Time-related quantities
         
         # Fundamental identifiying data for MSC
-        self.primary_unpacked_provisional_designation   = None
+        self.unpacked_provisional_designation   = None
         self.sector_coeffs                      = {}        # the all-important cheby-coeffs
 
-    def from_coord_arrays(self, primary_unpacked_provisional_designation, TDB_init , TDB_final , times_TDB , states ):
+    def from_coord_arrays(self, unpacked_provisional_designation, TDB_init , TDB_final , times_TDB , states ):
         '''
            Populate the MSC starting from supplied numpy-arrays
             
         '''
         
         # Store the important quantities
-        self.primary_unpacked_provisional_designation, self.TDB_init , self.TDB_final = primary_unpacked_provisional_designation, TDB_init , TDB_final
-        
+        self.unpacked_provisional_designation, self.TDB_init , self.TDB_final = unpacked_provisional_designation, TDB_init , TDB_final
+
         # Sanity-checks on the supplied start & end times (generally the Loader should have got things right) ...
-        assert self.TDB_init >= self.standard_MJDmin and self.TDB_final <= self.standard_MJDmax, \
-            ' TDB_init & TDB_final not in allowed range'
+        assert self.TDB_init >= standard_MJDmin and self.TDB_final <= standard_MJDmax, ' TDB_init & TDB_final not in allowed range'
         assert self.TDB_init < self.TDB_final,   \
             ' Problem with TDB_init [%r] > TDB_final [%r] : likely due to supplied JDs falling outside standard ranges' % \
                 (self.TDB_init , self.TDB_final)
@@ -446,44 +325,31 @@ class MSC(Base):
 
 
         # Here we compare the endpoints to sector-endpoints to ensure sectors are fully supported by supplied data
-        sector_numbers, sector_JD0s = self.map_JD_to_sector_number_and_sector_start_JD( [self.TDB_init,self.TDB_final] , self.standard_MJDmin)
-        # --- (a) Here I am asking whether the supplied start-date is within 1 day of the standard start day of the sector. If it *is*, then I will say that this sector is "fully supported"
-        if self.TDB_init - sector_JD0s[0]   < 1 :
-            init = (sector_numbers[0], sector_JD0s[0] )
-        else:
-            init = (sector_numbers[0] + 1 , sector_JD0s[0] + self.sector_length_days)
+        sector_numbers, sector_JD0s = self.map_JD_to_sector_number_and_sector_start_JD( [self.TDB_init,self.TDB_final] )
+        init           = (sector_numbers[0], sector_JD0s[0] ) if self.TDB_init - sector_JD0s[0]   < 1                       else (sector_numbers[0] + 1 , sector_JD0s[0] + sector_length_days)
+        final          = (sector_numbers[-1],sector_JD0s[-1]) if sector_JD0s[-1] + sector_length_days - self.TDB_final  < 1 else (sector_numbers[-1] - 1, sector_JD0s[-1]- sector_length_days)
 
-        # --- (b) Here I am asking whether the supplied end-date is within 1 day of the standard end of the sector: If it *is*, then I will say that this sector is "fully supported"
-        if sector_JD0s[-1] + self.sector_length_days - self.TDB_final  < 1 :
-            final          = (sector_numbers[-1],sector_JD0s[-1])
-        else :
-            final          = (sector_numbers[-1] - 1, sector_JD0s[-1]- self.sector_length_days)
-
-        self.TDB_init  = init[1]
-        self.TDB_final = final[1] + self.sector_length_days - self.epsilon
-        self.sector_init = init[0]
-        self.sector_final = final[0]
-        
         # Sanity check
         assert init[0] <= final[0] , \
             ' Problem with sector numbers [%r, %r] : likely due to supplied JDs falling outside standard ranges' % \
                 (init[0] , final[0])
-        
-        # To try and improve accuracy, make times relative to standard_MJDmin
-        relative_times = times_TDB - self.standard_MJDmin
-        
+
+
         # Go through sector-numbers
-        for sector_num in range(init[0] , final[0] + 1 ):
+        for sector_num in range(init[0] , final[0] ):
             
             # Identify the indicees of the nbody times for this sector (i.e. those with min < t < max)
             # N.B. a[:,0] == times
-            sector_TDB_init    = self.standard_MJDmin + sector_num     * self.sector_length_days
-            sector_TDB_final   = self.standard_MJDmin + (sector_num+1) * self.sector_length_days
+            sector_TDB_init    = standard_MJDmin + sector_num     * sector_length_days
+            sector_TDB_final   = standard_MJDmin + (sector_num+1) * sector_length_days
             indicees           = np.where((times_TDB >=sector_TDB_init )   & \
                                           (times_TDB <=sector_TDB_final)    )[0]
 
             # Order used for cheby fitting
             self.maxorder   = min(self.maxorder,len(indicees))
+            
+            # To try and improve accuracy, make times relative to standard_MJDmin
+            relative_times = times_TDB - standard_MJDmin
             
             # Calc the coeffs: Do all coordinates & covariances simultaneously
             # N.B. (1) For a single particle, states.shape = (33, 27)
@@ -494,6 +360,7 @@ class MSC(Base):
         
             # Save the fitted coefficients into the sector_coeff dict
             self.sector_coeffs[sector_num] =  cheb_coeffs
+
 
 
 
@@ -521,13 +388,14 @@ class MSC(Base):
             
         '''
         order           = self.minorder if order is None else order
-        #print(f"Order used: {order}")
+        print(f"Order used: {order}")
         chebCandidate   = np.polynomial.chebyshev.chebfit(t, y, int(np.ceil(order)) )
         quickEval       = np.polynomial.chebyshev.chebval(t, chebCandidate).T
         if np.max( np.abs(quickEval - y) ) <= self.maxerr or int(np.ceil(order)) == self.maxorder :
             return chebCandidate
         else:
-            return self.generate_cheb_for_sector(t, y, order + int(np.ceil((self.maxorder - order) / 2)))
+            neworder = order + int(np.ceil((self.maxorder - order) / 2))
+            return self.generate_cheb_for_sector(t, y, neworder)
 
 
 
@@ -535,9 +403,30 @@ class MSC(Base):
 
 
 
-
-    # Assorted Date Functions ...
+    # Assorted Utility Functions ...
     # --------------------------------------------------------------
+
+    def map_JD_to_sector_number(self, JD_TDB , JD0=standard_MJDmin):
+        return ( np.asarray( JD_TDB ) - JD0).astype(int) // sector_length_days
+    
+    def map_sector_number_to_sector_start_JD(self, sector_number, JD0=standard_MJDmin):
+        return JD0 + sector_number * sector_length_days
+    
+    def map_JD_to_sector_number_and_sector_start_JD(self, JD_TDB, JD0=standard_MJDmin):
+        '''
+            For a given JD_TDB, calculate the sector number it will be in
+            Assumes a standard starting julian date
+            
+            inputs:
+            -------
+            
+            return:
+            -------
+            '''
+        sector_number   = self.map_JD_to_sector_number(JD_TDB , JD0=JD0)
+        return sector_number , self.map_sector_number_to_sector_start_JD( sector_number, JD0=JD0)
+
+
 
     def get_valid_range_of_dates( self,  ):
         '''
@@ -545,15 +434,30 @@ class MSC(Base):
         '''
         return self.TDB_init , self.TDB_final
 
-
-    def supplied_times_are_supported( self, times_tdb ):
+    """
+    def map_times_to_sectors( self, times_tdb ):
         '''
-            For a given array of times, decide whether they are all supported by the MSC
-        '''
-        if np.min(times_tdb) >= self.TDB_init and np.max(times_tdb) <= self.TDB_final :
-            return True
+            Given query-times, it is likely to be useful to
+            map each time to the relevant single-sector-dictionary
+            
+            inputs:
+            -------
+            times_tdb : np.array
+            - JD TDB of times at which positions are to be calculated
+            
+            return:
+            -------
+            np.array of integers
+            - sector # (zero-based) starting from the dictionary's "t_init"
+            - length of returned array = len(times)
+            '''
+        if RELATIVE:
+            return ( (times_tdb ) // sector_length_days ).astype(int)
         else:
-            return False
+            return ( (times_tdb - self.TDB_init ) // sector_length_days ).astype(int)
+    """
+    
+
 
     # Functions to evaluate supplied multi-sector-cheby-dictionary
     # --------------------------------------------------------------
@@ -593,7 +497,7 @@ class MSC(Base):
                                         APPROX = APPROX )
 
         # Calc the HP from the UV and return
-        return healpy.vec2pix(self.HP_nside, UV[0], UV[1], UV[2], nest=True if self.HP_order=='nested' else False )
+        return healpy.vec2pix(HP_nside, UV[0], UV[1], UV[2], nest=True if HP_order=='nested' else False )
 
 
     def generate_UnitVector( self, times_tdb , observatoryXYZ, APPROX = False , DELTASWITCH = False, delta=np.array([0,0,0]) ):
@@ -647,7 +551,7 @@ class MSC(Base):
             d               = np.linalg.norm(sepn_vectors, axis=0)
             
             # Calculate light-travel-time
-            lightDelay      = d / (astropy.constants.c * self.secsPerDay / astropy.constants.au ).value
+            lightDelay      = d / (astropy.constants.c * secsPerDay / astropy.constants.au ).value
     
         # Return unit-vector
         return sepn_vectors / d
@@ -767,14 +671,14 @@ class MSC(Base):
         
         # Just select/evaluate the first 3-sets of components (X,Y,Z)
         # - See link for specifying slices & ellipsis  : https://docs.scipy.org/doc/numpy/user/basics.indexing.html
-        if self.sector_coeffs[ self.sector_init ].ndim == 2  :
-            slice_spec = (slice(0, len(self.sector_coeffs[ self.sector_init ]) ), slice(0,3))
+        if self.sector_coeffs[ list(self.sector_coeffs.keys())[0] ].ndim == 2  :
+            slice_spec = (slice(0,len(self.sector_coeffs[ 0 ])), slice(0,3))
         else:
             sys.exit('self.sector_coeffs[ 0 ].ndim = %d : unable  to proceed if ndim != 2 ' % self.sector_coeffs[ 0 ].ndim  )
-
+        
         # Evaluate only the XYZ coefficients
         # NB: to try to increase accuracy, use times relative to standard_MJDmin
-        return self.evaluate_components( times_tdb - self.standard_MJDmin , slice=slice_spec )
+        return self.evaluate_components( times_tdb - standard_MJDmin , slice=slice_spec )
 
     def covXYZ( self, times_tdb  ):
         '''
@@ -791,7 +695,7 @@ class MSC(Base):
         # ['x_x', 'x_y', 'x_z', 'x_vx', 'x_vy', 'x_vz', 'y_y', 'y_z', 'y_vx', 'y_vy', 'y_vz', 'z_z', 'z_vx', 'z_vy', 'z_vz', 'vx_vx', 'vx_vy', 'vx_vz', 'vy_vy', 'vy_vz', 'vz_vz']
         #    6      7      8      9      10      11      12     13     14      15      16      17     18      19      20      21       22       23       24       25       26
         #    *      *      *                             *      *                              *
-        cov = self.evaluate_components( times_tdb - self.standard_MJDmin , slice=(slice(0,len(self.sector_coeffs[ 0 ])), np.array([6,7,8,12,13,17]) ) )
+        cov = self.evaluate_components( times_tdb - standard_MJDmin , slice=(slice(0,len(self.sector_coeffs[ 0 ])), np.array([6,7,8,12,13,17]) ) )
         
         # Reproduce & reshape to get 3x3 matrix for each time
         # 'x_x', 'x_y', 'x_z',  'y_y', 'y_z',  'z_z' -->> 'x_x', 'x_y', 'x_z',  'x_y', 'y_y', 'y_z',  'x_z', 'y_z','z_z'
@@ -836,8 +740,7 @@ class MSC(Base):
         # - Going to do this by demanding that the times be larger than ~0
         # - But because of the LTT calculations reqd in *generate_UnitVector()*, I'm going to allow extra negative time ...
         #   1000AU => ~6days LTT, which should be more than plenty.
-        assert relative_times[0] >= -6 and relative_times[-1] < (self.standard_MJDmax - self.standard_MJDmin), \
-            ' times do not seem to be relative: relative_times[0] = %r' % (relative_times[0] )
+        assert relative_times[0] >= -6 and relative_times[-1] < (standard_MJDmax - standard_MJDmin), ' times do not seem to be relative: relative_times[0] = %r' % (relative_times[0] )
         
         # Find which single-sector dictionary to use for each given time
         # Then make a dictionary with key=sector-number, and value=list-of-times
@@ -845,12 +748,7 @@ class MSC(Base):
         times_for_each_sector= defaultdict(list)
         for t , s in zip( relative_times , self.map_JD_to_sector_number(relative_times, JD0=0) ):
             times_for_each_sector[s].append(t)
-        
-            # Put in a check for validity here, by asking whether the sectors-calculated here ...
-            # ... are actually in the main sector_coeffs-dict
-            assert s >= self.sector_init and s<= self.sector_final, 'Sector #%d (for time %f) not supported in sector_coeffs (min,max supported times = %f,%f)' % \
-                (s, t + self.standard_MJDmin , self.TDB_init, self.TDB_final)
-        
+    
         # Evaluate the chebyshev polynomial
         # - Note we do all of the evaluations for a single sector in one go
         # - So we only need to loop over the sectors
