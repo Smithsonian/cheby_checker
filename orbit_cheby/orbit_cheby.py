@@ -1,4 +1,4 @@
-    # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # sifter/sifter/query
 
 '''
@@ -110,6 +110,10 @@ class Base():
     
     # We will assume that all sectors are of length 32-days
     sector_length_days = 32
+    
+    # We will assume a sector is "covered" if there is data ...
+    # covering (at least) 1.5 - 30.5 days out of the 0 - 32 total
+    sector_gap = 1.5
 
     # We will assume that the earliest standard epoch to be used will be JD:2440000
     # - This will set the enumeration of the sectors
@@ -228,11 +232,13 @@ class MSC_Loader(Base):
         self.TDB_final      = None                                  # : Cheby Span
         self.FROM_FILE      = False                                 # : Ingest method
         self.filepath       = False                                 # : Ingest method
-        self.FROM_ARRAY     = False                                 # : Ingest method
-        self.primary_unpacked_provisional_designations   = None     # : Ingest method
-        self.times_TDB      = None                                  # : Ingest method
-        self.statearray     = None                                  # : Ingest method
-        self.FROM_DATABASE  = None                                  # : Ingest method
+        self.FROM_ARRAY     = False                                 # : Ingest method (From np.array)
+        self.primary_unpacked_provisional_designations   = None     # : Ingest method (From np.array)
+        self.times_TDB      = None                                  # : Ingest method (From np.array)
+        self.statearray     = None                                  # : Ingest method (From np.array)
+        self.FROM_DATABASE  = None                                  # : Ingest method (From sqlite db)
+        self.desig_dict     = None                                  # : Ingest method (From sqlite db)
+        self.dict_of_dicts_coeffs  = None                           # : Ingest method (From sqlite db)
         
         # The list of MSCs that will be instantiated & returned
         self.MSCs           = []
@@ -254,7 +260,7 @@ class MSC_Loader(Base):
         
         # (iii) From database (of pre-calculated chebyshevs)
         elif self.FROM_DATABASE:
-            self._populate_from_database(**kwargs)
+            self._populate_from_database( self.desig_dict , self.dict_of_dicts_coeffs )
         
         # (iv) An empty instance ...
         else:
@@ -341,7 +347,6 @@ class MSC_Loader(Base):
             # Here we compare the supplied JDs to the standard end-points
             self.TDB_init  = int(max(self.standard_MJDmin , times_TDB[0] ))
             self.TDB_final = int(min(self.standard_MJDmax , times_TDB[-1] ))
-
         else:
             sys.exit('Do not know how to calculate limits in *_generate_multi_sector_cheby_dict_from_nbody_array()* ')
 
@@ -385,12 +390,44 @@ class MSC_Loader(Base):
 
 
 
-    def _populate_from_database(self, args):
+    def _populate_from_database(self, desig_dict , dict_of_dicts_coeffs):
         '''
             Will need method to construct MSC from 1-or-many sectors stored in the sqlite db as coeffs
-        '''
-        pass
 
+            inputs:
+            -------
+            desig_dict: dictionary
+            - keys : object_ids from sqlite db
+            - values : object desigs (unpacked provid) from sqlite db
+            
+            dict_of_dicts_coeffs: dictionary
+            - keys   : object_ids from sqlite db
+            - values : dictionary of sector coefficients 
+               --- keys   : sector_names in standard form ... sector_0_2440000, sector_1_2440032, ...
+               --- values : each a 2D 'numpy.ndarray' of cheby coefficients , shape ~ (18, 27)
+            
+
+            returns:
+            --------
+            list of MSC objects
+
+        '''
+        # Dicts must be of same length, because they are both key-ed on object-id, and we need there to be a 1-2-1 correspondance
+        assert len(desig_dict) == len(dict_of_dicts_coeffs) , \
+            ' len(desig_dict) [%d]!= len(dict_of_dicts_coeffs) [%d]' % (len(desig_dict) , len(dict_of_dicts_coeffs) )
+            
+        # ... other check ??? ...
+        
+        # Loop over objects and make list of MSCs
+        MSCs = []
+        for object_id, primary_unpacked_provisional_designation in desig_dict.items():
+        
+            # Create the MSC (using the appropriate *from_coord_arrays()* function )
+            M = MSC()
+            M.from_sector_dict(primary_unpacked_provisional_designation , dict_of_dicts_coeffs[object_id] )
+            self.MSCs.append( M )
+
+        return MSCs
 
 
 
@@ -418,16 +455,72 @@ class MSC(Base):
         self.maxorder       = 25                                    # : Fitting Chebys
         self.maxerr         = 1e-8                                  # : Fitting Chebys
         
-        
         # Time-related quantities
         
         # Fundamental identifiying data for MSC
         self.primary_unpacked_provisional_designation   = None
         self.sector_coeffs                      = {}        # the all-important cheby-coeffs
+    
+    def from_sector_dict(self, primary_unpacked_provisional_designation, coeff_dict ):
+        '''
+            Used to initialize (create) an MSC object using data passed-in in the 
+            form expected from the sqlite database (as extracted using the 
+            *get_nightly_precalcs()* function in precalc.py )
+            
+            inputs:
+            -------
+            coeff_dict : dictionary of sector coefficients
+            - keys   : sector_names in form from db ... sector_0_2440000, sector_1_2440032, ...
+            - values : each a 2D 'numpy.ndarray' of cheby coefficients , shape ~ (18, 27)
+            
+            returns:
+            --------
+            True
+             - Doesn't directly return, just populates the MSC object
+
+        '''
+        # unpacked primary provID of the object (e.g. 2020 AA)
+        self.primary_unpacked_provisional_designation = primary_unpacked_provisional_designation
+    
+        # create the entries in the sector_coeffs dict (N.B. have to transform the keys)
+        self.sector_coeffs = { int(k.split("_")[1]) : v for k,v in coeff_dict.items() }
+    
+        # set the min & max supported times / sectors
+        self.sector_init, self.sector_final = min(list(self.sector_coeffs.keys())) , min(list(self.sector_coeffs.keys()))
+        self.TDB_init  = Base.map_sector_number_to_sector_start_JD( self.sector_init  , self.standard_MJDmin)
+        self.TDB_final = Base.map_sector_number_to_sector_start_JD( self.sector_final , self.standard_MJDmin) + self.sector_length_days - self.epsilon
+    
+        # check things are as expected
+        assert self.TDB_init >= self.standard_MJDmin and self.TDB_final <= self.standard_MJDmax, \
+            'Problem with limits in from_sector_dict: self.TDB_init = [%f] , self.standard_MJDmin = [%f] self.TDB_final = [%f], self.standard_MJDmax = [%f]' % (self.TDB_init , self.standard_MJDmin , self.TDB_final , self.standard_MJDmax)
+    
 
     def from_coord_arrays(self, primary_unpacked_provisional_designation, TDB_init , TDB_final , times_TDB , states ):
         '''
            Populate the MSC starting from supplied numpy-arrays
+           Expected to be used when passing in the data from an NBody integration (REBOUND)
+            
+            inputs:
+            -------
+            primary_unpacked_provisional_designation : 
+            - 
+            
+            TDB_init :
+            -
+            
+            TDB_final :
+            -
+            
+            times_TDB :
+            -
+            
+            states :
+            -
+
+            returns:
+            --------
+            True
+            - Doesn't directly return, just populates the MSC object
             
         '''
         
@@ -447,14 +540,16 @@ class MSC(Base):
 
         # Here we compare the endpoints to sector-endpoints to ensure sectors are fully supported by supplied data
         sector_numbers, sector_JD0s = self.map_JD_to_sector_number_and_sector_start_JD( [self.TDB_init,self.TDB_final] , self.standard_MJDmin)
-        # --- (a) Here I am asking whether the supplied start-date is within 1 day of the standard start day of the sector. If it *is*, then I will say that this sector is "fully supported"
-        if self.TDB_init - sector_JD0s[0]   < 1 :
+        # --- (a) Here I am asking whether the supplied start-date is within sector_gap (=1.5) days of the standard start day of the sector.
+        #         If it *is*, then I will say that this sector is "fully supported"
+        if self.TDB_init - sector_JD0s[0]   <= self.sector_gap :
             init = (sector_numbers[0], sector_JD0s[0] )
         else:
             init = (sector_numbers[0] + 1 , sector_JD0s[0] + self.sector_length_days)
 
-        # --- (b) Here I am asking whether the supplied end-date is within 1 day of the standard end of the sector: If it *is*, then I will say that this sector is "fully supported"
-        if sector_JD0s[-1] + self.sector_length_days - self.TDB_final  < 1 :
+        # --- (b) Here I am asking whether the supplied end-date is within sector_gap (1.5) days of the standard end of the sector:
+        #         If it *is*, then I will say that this sector is "fully supported"
+        if sector_JD0s[-1] + self.sector_length_days - self.TDB_final  <= self.sector_gap :
             final          = (sector_numbers[-1],sector_JD0s[-1])
         else :
             final          = (sector_numbers[-1] - 1, sector_JD0s[-1]- self.sector_length_days)
@@ -521,7 +616,6 @@ class MSC(Base):
             
         '''
         order           = self.minorder if order is None else order
-        #print(f"Order used: {order}")
         chebCandidate   = np.polynomial.chebyshev.chebfit(t, y, int(np.ceil(order)) )
         quickEval       = np.polynomial.chebyshev.chebval(t, chebCandidate).T
         if np.max( np.abs(quickEval - y) ) <= self.maxerr or int(np.ceil(order)) == self.maxorder :
@@ -546,14 +640,14 @@ class MSC(Base):
         return self.TDB_init , self.TDB_final
 
 
-    def supplied_times_are_supported( self, times_tdb ):
-        '''
-            For a given array of times, decide whether they are all supported by the MSC
-        '''
-        if np.min(times_tdb) >= self.TDB_init and np.max(times_tdb) <= self.TDB_final :
-            return True
-        else:
-            return False
+    #def supplied_times_are_supported( self, times_tdb ):
+    #    '''
+    #        For a given array of times, decide whether they are all supported by the MSC
+    #    '''
+    #    if np.min(times_tdb) >= self.TDB_init and np.max(times_tdb) <= self.TDB_final :
+    #        return True
+    #    else:
+    #        return False
 
     # Functions to evaluate supplied multi-sector-cheby-dictionary
     # --------------------------------------------------------------

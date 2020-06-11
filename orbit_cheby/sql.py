@@ -159,8 +159,8 @@ def create_object_coefficients_table(conn):
     
     sql_statement = """
         CREATE TABLE IF NOT EXISTS object_coefficients (
-        id integer PRIMARY KEY,
-        primary_unpacked_provisional_designation TEXT UNIQUE, """ + \
+        coeff_id integer PRIMARY KEY,
+        object_id integer UNIQUE, """ + \
             sector_spec + "); "
         
     # create table
@@ -184,7 +184,7 @@ def create_objects_by_jdhp_table(conn):
     
     # Create table ...
     sql_statement = """ CREATE TABLE IF NOT EXISTS objects_by_jdhp (
-        id integer PRIMARY KEY,
+        jdhp_id integer PRIMARY KEY,
         jd integer NOT NULL,
         hp integer NOT NULL,
         object_id integer NOT NULL
@@ -209,7 +209,7 @@ def create_objects_by_jdhp_table(conn):
 # --------------------------------------------------------
 
 
-def upsert_MSC(conn, M):
+def upsert_MSC(conn, M, object_id):
     """
         insert/update multi_sector_cheby object
         
@@ -226,6 +226,10 @@ def upsert_MSC(conn, M):
         
         M : MSC-object
          - see orbit_cheby module for detailed specification
+         
+        object_id : integer
+         - The assumption is that this has been generated via the function, insert_desig()
+         - I could explicitly query for the object_id via the function, query_number_by_desig(), but it seems unnecessary
         
         return:
         -------
@@ -233,20 +237,21 @@ def upsert_MSC(conn, M):
 
 
     """
-    #Sanity check
-    # ...
+    # Sanity checks ?
+    # assert ...
     
     # I guess that it will be quicker to do a single insert across all the required fields for a single object
     
     # (i) Get the sector field names required for this specific MSC
+    # - Current method seems unnecessarily verbose
     sector_field_names = generate_sector_field_names( sector_dict = \
                                                      { sector_num: orbit_cheby.Base().map_sector_number_to_sector_start_JD(sector_num , orbit_cheby.Base().standard_MJDmin) for sector_num in M.sector_coeffs.keys()}
                                                      )
-    sector_field_names.append( 'primary_unpacked_provisional_designation' )
+    sector_field_names.append( 'object_id' )
     
     # (ii) Get the coefficients for each sector
     sector_field_values = [pickle.dumps(coeffs, pickle.HIGHEST_PROTOCOL) for coeffs in M.sector_coeffs.values()]
-    sector_field_values.append(M.primary_unpacked_provisional_designation)
+    sector_field_values.append(object_id)
     
     # (iii) Construct (in a horribly ungraceful manner) an sql insert statement
     sql =  " INSERT OR REPLACE INTO object_coefficients (" + ",".join(sector_field_names) + ") VALUES (" + ",".join(["?" for _ in sector_field_values]) + ");"
@@ -257,30 +262,38 @@ def upsert_MSC(conn, M):
     conn.commit()
 
 
-def upsert_HP(conn, primary_unpacked_provisional_designation, JDlist, HPlist):
+def insert_HP(conn, JDlist, HPlist, object_id ):
     """
         objects_by_jdhp is structured like ...
         id integer PRIMARY KEY,
         jd integer NOT NULL,
         hp integer NOT NULL,
-        primary_unpacked_provisional_designation text NOT NULL
+        object_id integer NOT NULL
  
+        inputs:
+        -------
+        conn: Connection object
+        
+        object_id : integer
+            - The assumption is that this has been generated via the function, insert_desig()
+            - I could explicitly query for the object_id via the function, query_number_by_desig(), but it seems unnecessary
+
     """
     cur = conn.cursor()
 
     # Sense-check
-    assert len(JDlist)==len(HPlist), 'len(JDlist)!=len(HPlist) [%d != %d] in upsert_HP' % (len(JDlist),len(HPlist))
+    assert len(JDlist)==len(HPlist), 'len(JDlist)!=len(HPlist) [%d != %d] in insert_HP' % (len(JDlist),len(HPlist))
 
-    # Delete old
-    delete_JDHP_by_name(conn, primary_unpacked_provisional_designation)
+    # *** Delete old entries ***
+    # - My assumption here is that if we are inserting entries for a known object, we have likely calculated a new orbit
+    # - Hence for sanitary reasons we should delete the old ones and replace with the new.
+    delete_JDHP_by_object_id(conn, object_id)
     
-    # Upsert the *primary_unpacked_provisional_designation* into the *object_desig* table
-    object_id = upsert_desig(conn, primary_unpacked_provisional_designation)
-
     # Insert new ...
     # (a) construct "records" variable which is apparently ammenable to single insert statement ...
     # https://pythonexamples.org/python-sqlite3-insert-multiple-records-into-table/
-    records = [ (jd, hp, object_id) for jd,hp in zip(JDlist,HPlist) ]
+    # Note the use of "int" to force the numpy variables to play nicely with sql
+    records = [ (int(jd), int(hp), object_id) for jd,hp in zip(JDlist,HPlist) ]
     
     # (b) construct sql string
     sqlstr = '''INSERT INTO objects_by_jdhp(jd,hp,object_id) VALUES(?,?,?);'''
@@ -319,7 +332,7 @@ def insert_desig(conn, primary_unpacked_provisional_designation):
 # --- Funcs to delete data
 # --------------------------------------------------------
 
-def delete_JDHP_by_name(conn, primary_unpacked_provisional_designation):
+def delete_JDHP_by_object_id(conn, object_id):
     """
         Delete all rows from "objects_by_jdhp" that match the supplied "primary_unpacked_provisional_designation"
     """
@@ -328,11 +341,7 @@ def delete_JDHP_by_name(conn, primary_unpacked_provisional_designation):
     # Construct & execute the sql query
     # - This is matching/joining on object-id# and then deleting only from objects_by_jdhp
     #   (and leaving the entry in object_desig)
-    sqlstr = """    DELETE objects_by_jdhp, object_desig
-                    FROM objects_by_jdhp
-                    INNER JOIN object_desig ON objects_by_jdhp.object_id = object_desig.object_id
-                    WHERE object_desig.primary_unpacked_provisional_designation=?;"""
-    cur.execute(sqlstr , ( primary_unpacked_provisional_designation, ))
+    cur.execute( " DELETE FROM objects_by_jdhp WHERE object_id=?;", (int(object_id),) )
     conn.commit()
 
 
@@ -344,7 +353,7 @@ def delete_JDHP_by_name(conn, primary_unpacked_provisional_designation):
 # --------------------------------------------------------
 
 def query_object_coefficients(conn,
-                              primary_unpacked_provisional_designation,
+                              object_id,
                               sector_numbers = None):
     """
        Define standard query used to get cheby-coeff data for a named object
@@ -352,8 +361,8 @@ def query_object_coefficients(conn,
        
        inputs:
        -------
-       primary_unpacked_provisional_designation: string
-        -
+       object_id: integer
+        - The assumption is that this has been generated via the function, insert_desig()
        sector_number: integer
         -
        
@@ -376,10 +385,9 @@ def query_object_coefficients(conn,
                                                                                       orbit_cheby.Base().map_sector_number_to_sector_start_JD(np.atleast_1d(sector_numbers) ,\
                                                                                                                                               orbit_cheby.Base().standard_MJDmin))})
     # Construct & execute the sql query
-    sqlstr = "SELECT " + ", ".join( sector_field_names ) + " FROM object_coefficients WHERE primary_unpacked_provisional_designation=?"
-    cur.execute(sqlstr , \
-                ( primary_unpacked_provisional_designation, )
-                )
+    sqlstr = "SELECT " + ", ".join( sector_field_names ) + " FROM object_coefficients WHERE object_id=?"
+    cur.execute(sqlstr , ( object_id, ))
+
     # Parse the result ...
     result = cur.fetchall()[0]
     result = { sfn:pickle.loads( coeff )  for sfn, coeff in zip(sector_field_names, result) if coeff != None }
@@ -387,24 +395,11 @@ def query_object_coefficients(conn,
 
 
 
-def query_JDHP_by_name(conn, primary_unpacked_provisional_designation):
-    """
-        Return all (jd,hp) entries for a given object-desig
-        ***Is this really used anywhere?***
-    """
-    cur = conn.cursor()
-
-    #  Get the object_id
-    object_id = query_number_by_desig(cur, primary_unpacked_provisional_designation)
-    
-    # Construct & execute the sql query
-    sqlstr = "SELECT jd,hp FROM objects_by_jdhp WHERE object_id=?"
-    cur.execute(sqlstr , ( object_id, ))
-    return cur.fetchall()[0]
-
 def query_number_by_desig(conn, primary_unpacked_provisional_designation):
     """
-            ...
+        Given a desig, return a number 
+        
+        May be of little use in practice, but helpful for development
     """
     # Get the object_id & return it
     cur = conn.cursor()
@@ -412,11 +407,60 @@ def query_number_by_desig(conn, primary_unpacked_provisional_designation):
     object_id = cur.fetchall()[0][0]
     return object_id
 
+def query_desig_by_number(conn, object_ids):
+    """
+    Given a list of object_ids, return the associated primary_unpacked_provisional_designations
 
-def query_coefficients_by_hp(conn, JD, HPlist):
+    inputs:
+    -------
+    conn: Connection object
+
+    object_ids: list of integer object_ids
+
+    return:
+    -------
+    dictionary
+     - maps object_id (key) to designation (value)
+
+    """
+    # Get the object_id & return it
+    cur = conn.cursor()
+    cur.execute(f'''SELECT object_ID,primary_unpacked_provisional_designation FROM object_desig WHERE object_ID in ({','.join(['?']*len(object_ids))});''', (*(int(_) for _ in object_ids),) )
+    # key is object _id, value is desig
+    return {_[0]:_[1] for _ in cur.fetchall()}
+
+
+
+def query_coefficients_by_jd_hp(conn, JD, HPlist , sector_numbers = None):
     '''
+        For a given (single) JD and list of Healpix,
+        the query returns the relevant coefficients from the object_coefficients table
         
     '''
+    
+    # What sector numbers are we searching for ?
+    # - Default is to get data for all of them
+    if sector_numbers is None :
+        sector_field_names = generate_sector_field_names()
+    else:
+        sector_field_names = generate_sector_field_names( sector_dict = {
+                                                         sector_num: sector_JD for \
+                                                         sector_num, sector_JD in zip(sector_numbers ,
+                                                                                      orbit_cheby.Base().map_sector_number_to_sector_start_JD(np.atleast_1d(sector_numbers) ,\
+                                                                                                                                              orbit_cheby.Base().standard_MJDmin))})
+    # Construct & execute the sql query
+    sqlstr =    "SELECT object_coefficients.object_id," + \
+                ", ".join( sector_field_names ) + \
+                f" FROM object_coefficients INNER JOIN objects_by_jdhp ON objects_by_jdhp.object_id = object_coefficients.object_id WHERE objects_by_jdhp.jd=? and objects_by_jdhp.hp in ({','.join(['?']*len(HPlist))})"
+    cur = conn.cursor()
+    cur.execute(sqlstr , (int(JD), *(int(_) for _ in HPlist), ))
+
+    # Parse the result into a dict-of-dicts
+    results      = cur.fetchall()
+    return { r[0] : { sfn:pickle.loads( coeff )  for sfn, coeff in zip(sector_field_names, r[1:]) if coeff != None } for r in results}
+
+
+
     # INNER JOIN
     # DISTINCT
     # WHERE
@@ -425,6 +469,25 @@ def query_coefficients_by_hp(conn, JD, HPlist):
     # This will get the unique object-IDs
     "SELECT DISTINCT object_id FROM objects_by_jdhp WHERE jd=? and hp in ?"
 
+
+def query_jd_hp(conn, JD, HPlist):
+    '''
+        For a given (single) JD and list of Healpix,
+        the query returns the relevant object_ids
+        
+        May be of little use in practice, but helpful for development 
+        
+    '''
+    # Connection cursor
+    cur = conn.cursor()
+
+    # This will get the unique object-IDs
+    # I hate this fucking query for many reasons ...
+    # (i) Why the fuck do I need to force any input numpy-integers, to be integers ???
+    #(ii) Why the fuck do I need to explicitly expand the number of "?" in the "in ()" statement ???
+    cur.execute(f"SELECT object_id FROM objects_by_jdhp WHERE jd=? and hp in ({','.join(['?']*len(HPlist))});", (int(JD), *(int(_) for _ in HPlist), ) )
+    #object_ids = [_[0] for _ in cur.fetchall()]
+    return [_[0] for _ in cur.fetchall()]
 
 
 

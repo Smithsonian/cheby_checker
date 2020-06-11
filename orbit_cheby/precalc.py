@@ -76,22 +76,26 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
     def __init__(self):
         
         # Give access to "Base" & "ObsPos" methods & attributes
-        Base.__init__(self)
-        ObsPos.__init__(self)
+        orbit_cheby.Base.__init__(self)
+        obs_pos.ObsPos.__init__(self)
         
         # connect to db
         self.conn = sql.create_connection(sql.fetch_db_filepath())
 
-    def upsert(self, MSCs ):
+    def upsert(self, MSCs , geocenterXYZ ):#, integerJDs=None  ):
         '''
             Main method used to insert/update coefficients for an object
             Also handles the healpix calculations used for efficiency-of-read
             
+            NB This function could be a lot cleaner if we calculated the geocenterXYZ internally
+            
             Inputs:
             -------
-            arg: dictionary or list-of-dictionaries
-            - dictionaries must be a valid multi_sector_cheby_dict
-            - see orbit_cheby module for detailed specification of multi_sector_cheby_dict
+            MSCs : List of Multi-Sector-Cheby class objects
+            
+            geocenterXYZ : np.array
+             - Position of the geocenter (in Heliocentric Equatorial coords)
+             - Needs to cover the span of the integer days defined in MSC.JDlist
             
             Returns:
             --------
@@ -102,20 +106,28 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
         # ensure that the supplied variable is formatted correctly
         MSC_list = self._rectify_inputs(MSCs)
         
+        # ensure that the supplied observatory coords have the right shape
+        # N.B. Default list of Julian Dates to use, self.JDlist = (2440000 ==> 1968, 2460000.0 ==> 2023)
+        assert geocenterXYZ.shape == (3 , len(self.JDlist) ), f'the shape of geocenterXYZ needs to be {(3, len(self.JDlist))} : instead it is {geocenterXYZ.shape}'
+        
         # iterate over each MSC in list ...
         for M in MSC_list:
+            
+            # Insert the name & get back an object_id in return
+            object_id = sql.insert_desig(self.conn , M.primary_unpacked_provisional_designation )
         
             # update list of coefficients
-            sql.upsert_MSC(self.conn, M )
+            sql.upsert_MSC(self.conn, M , object_id)
             
             # Use the coefficient-dictionary(ies) to get the HP for each integer-JD in JDlist
-            observatoryXYZ = ObsPos.get_heliocentric_equatorial_xyz(self.JDlist , obsCode='500')
-            HPlist = M.generate_HP(self.JDlist,     observatoryXYZ)
+            # NB: need to restrict the queried dates to the those supported by the MSC
+            indicees = np.where( self.JDlist < MSCs[0].get_valid_range_of_dates()[1] )[0]
+            HPlist   = M.generate_HP(self.JDlist[indicees],  geocenterXYZ[:,indicees] , APPROX = True)
 
             # update HP data
-            self.upsert_HP(M.primary_unpacked_provisional_designation, self.JDlist, HPlist)
+            sql.insert_HP(self.conn, self.JDlist[indicees], HPlist, object_id)
 
-    def get_nightly_precalcs(JD, HPlist):
+    def get_nightly_precalcs(self,JD, HPlist):
         '''
             Main method used to query the precalculated healpix
             For a given JD, finds the object-integers for each HP in a list of HPs
@@ -142,9 +154,40 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
             - key   = HP
             - value = list of coeff-dictionaries
         '''
-        HPlist = [HPlist] if isinstance(HPlist, int) else HPlist
-        return {HP: [ self.get_coeff(number) for number in self._query_HP(JD, HP)] for HP in HPlist}
+        # Establish a connection
+        conn = sql.create_connection( sql.fetch_db_filepath() )
+        
+        # Get the coefficients for the objects
+        # - Outer dict is key-ed on object_id
+        # - Inner dicts are key-ed on sector
+        dict_of_dicts = sql.query_coefficients_by_jd_hp(conn, JD, HPlist , sector_numbers = None)
 
+        # Get the designations for each of the object_ids returned
+        desig_dict = sql.query_desig_by_number(conn, list(dict_of_dicts.keys()))
+        
+        # Swap the object_ids for the designations
+        return orbit_cheby.MSC_Loader( FROM_DATABASE = True , desig_dict=desig_dict , dict_of_dicts_coeffs=dict_of_dicts ).MSCs
+    
+    
+    def get_specific_object(self , primary_unpacked_provisional_designation , sector_numbers = None ):
+        '''
+            ...
+        '''
+        # Establish a connection
+        conn = sql.create_connection( sql.fetch_db_filepath() )
+    
+        # Get the designation for the object_id (is in the form of a dictionary)
+        desig_dict = sql.query_desig_by_number(conn, list(dict_of_dicts.keys()))
+    
+        # Query for the coefficients
+        dict_of_coeffs = query_object_coefficients(conn,
+                                  desig_dict[primary_unpacked_provisional_designation],
+                                  sector_numbers = sector_numbers):
+    
+        # Return an MSC
+        M = orbit_cheby.MSC()
+        M.from_sector_dict(self, primary_unpacked_provisional_designation, dict_of_coeffs )
+        return M
 
     def _rectify_inputs(self,  MSCs ):
         '''
