@@ -79,7 +79,7 @@ class PCheck():
         self.obsJDs = A[:,0]
         self.obsXYZ = A[:,2:5]
 
-        # We'll want the MSC object, so just go ahead and populate it using the database 
+        # We'll want the MSC object, so just go ahead and populate it using the database
         # - Probably just want to get a sub-set of the data from the database to save time
         sector_numbers = orbit_cheby_Base.map_JD_to_sector_number( self.obsJDs , orbit_cheby_Base.standard_MJDmin)
         self.M = precalc.Precalc.get_specific_object(primary_unpacked_provisional_designation , sector_numbers = sector_numbers)
