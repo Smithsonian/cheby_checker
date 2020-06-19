@@ -19,10 +19,14 @@ This is meant to prepare the elements for input into the n-body integrator
 
 # Import third-party packages
 # -----------------------------------------------------------------------------
-import os
+import os, sys
 import numpy as np
 from astropy.time import Time
-from mpcpp import MPC_library as mpc
+import getpass
+
+if getpass.getuser() in ['matthewjohnpayne']: # Payne's dev laptop set up differently ...:
+    sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/mpcpp/')
+import MPC_library as mpc
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------

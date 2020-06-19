@@ -56,18 +56,28 @@ class PCheck():
 
     def __init__(self, primary_unpacked_provisional_designation, detections , param_dict = None ):
         '''
+        Initialize PCheck object.
+        Requires the user to supply *detections* and a *suspected object name*
+            
         inputs:
         -------
         primary_unpacked_provisional_designation : string 
          - 
-        detections : list of detection objects
+        detections : list of *Detection* objects
+         - 
+         
+        returns:
+        --------
+        None
         
+         
         '''
         # Default evaluation parameters
         self.param_dict = {
             'nSigOrb': 3, # Some parameter that I am likely to interpret as a multiple of the diagonal of the orbital covariance matrix
             'nSigDet': 3, # Some parameter that I am likely to interpret as a multiple of the detection uncertainty
                             }
+        # Import any supplied parameters
         if param_dict is not None and isinstance(param_dict, dict) :
             self.param_dict.update( param_dict )
 
@@ -76,11 +86,13 @@ class PCheck():
         self.detections                               = np.asarray(detections)
 
         # Probably of general use to extract arrays of quantities ...
-        self.obsJDs = A[:,0]
-        self.obsXYZ = A[:,2:5]
+        self.obsJDs = self.detections[:,0]
+        self.obsXYZ = self.detections[:,2:5]
 
+        # ************* REPLACE WITH CALL TO EPHEM ******************
         # We'll want the MSC object, so just go ahead and populate it using the database
-        # - Probably just want to get a sub-set of the data from the database to save time
+        # - Just fetch the minimal sub-set of the data from the database
+        # *** SHOULD I THINK ABOUT RETURNING ADJACENT SECTORS AS WELL ? ***
         sector_numbers = orbit_cheby_Base.map_JD_to_sector_number( self.obsJDs , orbit_cheby_Base.standard_MJDmin)
         self.M = precalc.Precalc.get_specific_object(primary_unpacked_provisional_designation , sector_numbers = sector_numbers)
     

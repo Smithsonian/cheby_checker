@@ -28,13 +28,14 @@ import numpy as np
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 try:  # Import ephem_forces from whereever REBX_DIR is set to live
     sys.path.append(os.environ['REBX_DIR'])
     from examples.ephem_forces.ephem_forces import integration_function
 except (KeyError, ModuleNotFoundError):
     from reboundx.examples.ephem_forces.ephem_forces import integration_function
-from mpc_nbody import parse_input
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+import parse_input
 
 # Default for caching stuff using lru_cache
 # -----------------------------------------------------------------------------

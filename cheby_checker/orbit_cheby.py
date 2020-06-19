@@ -412,7 +412,7 @@ class MSC_Loader(Base):
             list of MSC objects
 
         '''
-        # Dicts must be of same length, because they are both key-ed on object-id, and we need there to be a 1-2-1 correspondance
+        # Dicts must be of same length, because they are both key-ed on object-id, and we need a 1-2-1 correspondance
         assert len(desig_dict) == len(dict_of_dicts_coeffs) , \
             ' len(desig_dict) [%d]!= len(dict_of_dicts_coeffs) [%d]' % (len(desig_dict) , len(dict_of_dicts_coeffs) )
             
@@ -463,7 +463,7 @@ class MSC(Base):
     
     def from_sector_dict(self, primary_unpacked_provisional_designation, coeff_dict ):
         '''
-            Used to initialize (create) an MSC object using data passed-in in the 
+            Used to initialize (create) an MSC object using data passed-in in the
             form expected from the sqlite database (as extracted using the 
             *get_nightly_precalcs()* function in precalc.py )
             
