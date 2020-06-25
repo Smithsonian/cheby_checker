@@ -22,16 +22,11 @@ from astroquery.jplhorizons import Horizons
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
-sys.path.append(os.path.dirname(os.path.dirname(
-    os.path.realpath(__file__))))
-from mpc_nbody import parse_input
+sys.path.append(
+                os.path.dirname(os.path.dirname(
+                                                os.path.realpath(__file__))))
+from cheby_checker import parse_input
 
-# Default for caching stuff using lru_cache
-# -----------------------------------------------------------------------------
-
-
-# Convenience functions
-# -----------------------------------------------------------------------------
 
 # Constants & Test Data
 # -----------------------------------------------------------------------------

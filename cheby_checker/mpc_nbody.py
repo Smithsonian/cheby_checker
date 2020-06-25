@@ -34,11 +34,21 @@ try:  # Import ephem_forces from whereever REBX_DIR is set to live
 except (KeyError, ModuleNotFoundError):
     from reboundx.examples.ephem_forces.ephem_forces import integration_function
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-import parse_input
+sys.path.append(
+                os.path.dirname(os.path.dirname(
+                                                os.path.realpath(__file__))))
+from cheby_checker import parse_input
 
-# Default for caching stuff using lru_cache
-# -----------------------------------------------------------------------------
+
+##### ---------------------------------------------------------------------------
+##### *** MJP : Potential Silent Kernel Crash ... ***
+##### At the time of writing there are some hard-coded links to ephemeris files in the REBOUNDX C-Code
+##### As such, the python code(s) that call it will crash UNLESS you provide symbolic links in ANY/ALL run-directory
+##### E.g.
+##### >>> ln -s /Users/matthewjohnpayne/Envs/reboundx/examples/ephem_forces/linux_p1550p2650.430 .
+##### >>> ln -s /Users/matthewjohnpayne/Envs/reboundx/examples/ephem_forces/sb431-n16s.bsp .
+##### ---------------------------------------------------------------------------
+
 
 
 # Constants and stuff

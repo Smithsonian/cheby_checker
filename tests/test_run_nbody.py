@@ -26,12 +26,12 @@ try:  # Import ephem_forces from whereever REBX_DIR is set to live
     from examples.ephem_forces import ephem_forces
 except (KeyError, ModuleNotFoundError):
     from reboundx.examples.ephem_forces import ephem_forces
-#sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath('.'))))
+
 sys.path.append(os.path.dirname(os.path.dirname(
     os.path.realpath(__file__))))
 from tests.test_parse_input import is_parsed_good_enough, compare_xyzv
-from mpc_nbody import mpc_nbody
-from mpc_nbody.parse_input import ParseElements
+from cheby_checker import mpc_nbody
+from cheby_checker.parse_input import ParseElements
 
 
 # Constants & Test Data
@@ -48,6 +48,11 @@ def test_initialize_integration_function():
     will it work or crash and burn?
     Most likely if there is a problem, it'll cause pytest to crash entirely,
     so might as well start with this.
+    
+    *** MJP *** 
+    This test is insufficient. It does not capture the problem related to the
+    hard-coded ephem file, which returns a message "could not load DE430 file, fool!"
+    
     '''
     tstart, tstep, trange = 2456184.7, 20.0, 600
     geocentric = 0
@@ -61,7 +66,6 @@ def test_initialize_integration_function():
     assert isinstance(n_out, int)
     assert isinstance(states, np.ndarray)
     assert isinstance(times, np.ndarray)
-
 
 # A @pytest.mark.parametrize basically defines a set of parameters that
 # the test will loop through.
@@ -225,3 +229,4 @@ def nice_Horizons(target, centre, epochs, id_type):
 
 
 # End
+
