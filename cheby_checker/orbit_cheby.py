@@ -56,8 +56,10 @@ import numdifftools as nd
 # --------------------------------------------------------------
 try:
     import nbody_reader
+    import mpc_nbody
 except ImportError:
     from . import nbody_reader
+    from . import mpc_nbody
 
 
 # Define top-line parameters
@@ -230,15 +232,18 @@ class MSC_Loader(Base):
         self.FORCE_DATES    = False                                 # : Sector Ranges
         self.TDB_init       = None                                  # : Cheby Span
         self.TDB_final      = None                                  # : Cheby Span
-        self.FROM_FILE      = False                                 # : Ingest method
-        self.filepath       = False                                 # : Ingest method
-        self.FROM_ARRAY     = False                                 # : Ingest method (From np.array)
+        
+        self.filepath       = None                                  # : Ingest method (From textfile)
+
         self.primary_unpacked_provisional_designations   = None     # : Ingest method (From np.array)
         self.times_TDB      = None                                  # : Ingest method (From np.array)
         self.statearray     = None                                  # : Ingest method (From np.array)
-        self.FROM_DATABASE  = None                                  # : Ingest method (From sqlite db)
+        
+        self.NbodySim       = None                                  # : Ingest method (From cheby_checker.mpc_nbody.NbodySim)
+
         self.desig_dict     = None                                  # : Ingest method (From sqlite db)
         self.dict_of_dicts_coeffs  = None                           # : Ingest method (From sqlite db)
+        
         
         # The list of MSCs that will be instantiated & returned
         self.MSCs           = []
@@ -250,19 +255,26 @@ class MSC_Loader(Base):
                 setattr(self, attribute, value)
 
         # Allow initialization of ARRAYS / COEFFICIENTS from different sources
-        # (i) From text file ( Mainly for development )
-        if  self.FROM_FILE and self.filepath != None :
-            self._populate_from_nbody_text(self.filepath)
-        
-        # (ii) From numpy array (from nbody)
-        elif self.FROM_ARRAY and self.primary_unpacked_provisional_designations != None and isinstance(self.statearray , (list,tuple,np.ndarray)) :
-            self._populate_from_nbody_array(self.primary_unpacked_provisional_designations, self.times_TDB, self.statearray)
-        
-        # (iii) From database (of pre-calculated chebyshevs)
-        elif self.FROM_DATABASE:
+        # (i) From database (of pre-calculated chebyshevs)
+        if self.desig_dict is not None and self.dict_of_dicts_coeffs is not None:
             self._populate_from_database( self.desig_dict , self.dict_of_dicts_coeffs )
-        
-        # (iv) An empty instance ...
+
+        # (ii) From cheby_checker.mpc_nbody.NbodySim
+        elif self.NbodySim is not None :
+            if "primary_unpacked_provisional_designations" not in self.NbodySim.__dict__:
+                self.NbodySim.primary_unpacked_provisional_designations = [ str(_) for _ in range(self.NbodySim.output_n_particles)]
+                print(f'Populating from NbodySim : ***NO*** designation information : Using {self.NbodySim.primary_unpacked_provisional_designations}')
+            self._populate_from_nbody_array(self.NbodySim.primary_unpacked_provisional_designations , self.NbodySim.output_times, self.NbodySim.output_vectors)
+
+        # (iii) From numpy array (from nbody: Mainly for development)
+        elif self.primary_unpacked_provisional_designations is not None and isinstance(self.statearray , (list,tuple,np.ndarray)) and isinstance(self.times_TDB , (list,tuple,np.ndarray)) :
+            self._populate_from_nbody_array(self.primary_unpacked_provisional_designations, self.times_TDB, self.statearray)
+
+        # (iv) From text file ( Mainly for development )
+        elif self.filepath != None :
+            self._populate_from_nbody_text(self.filepath)
+
+        # (v) An empty instance ...
         else:
             self._generate_empty()
                 
@@ -358,14 +370,18 @@ class MSC_Loader(Base):
         #        Nt = Number of times
         #        Nc = Number of coords/components being fitted
         #        Np = Number of particles
+        #
         self.primary_unpacked_provisional_designations = np.atleast_1d(primary_unpacked_provisional_designations)
-        # (i) Single Object
+        #   (i) Single Object
         if len(self.primary_unpacked_provisional_designations) == 1 and states.ndim == 2 :
             pass
-        # (ii) Multiple Objects
-        elif len(self.primary_unpacked_provisional_designations) > 1 and states.ndim == 3 and (len(self.primary_unpacked_provisional_designations) == states.shape[-1]) :
+        #  (ii) Multiple Objects (Nt, Nc, Np) [2 flavors to try and cope with the inevitable fuck-ups in coordinate organization]:
+        elif len(self.primary_unpacked_provisional_designations) >= 1 and states.ndim == 3 and (len(self.primary_unpacked_provisional_designations) == states.shape[2]) :
             pass
-        # (iii) Problem
+        # (iii) Multiple Objects (Nt, Np, Nc) [2 flavors to try and cope with the inevitable fuck-ups in coordinate organization]
+        elif len(self.primary_unpacked_provisional_designations) >= 1 and states.ndim == 3 and (len(self.primary_unpacked_provisional_designations) == states.shape[1]) :
+            pass
+        #  (iv) Problem
         else:
             sys.exit('Inconsistent dimensionality : len(self.unpacked_provisional_designations) = %r and states.ndim = %r and states.shape = %r' % \
                      (len(self.primary_unpacked_provisional_designations) , states.ndim ,  states.shape) )
@@ -379,7 +395,7 @@ class MSC_Loader(Base):
         for i, unpacked in enumerate(self.primary_unpacked_provisional_designations):
             
             # Get the slice of states corresponding to the particular named object
-            state_slice = states if states.ndim == 2 else states[:,:,i]
+            state_slice = states if states.ndim == 2 else states[:,:,i] if len(self.primary_unpacked_provisional_designations) == states.shape[2] else states[:,i,:]
             
             # Create the MSC (using the appropriate *from_coord_arrays()* function )
             M = MSC()
@@ -451,11 +467,9 @@ class MSC(Base):
         Base.__init__(self)
 
         # Initialization of default standard PARAMETERS / OPTIONS we use for chebyshevs, etc
-        self.minorder       = 17                                    # : Fitting Chebys
+        self.minorder       = 7                                     # : Fitting Chebys
         self.maxorder       = 25                                    # : Fitting Chebys
         self.maxerr         = 1e-8                                  # : Fitting Chebys
-        
-        # Time-related quantities
         
         # Fundamental identifiying data for MSC
         self.primary_unpacked_provisional_designation   = None
@@ -523,7 +537,7 @@ class MSC(Base):
             - Doesn't directly return, just populates the MSC object
             
         '''
-        
+        print(f'primary_unpacked_provisional_designation, TDB_init , TDB_final , times_TDB   : {primary_unpacked_provisional_designation, TDB_init , TDB_final , times_TDB  }')
         # Store the important quantities
         self.primary_unpacked_provisional_designation, self.TDB_init , self.TDB_final = primary_unpacked_provisional_designation, TDB_init , TDB_final
         
@@ -963,121 +977,3 @@ class MSC(Base):
 
 # End Of File
 # --------------------------------------------------------------
-
-
-"""
-    def generate_multi_sector_cheby_dict_from_nbody_json( json_filepath ,
-    TDB_init,
-    TDB_final,
-    minorder=17,
-    maxorder=25,
-    maxerr=1e-8,
-    FORCE_DATES = False ,
-    CHECK = False):
-    '''
-    Slightly rewritten version of Margaret's *datediv* routine
-    
-    inputs:
-    -------
-    json_filepath   -- filepath of json file to be read
-    TDB_init,TDB_final -- earliest and latest MJD dates for which you want chebyshev approximations
-    
-    returns:
-    --------
-    multi-sector cheby-dict
-    '''
-    
-    # Read the nbody-json file
-    nbody_dict = nbody_reader.parse_nbody_json( json_filepath )
-    
-    # Check whether the supplied data can support the requested date-range
-    if FORCE_DATES :
-    TDB_init = max(TDB_init , nbody_dict[ nbody_reader.time_fieldname ][0] )
-    TDB_final = min(TDB_final , nbody_dict[ nbody_reader.time_fieldname ][-1] )
-    else:
-    if  TDB_init < nbody_dict[ nbody_reader.time_fieldname ][0] or \
-    TDB_final > nbody_dict[ nbody_reader.time_fieldname ][-1]:
-    sys.exit(' nbody data does not support the requested dates ')
-    
-    # Set up a (mostly-empty) multi-sector cheby-dict
-    mscd = {
-    nbody_reader.object_name    : nbody_dict[nbody_reader.object_name],
-    'MJP_TDB_init'      : TDB_init,
-    'MJP_TDB_final'     : TDB_final,
-    'sectors'           : []
-    }
-    
-    # Split into sectors ...
-    numdivs = int(np.ceil((TDB_final-TDB_init)/sector_length_days))
-    
-    # Go through sectors
-    for ind in range(numdivs):
-    
-    # Set up a (mostly-empty) single-sector cheby-dict
-    sscd = { nbody_reader.object_name : nbody_dict[nbody_reader.object_name] }
-    
-    # Identify the indicees of the nbody times for this sector (i.e. those with min < t < max)
-    sscd['MJP_TDB_init']    = TDB_init + ind*sector_length_days
-    sscd['MJP_TDB_final']   = min(TDB_final,TDB_init + (ind+1)*sector_length_days)
-    indicees                = np.where((nbody_dict[ nbody_reader.time_fieldname ]>=sscd['MJP_TDB_init']) & \
-    (nbody_dict[ nbody_reader.time_fieldname ]<=sscd['MJP_TDB_final']) )[0]
-    
-    
-    # Loop over all coordinates & covariances
-    lists = [nbody_reader.coord_names, nbody_reader.covar_names]
-    for item in itertools.chain(*lists):
-    
-    # For each component, generate chebys & save into single-sector cheby-dict
-    maxorder    = min(maxorder,len(indicees))
-    sscd[item]  = generate_single_sector_cheb(  nbody_dict[ nbody_reader.time_fieldname ][indicees],
-    nbody_dict[item][indicees],
-    minorder,
-    maxorder,
-    maxerr)
-    # append the single-sector cheby-dict into the multi-sector cheby-dict
-    mscd['sectors'].append(sscd)
-    
-    # If being thorough, check that the produced object is valid
-    if CHECK:
-    check_multi_sector_validity( mscd )
-    
-    return mscd
-    
-    
-    
-
-
-    # Functions to check validity ...
-    # --------------------------------------------------------------
-    def check_validity( cheby_dict ):
-        '''
-            Check whether the input dictionary has the expected
-            structure / variables of a MULTI-SECTOR dictionary
-
-        '''
-        # Expected keys & data-types
-        expected_keys_and_types = [
-        ("name", str),
-        ("MJP_TDB_init", (int, float, np.int64, np.float64)),
-        ("MJP_TDB_final", (int, float, np.int64, np.float64)),
-        ("sectors", (list, np.ndarray) )
-        ]
-
-        # Check data is as expected
-        # Needs to
-        # (i) be a dict
-        # (ii) have all the necessary keys
-        # (iii) have all the correct data types
-        # (iv) individual-sector dictionaries are all valid
-        return True if isinstance(cheby_dict , dict) and \
-                        np.all([key in cheby_dict and
-                        isinstance(cheby_dict[key], typ) for key, typ in
-                        expected_keys_and_types]) and \
-                        np.all([check_single_sector_validity(sector_dict) for
-                           sector_dict in cheby_dict[sectors]]) \
-                    else False
-
-
-
-
-    """
