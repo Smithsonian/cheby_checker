@@ -11,6 +11,7 @@ Python code related to orbital ephemeris calculations (for solar system objects)
 
 ## Architecture of Data Flow
  - Checking_MPChecker_PCheck_CheckIDX_s9m_sifter.png
+ ![Github](https://github.com/matthewjohnpayne/cheby_checker/blob/master/Checking_MPChecker_PCheck_CheckIDX_s9m_sifter.png) 
 
 ## Installation / prerequisites
 In order to get the NBODY part of the code working, one needs to have REBOUND/REBOUNDx installed. 
