@@ -21,6 +21,8 @@
  - The main work-horse of the package, based around MSC (Multi Sector Cheby) class. 
  - Contains functionalities to fit MSC to nbody data, evaluate MSCs for ephemeris (see below), calculate RA,Dec from Cartesians, etc etc
  - See notebooks/Demonstrate_Orbital_Chebyshev_Functionality.ipynb
+ -- I suspect that this notebook is incomplete / has only been shown to explicitly work for the firat ~half of the cells. 
+ - explicit tests do *not* seem to exist, so should be extracted from the demo notebook.
  
  ### precalc & sql 
  
@@ -51,6 +53,8 @@
 
 
  - Test mpc_nbody works in cheby_checker [MA]
+ 
+ - Develop tests for the many many functionalities within orbit_cheby [MA/MJP]
 
 - Add functionality from "playing_with_convex_hulls_and_ellipsoid_representations" to allow generation of ellipsoid boundary & calculation of overlap of convex hulls. This should probably be added to MSC (boundary) and Detections/Residuals (overlap). [MJP]
 
@@ -59,3 +63,5 @@
 - Develop test / demo of the end-to-end extraction of data from the database, through ephem, into pcheck [MJP]
 
 - Develop tests of functionalities in mpchecker. Start with pCheck (There are many more lower-level functionalities that need to have proper tests written for them, but I suspect that getting the pcheck & ephem codes working and tested will prompt me to get a whole lot of lower-level code sorted too) . [MJP]
+
+- Sifter: I want to bring the sifter stuff into the fold too. It's entirely dependent upon the cheby/MSC approach, so I think it should be merged in. [MA/MJP]
