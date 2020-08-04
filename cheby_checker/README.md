@@ -20,10 +20,7 @@
  
  - The main work-horse of the package, based around MSC (Multi Sector Cheby) class. 
  - Contains functionalities to fit MSC to nbody data, evaluate MSCs for ephemeris (see below), calculate RA,Dec from Cartesians, etc etc
- - See notebooks/Demonstrate_Orbital_Chebyshev_Functionality.ipynb
- 
- ##### I suspect that this notebook is incomplete / has only been shown to explicitly work for the first ~half of the cells. 
- 
+ - See notebooks/Demonstrate_Orbital_Chebyshev_Functionality.ipynb [ *I suspect that this notebook is incomplete / has only been shown to explicitly work for the first ~half of the cells*]. 
  - explicit tests do *not* seem to exist, so should be extracted from the demo notebook.
  
  ### precalc & sql 
