@@ -175,19 +175,18 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
         '''
         # Establish a connection
         conn = sql.create_connection( sql.fetch_db_filepath() )
+        
+        # THE TWO QUERIES BELOW SHOULD PROBABLY BE COMBINED INTO A SINGLE SQL QUERY ...
     
-        # Get the designation for the object_id (is in the form of a dictionary)
-        desig_dict = sql.query_desig_by_number(conn, list(dict_of_dicts.keys()))
+        # Get the object_id for the supplied desig (is in the form of a dictionary)
+        object_id = sql.query_number_by_desig(conn, list(dict_of_dicts.keys()))
     
         # Query for the coefficients
-        dict_of_coeffs = query_object_coefficients(conn,
-                                  desig_dict[primary_unpacked_provisional_designation],
-                                  sector_numbers = sector_numbers):
-    
-        # Return an MSC
-        M = orbit_cheby.MSC()
-        M.from_sector_dict(self, primary_unpacked_provisional_designation, dict_of_coeffs )
-        return M
+        dict_of_coeffs = sql.query_object_coefficients(conn,
+                                                       object_id,
+                                                       sector_numbers = sector_numbers)
+        # Return dictionary
+        return dict_of_coeffs
 
     def _rectify_inputs(self,  MSCs ):
         '''
