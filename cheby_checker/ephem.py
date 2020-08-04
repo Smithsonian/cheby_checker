@@ -21,6 +21,10 @@
     the online ephemeris service, as well as other downstream 
     functionality (pCheck, MPChecker, etc)
     
+    ** As of Aug 2020, there doesn't seem to be a super-strong  **
+    ** justification for having this as a stand-alone class.    **
+    ** -->> Could just have as a function in some other class?  **
+    
     --------------------------------------------------------------
     '''
 
