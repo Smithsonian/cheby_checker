@@ -35,10 +35,6 @@ Obviously this is non-optimal, but one would hope it could be automated (via set
 
 
 
-# to-do : 2020-06-16
- - Get reboundx working (can't import ephem_forces from elsewhere) 
- - Draw together disparate repos (nbody, mpchecker, orbit_cheby) into this repo
- - Compile a list of extent and missing functionality
- - Compile a list of extent and missing tests
- - Compile a list of extent and missing demos (notebooks)
+# to-do : 2020-08-04
+ - See README in cheby_checker/cheby_checker code repo 
 
