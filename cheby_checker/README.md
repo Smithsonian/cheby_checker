@@ -54,4 +54,8 @@
 
 - Add functionality from "playing_with_convex_hulls_and_ellipsoid_representations" to allow generation of ellipsoid boundary & calculation of overlap of convex hulls. This should probably be added to MSC (boundary) and Detections/Residuals (overlap). [MJP]
 
-- Develop tests of functionalities in mpchecker. Start with pCheck. [MJP]
+- Develop test / demo of the end-to-end flow of data from orbit-fit, through nbody, into precalc, and then the database. [MA/MJP]
+
+- Develop test / demo of the end-to-end extraction of data from the database, through ephem, into pcheck [MJP]
+
+- Develop tests of functionalities in mpchecker. Start with pCheck (There are many more lower-level functionalities that need to have proper tests written for them, but I suspect that getting the pcheck & ephem codes working and tested will prompt me to get a whole lot of lower-level code sorted too) . [MJP]
