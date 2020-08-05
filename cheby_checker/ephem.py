@@ -41,7 +41,12 @@ try:
 except ImportError:
     from . import orbit_cheby
 
-from data_classes import detn_var_names, Detections
+try:
+    import data_classes
+except ImportError:
+    from . import data_classes
+
+detn_var_names, Detections = data_classes.var_names['Detections'], data_classes.Detections
 
 # Ephemeris Object
 # --------------------------------------------------------------

@@ -27,10 +27,14 @@ from collections import namedtuple
 import numpy as np
 import sys
 from astropy_healpix import healpy
+#from functools import lru_cache
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from orbit_cheby import Base
+try:
+    from orbit_cheby import orbit_cheby
+except ImportError:
+    from . import orbit_cheby
 
 
 # Simple dictionary-definitions of sets of variable names
@@ -41,34 +45,35 @@ from orbit_cheby import Base
 var_names = { 'Convenience' : ['pos','unit_vec','HP','HPlist'] }
 
 # Common variables for Pointing & Detections: Place in a "Vectorial" (parent) object
-# NB: These dict-of-dicts are setting up a name-to-number mapping   
-var_names.update({'Vectorial': {v:n for n,v in enumerate( ['obstime','ra','dec','pos1','pos2','pos3'] ) } })
+var_names['Vectorial'] = ['obstime','ra','dec','pos1','pos2','pos3']
 
 # Variables for "Pointing"
 additional_pntng_var_names = ['radius']
-var_names.update({'Pointings' : {v:n for n,v in enumerate( list(var_names['Vectorial'].keys()) + additional_pntng_var_names ) } })
+var_names['Pointings'] = var_names['Vectorial'] + additional_pntng_var_names
 
 # Variables for "Detections"
 additional_detn_var_names = [ 'rmstime','rmsra','rmsdec', 'mag','rmsmag']
-var_names.update({'Detections':{v:n for n,v in enumerate(  list(var_names['Vectorial'].keys()) + additional_detn_var_names  )} })
+var_names['Detections'] = var_names['Vectorial'] + additional_detn_var_names
                                            
 # Variables for "Residuals"
-var_names.update({'Residuals':{v:n for n,v in enumerate(
-    ['offsetRA',
-    'offsetDec',
-    'offsetTot',
-    'maxUncOrb',
-    'maxUncDet',
-    'maxUnc',
-    'badBool'
-    ])})
+var_names['Residuals'] =    ['offsetRA',
+                            'offsetDec',
+                            'offsetTot',
+                            'maxUncOrb',
+                            'maxUncDet',
+                            'maxUnc',
+                            'badBool']
 
+# Set up a name:number mapping between variables and posn in array
+def var_map(vars):
+    return {v:n for n,v in enumerate(vars)}
+var_maps = {k:var_map(vars) for k,vars in var_names.items()}
 
 # Data Class Definitions
 # "Vectorial", "Pointing", "Detections", "Residuals"
 # --------------------------------------------------------------
 
-class Vectorial(Base):
+class Vectorial(orbit_cheby.Base):
     '''
         May use as a (hidden) parent class from which
         Pointing & Detections will inherit
@@ -95,11 +100,15 @@ class Vectorial(Base):
         # This will interpret the following
         # - Single Iterable of length == len(var_names[self.iama])
         # - Iterable of iterables (inner iterables of length len(var_names[self.iama]))
+        # NB
+        # - I could have used a structured-array or record-array, but I find the initialization
+        # - to be annoying as hell, so gave up. Insted I am handling attributable access to arr
+        # -  via __getattribute__
         else:
-            self.arr = np.atleast_2d(arg)
+            self.arr = np.atleast_2d( arg ).astype(float)
             assert self.arr.ndim == 2 ,                               f'Problem:self.arr.ndim={self.arr.ndim}'
             assert self.arr.shape[1] == len(var_names[self.iama]),    f'Problem:self.arr.shape={self.arr.shape}'
-            assert np.issubdtype( self.arr.dtype , np.number),        f'Problem:self.arr.dtype={self.arr.dtype}'
+            
         return self.arr
 
     # Overwrite string method
@@ -119,8 +128,8 @@ class Vectorial(Base):
             return object.__getattribute__(self, name)
             
         # Allow array slices via name, using the name:number mapping
-        elif name in var_names[self.iama]:
-            return self.arr[:,var_names[self.iama][name]]
+        elif name in var_maps[self.iama]:
+            return self.arr[:,var_maps[self.iama][name]]
 
         # The next ~four are dependent on the above array slicing
         elif name == 'pos':

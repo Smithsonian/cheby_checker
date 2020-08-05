@@ -390,8 +390,7 @@ def query_object_coefficients(conn,
 
     # Parse the result ...
     result = cur.fetchall()[0]
-    result = { sfn:pickle.loads( coeff )  for sfn, coeff in zip(sector_field_names, result) if coeff != None }
-    return result
+    return { sfn:pickle.loads( coeff )  for sfn, coeff in zip(sector_field_names, result) if coeff != None }
 
 
 

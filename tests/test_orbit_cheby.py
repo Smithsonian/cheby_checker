@@ -259,5 +259,6 @@ def test_loader_from_nbodysim(orbfit_file):
     
     M = MSCs[0]
     assert isinstance(M, orbit_cheby.MSC)
-
+    
+    return MSCs
 
