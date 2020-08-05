@@ -8,6 +8,7 @@ Python code related to orbital ephemeris calculations (for solar system objects)
  - Check the residuals between observations and expected positions from previous orbit extrapolations (pChecker-v2);
  - Calculate the objects which are likely to be within the Field-of-View of a telescope (MPChecker-v2);
  - Attribute observations (of unknown designation) to known objects (CheckID-v2); 
+ - Identify archival observations (ITF or designated) of new objects (s9m-v2);
 
 ## Architecture of Data Flow
  - Checking_MPChecker_PCheck_CheckIDX_s9m_sifter.png
@@ -43,4 +44,3 @@ Obviously this is non-optimal, but one would hope it could be automated (via set
 
 ## to-do : 2020-08-04
  - See README in cheby_checker/cheby_checker code repo 
-
