@@ -28,7 +28,7 @@ except (KeyError, ModuleNotFoundError):
     from reboundx.examples.ephem_forces import ephem_forces
 
 sys.path.append(os.path.dirname(os.path.dirname(
-    os.path.realpath(__file__))))
+                os.path.realpath(__file__))))
 from tests.test_parse_input import is_parsed_good_enough, compare_xyzv
 from cheby_checker import mpc_nbody
 from cheby_checker.parse_input import ParseElements
@@ -36,7 +36,8 @@ from cheby_checker.parse_input import ParseElements
 
 # Constants & Test Data
 # -----------------------------------------------------------------------------
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dev_data')
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(
+                        os.path.realpath(__file__))), 'dev_data')
 
 
 # Tests
@@ -48,11 +49,28 @@ def test_initialize_integration_function():
     will it work or crash and burn?
     Most likely if there is a problem, it'll cause pytest to crash entirely,
     so might as well start with this.
-    
-    *** MJP *** 
+
+    *** MJP ***
     This test is insufficient. It does not capture the problem related to the
-    hard-coded ephem file, which returns a message "could not load DE430 file, fool!"
-    
+    hard-coded ephem file, which returns a message
+    "could not load DE430 file, fool!"
+
+    *** MA ***
+    Indeed, when that file is missing, the C code prints that insult,
+    then causes a complete crash, exiting python without a python error.
+    As such, it is impossible to guard against it, even with a
+    try:
+      stuff
+    except:
+      print('Oh no, you probably have files missing!')
+    as it exits python entirely (somehow).
+    When run interactively, the C prints the insult, but when run inside the
+    pytest, it doesn't get printed (because pytest suppresses outputs) and
+    python just crashes and leaves you with no test output.
+    So in principle it's clear that it didn't work, but it doesn't actually
+    give useful information.
+    For now, I have found out that the two files needed are actually smaller
+    than the GitHub 100 MB file limit, so I'll just commit them into the repo.
     '''
     tstart, tstep, trange = 2456184.7, 20.0, 600
     geocentric = 0
@@ -66,6 +84,7 @@ def test_initialize_integration_function():
     assert isinstance(n_out, int)
     assert isinstance(states, np.ndarray)
     assert isinstance(times, np.ndarray)
+
 
 # A @pytest.mark.parametrize basically defines a set of parameters that
 # the test will loop through.
@@ -154,6 +173,11 @@ def test_nbody_vs_Horizons(tstart, tstep, trange, geocentric,
                 print(f'Velocity off by [au/day]: {error[3:6]:}')
             assert np.all(good_tf)
     assert output_n_particles == len(targets)
+    print(input_vectors, horizons_in, np.all(input_vectors == horizons_in))
+    assert np.all(input_vectors == horizons_in)
+    print(input_n_particles, output_n_particles,
+          input_n_particles == output_n_particles)
+    assert input_n_particles == output_n_particles
     ### This should get refactored to use is_nbody_output_good_enough !!!
 
 
@@ -194,7 +218,7 @@ def test_NbodySim(data_file, file_type, holman_ic_test_file, nbody_test_file):
 def is_nbody_output_good_enough(times, data, target='30102'):
     '''
     Helper function for determining whether the saved output from an nbody
-    integration is good enough. 
+    integration is good enough.
     '''
     # Check 20 timesteps (or less if there are many)
     some_times = np.linspace(0, len(times) - 1, 20).astype(int)
@@ -229,4 +253,3 @@ def nice_Horizons(target, centre, epochs, id_type):
 
 
 # End
-
