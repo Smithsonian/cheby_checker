@@ -24,9 +24,9 @@ import numpy as np
 from astropy.time import Time
 import getpass
 
-if getpass.getuser() in ['matthewjohnpayne']: # Payne's dev laptop set up differently ...:
-    sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/mpcpp/')
-import MPC_library as mpc
+if getpass.getuser() in ['matthewjohnpayne']:  # Payne's dev laptop set up differently ...:
+    sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/')
+import mpcpp.MPC_library as mpc
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
