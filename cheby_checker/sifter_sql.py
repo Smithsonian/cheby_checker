@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# sifter/sifter/sql
+# cheby_checker/cheby_checker/sifter_sql
 
 '''
     --------------------------------------------------------------
@@ -11,6 +11,11 @@
     This module provides functionalities to
     ...
     
+    While this and sql.py are very similar,
+    I believe the other one is meant for storing MSCs, while this one
+    is intended for storing tracklet information from the sifter_precalc
+    (dates, healpix, etc). 
+
     *WRITE MORE STUFF*
     
     --------------------------------------------------------------
@@ -27,7 +32,7 @@ import pickle
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from . import precalc  # new better Python3 relative import
+from . import sifter_precalc as precalc  # new better Python3 relative import
 
 
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# sifter/sifter/sifter.py
+# cheby_checker/cheby_checker/sifter.py
 
 '''
     --------------------------------------------------------------
@@ -9,7 +9,7 @@
     Matt Payne & Mike Alexandersen
     
     This module provides overall access to sifter:
-    sifter searches the ITF
+    sifter searches the ITF & database for tracklets that match an orbit.
 
 
     *WRITE MORE STUFF*
@@ -26,7 +26,7 @@ import argparse
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from . import query  # Yay, python3 relative import :-)
+from . import sifter_query as query  # Yay, python3 relative import :-)
 
 # Set default search parameters
 # --------------------------------------------------------------

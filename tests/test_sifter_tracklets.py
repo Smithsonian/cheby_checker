@@ -21,14 +21,17 @@ import pytest
 
 # Import neighboring packages
 # --------------------------------------------------------------
-#sys.path.append( os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'sifter') )
-from sifter import precalc, sql
+sys.path.append(os.path.dirname(os.path.dirname(
+                os.path.realpath(__file__))))
+from cheby_checker import sifter_precalc as precalc, sifter_sql as sql
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'dev_data')
 
 
 # Convenience data / functions to aid testing
 # --------------------------------------------------------------
-test_tracklet = ['     K11Q99F*~C2011 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568', '     K11Q99F ~C2011 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568']
+test_tracklet = ['     K11Q99F*~C2011 08 29.52378 01 57 34.729+14 35 44.64         22.8 rc~0qBd568',
+                 '     K11Q99F ~C2011 08 29.61470 01 57 34.343+14 35 42.59         22.9 rc~0qBd568']
+
 
 def convenience_func_create_db_and_tables():
     '''
@@ -84,7 +87,8 @@ def test_save_tracklets(observation_pair_list):
 
     # Set up a Tracklet & use parse_tracklet_observations to get JD, HP, ...
     T = precalc.Tracklets()
-    tracklet_dictionary_list = [T.parse_tracklet_observations(obs_pair) for obs_pair in observation_pair_list]
+    tracklet_dictionary_list = [T.parse_tracklet_observations(obs_pair)
+                                for obs_pair in observation_pair_list]
 
     # Now save the data in the db
     T.save_tracklets(tracklet_dictionary_list)

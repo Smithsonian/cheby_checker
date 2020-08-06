@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# sifter/sifter/precalc.py
+# cheby_checker/cheby_checker/sifter_precalc.py
 
 '''
     --------------------------------------------------------------
@@ -33,10 +33,7 @@ from astropy import units as u
 # Different machines set up differently ...
 # ... adding paths to force stuff to work while developing
 if getpass.getuser() in ['matthewjohnpayne']:
-    #sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/obs80/')
     sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/')
-    
-    #from obs80 import parse80
 elif False:
     pass
 else:
@@ -48,7 +45,7 @@ from mpcpp import MPC_library as mpc
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from . import sql  # New and improved Python3 relative import
+from . import sifter_sql as sql  # New and improved Python3 relative import
 
 
 # Default for caching stuff using lru_cache

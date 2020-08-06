@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# sifter/sifter/query
+# cheby_checker/cheby_checker/sifter_query
 
 '''
     --------------------------------------------------------------
@@ -33,8 +33,8 @@ import random # only necessary while developing
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from . import sql
-import orbit_cheby as cheby
+from . import sifter_sql as sql
+from . import orbit_cheby as cheby
 
 
 
