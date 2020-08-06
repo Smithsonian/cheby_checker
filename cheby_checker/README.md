@@ -45,11 +45,15 @@
 - Classes to hold ad-hoc data (detections, pointing, etc) used by various check functions
 - Some tests written in tests/towards_tests_of_data_classes.py
 
+ ### sifter, sifter_precalc, sifter_sql, sifter_query:
 
-
+- files from the formerly independent `sifter` repository, now fully merged into here. 
+- sifter_precalc parses observations, identifies tracklets and splits observations into seperate tracklets, figures out where the observer is, deals with coordinate frame conversion, calculates the important info about a tracklet (integer night, HealPix, etc) and saves it to a dictionary. 
+- sifter_sql creates a database for storing the dictionaries from sifter_precalc
+- sifter_query can be used to query the database from sifter_sql such that you can ask "on a given night, what tracklets are in HealPix X?"
+- sifter kind of ties it all together (WIP)
 
 # To Do 
-
 
  - Test mpc_nbody works in cheby_checker [MA]
  
@@ -63,4 +67,3 @@
 
 - Develop tests of functionalities in mpchecker. Start with pCheck (There are many more lower-level functionalities that need to have proper tests written for them, but I suspect that getting the pcheck & ephem codes working and tested will prompt me to get a whole lot of lower-level code sorted too) . [MJP]
 
-- Sifter: I want to bring the sifter stuff into the fold too. It's entirely dependent upon the cheby/MSC approach, so I think it should be merged in. [MA/MJP]
