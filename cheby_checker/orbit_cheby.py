@@ -50,7 +50,7 @@ from astropy_healpix import healpy
 from functools import lru_cache
 import json
 import itertools
-import numdifftools as nd
+#import numdifftools as nd
 
 # Import neighboring packages
 # --------------------------------------------------------------
