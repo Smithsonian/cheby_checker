@@ -55,13 +55,13 @@
 
 # To Do 
 
- - Test mpc_nbody works in cheby_checker [MA]
- 
- - Develop tests for the many many functionalities within orbit_cheby [MA/MJP]
+- Edit sifter to use the stand-along obs_pos for figuring out where observaties are, and remove the duplicated code from sifter_precalc.py [MA]
+
+- Develop tests for the many many functionalities within orbit_cheby [MA/MJP]
 
 - Add functionality from "playing_with_convex_hulls_and_ellipsoid_representations" to allow generation of ellipsoid boundary & calculation of overlap of convex hulls. This should probably be added to MSC (boundary) and Detections/Residuals (overlap). [MJP]
 
-- Develop test / demo of the end-to-end flow of data from orbit-fit, through nbody, into precalc, and then the database. [MA/MJP]
+- Develop test / demo of the end-to-end flow of data from orbit-fit, through nbody, into sifter_precalc, and then the database. [MA/MJP]
 
 - Develop test / demo of the end-to-end extraction of data from the database, through ephem, into pcheck [MJP]
 
