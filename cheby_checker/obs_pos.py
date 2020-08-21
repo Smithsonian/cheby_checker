@@ -1,8 +1,27 @@
+# -*- coding: utf-8 -*-
+# cheby_checker/cheby_checker/obs_pos.py
+
+'''
+    --------------------------------------------------------------
+    Parse an obscode and figure out where the observer is at a given time.
+
+    Jan 2020
+    Matt Payne & Mike Alexandersen
+
+    *WRITE MORE STUFF*
+
+    --------------------------------------------------------------
+    '''
+
+# Import third-party packages
+# --------------------------------------------------------------
+import sys
 import getpass
 import numpy as np
-import os, sys
 from astropy import units as u
 
+# Import neighboring packages
+# --------------------------------------------------------------
 # Different machines set up differently ...
 # ... adding paths to force stuff to work while developing
 if getpass.getuser() in ['matthewjohnpayne']:
@@ -11,13 +30,14 @@ else:
     pass
 from mpcpp import MPC_library as mpc
 
+
 class ObsPos():
-    
-    
+    '''Class containing all the functionality for figuring out where
+       the observer is. '''
+
     def __init__(self):
         # MPC Observatory list:
         self.obsCodes = mpc.Observatory()
-
 
     def get_heliocentric_equatorial_xyz(self, jd_utc, obsCode=None,
                                         verbose=False):
@@ -55,7 +75,6 @@ class ObsPos():
         output_xyz = np.dot(rotation_matrix, input_xyz.reshape(-1, 1)).flatten()
         return output_xyz
 
-
     def check_obsCode(self, obsCode=None, verbose=False):
         '''
             Check whether a valid Observatory Code has been supplied.
@@ -69,10 +88,11 @@ class ObsPos():
         if isinstance(obsCode, int):
             obsCode = str(obsCode)
         if len(obsCode) != 3:
-            raise NotImplementedError("Bad Observatory Code!\nObservatory Code "
+            raise NotImplementedError("Bad Observatory Code!\n"
+                                      "Observatory Code "
                                       "must be a three character string!\nFor "
                                       "four character Observatory Codes, please "
                                       "bug M. Alexandersen or M. Payne.")
         return obsCode
 
-
+#End
