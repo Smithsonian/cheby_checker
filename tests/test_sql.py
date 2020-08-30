@@ -112,6 +112,7 @@ def test_inserts():
 def test_queries():
 
     # (0) Create demo MSC(s) & create empty db using functions from test_orbit_cheby
+    #  NB: test_loader_from_nbodysim() calls test_convenience_call_to_mpc_nbody_nbodysim() 
     MSCs = test_orbit_cheby.test_loader_from_nbodysim(test_orbit_cheby.orbfit_filenames[0])
     M = MSCs[0]
     
