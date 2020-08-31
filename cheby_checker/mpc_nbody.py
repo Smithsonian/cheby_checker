@@ -68,6 +68,7 @@ class NbodySim():
     def __init__(self, input_file=None, filetype=None, save_parsed=False):
         #If input filename provided, process it:
         if isinstance(input_file, str) & isinstance(filetype, str):
+            print('HERE ... ' , input_file, filetype, save_parsed)
             self.pparticle = parse_input.ParseElements(input_file, filetype,
                                                        save_parsed=save_parsed)
         else:
@@ -175,6 +176,9 @@ def run_nbody(input_vectors, tstart, tstep, trange, geocentric=False,
     # First get input (3 types allowed) into a useful format:
     reparsed_input, n_particles = _fix_input(input_vectors, verbose)
     # Now run the nbody integrator:
+    print('run_nbody')
+    print(f'tstart={tstart}; tstep={tstep}; trange={trange}; geocentric={geocentric}; n_particles={n_particles}; reparsed_input={[str(_)+"," if str(_) !=reparsed_input[-1] else _ for _ in reparsed_input]}')
+    
     (times, output_vectors, n_times, n_particles_out
      ) = integration_function(tstart, tstep, trange, geocentric,
                               n_particles, reparsed_input)
