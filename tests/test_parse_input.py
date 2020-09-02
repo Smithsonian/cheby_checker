@@ -20,6 +20,11 @@ import numpy as np
 import pytest
 from astroquery.jplhorizons import Horizons
 
+import getpass
+if getpass.getuser() in ['matthewjohnpayne']:  # Payne's dev laptop set up differently ...:
+    sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/')
+import mpcpp.MPC_library as mpc
+
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
 sys.path.append(
@@ -41,42 +46,41 @@ def test_instantiation():
     assert isinstance(parse_input.ParseElements(), parse_input.ParseElements)
 
 
-@pytest.mark.parametrize(('data_file'),
-                         ['30101.eq0_postfit', '30102.eq0_postfit',
-                          '30101.eq0_horizons', '30102.eq0_horizons'])
+@pytest.mark.parametrize(   ('data_file'),
+                         [  '30101.eq0_postfit',
+                            '30102.eq0_postfit',
+                            '30101.eq0_horizons',
+                            '30102.eq0_horizons'])
 def test_parse_orbfit(data_file):
+
     '''Test that OrbFit files get parsed correctly.'''
     P = parse_input.ParseElements()
+    
+    # Check that the expected attributes exist
+    # and that they are initiated == None
+    assert P.helio_ecl_vec_EXISTS   is False
+    assert P.helio_ecl_vec          is None
+    assert P.helio_ecl_cov_EXISTS   is False
+    assert P.helio_ecl_cov          is None
 
     # call parse_orbfit
+    print('looking for ', os.path.join(DATA_DIR, data_file), os.path.isfile(os.path.join(DATA_DIR, data_file)) )
     P.parse_orbfit(os.path.join(DATA_DIR, data_file))
-    elements_dictionary = P.heliocentric_ecliptic_cartesian_elements
 
-    # check that the returned results are as expected
-    assert isinstance(elements_dictionary, dict)
-    for key in ['x_HelioEcl', 'dx_HelioEcl', 'y_HelioEcl', 'dy_HelioEcl',
-                'z_HelioEcl', 'dz_HelioEcl']:
-        assert key in elements_dictionary
-        assert isinstance(elements_dictionary[key], float)
-    for key in ['sigma_x_HelioEcl', 'sigma_dx_HelioEcl', 'sigma_y_HelioEcl',
-                'sigma_dy_HelioEcl', 'sigma_z_HelioEcl', 'sigma_dz_HelioEcl',
-                'x_y_HelioEcl', 'x_z_HelioEcl', 'x_dx_HelioEcl',
-                'x_dy_HelioEcl', 'x_dz_HelioEcl', 'y_z_HelioEcl',
-                'y_dx_HelioEcl', 'y_dy_HelioEcl', 'y_dz_HelioEcl',
-                'z_dx_HelioEcl', 'z_dy_HelioEcl', 'z_dz_HelioEcl',
-                'dx_dy_HelioEcl', 'dx_dz_HelioEcl', 'dy_dz_HelioEcl']:
-        assert key in elements_dictionary
-        assert isinstance(elements_dictionary[key], str)
-
+    # Check that the expected attributes exist
+    # and that they are populated
+    assert P.helio_ecl_vec_EXISTS   is True
+    assert isinstance(P.helio_ecl_vec, np.ndarray)
+    assert P.helio_ecl_cov_EXISTS   is True
+    assert isinstance(P.helio_ecl_cov, np.ndarray)
+    
 
 def test_save_elements():
     '''Test that saving elements works correctly.'''
     P = parse_input.ParseElements()
-    (P.barycentric_equatorial_cartesian_elements, P.time
-     ) = parse_input._get_junk_data('BaryEqu')
+    P._get_and_set_junk_data(BaryEqDirect=True)
     P.save_elements()
-    assert cmp('./holman_ic', os.path.join(DATA_DIR, 'holman_ic_junk'))
-
+    assert cmp('./holman_ic', os.path.join(DATA_DIR, 'holman_ic_junk_expected'))
 
 @pytest.mark.parametrize(
     ('target', 'jd_tdb', 'id_type'),
@@ -94,6 +98,7 @@ def test_equatorial_helio2bary(target, jd_tdb, id_type):
     '''
     Test that heliocentric cartesian coordinates taken from Horizons
     is converted to barycentric cartesian and still agrees with Horizons.
+    
     '''
     hor_in_table = Horizons(target, '500@10', epochs=jd_tdb, id_type=id_type
                             ).vectors(refplane='earth'
@@ -101,9 +106,9 @@ def test_equatorial_helio2bary(target, jd_tdb, id_type):
     hor_out_table = Horizons(target, '500@0', epochs=jd_tdb, id_type=id_type
                              ).vectors(refplane='earth'
                                        )['x', 'y', 'z', 'vx', 'vy', 'vz']
-    input_xyz = list(hor_in_table.as_array()[0])
+    input_xyz           = list(hor_in_table.as_array()[0])
     expected_output_xyz = np.array(list(hor_out_table.as_array()[0]))
-    output_xyz = parse_input.equatorial_helio2bary(input_xyz, jd_tdb)
+    output_xyz          = parse_input.equatorial_helio2bary(input_xyz, jd_tdb)
     # Each element should be within 15mm or 15mm/day
     error = np.abs(expected_output_xyz - output_xyz)
     print(error)
@@ -147,40 +152,89 @@ def test_ecliptic_to_equatorial(target, jd_tdb, id_type, centre):
     Test that heliocentric cartesian coordinates taken from Horizons
     is converted to barycentric cartesian and still agrees with Horizons.
     jd_tdb isn't actually used for this, but it seemed useful to record it.
+    
+    MJP : The ecliptic_to_equatorial will now transform CoV Matrix as well
+            This is tested in *test_ecliptic_to_equatorial_covariance* below
     '''
-    hor_table = Horizons(target, centre, epochs=jd_tdb, id_type=id_type)
-    hor_in_table = hor_table.vectors(refplane='ecliptic'
-                                     )['x', 'y', 'z', 'vx', 'vy', 'vz']
-    hor_out_table = hor_table.vectors(refplane='earth'
-                                      )['x', 'y', 'z', 'vx', 'vy', 'vz']
-    input_xyz = list(hor_in_table.as_array()[0])
+    # Query horizons
+    hor_table       = Horizons(target, centre, epochs=jd_tdb, id_type=id_type)
+    hor_in_table    = hor_table.vectors(refplane='ecliptic'
+                                        )['x', 'y', 'z', 'vx', 'vy', 'vz']
+    hor_out_table   = hor_table.vectors(refplane='earth'
+                                        )['x', 'y', 'z', 'vx', 'vy', 'vz']
+    input_xyz           = list(hor_in_table.as_array()[0])
     expected_output_xyz = np.array(list(hor_out_table.as_array()[0]))
-    output_xyz = parse_input.ecliptic_to_equatorial(input_xyz)
+    
+    # Call the function we want to test
+    output_xyz          = parse_input.ecliptic_to_equatorial(input_xyz)
+    
     # Each element should be within 15mm or 1.5mm/day
     error = np.abs(expected_output_xyz - output_xyz)
-    print(error)
     assert np.all(error[:3] < 1e-13)  # XYZ accurate to 15 milli-metres
     assert np.all(error[3:6] < 1e-14)  # V accurate to 1.5 milli-metres/day
 
 
-@pytest.mark.parametrize(
-    ('data_file', 'file_type', 'test_result_file'),
-    [
-     pytest.param('30101.ele220', 'ele220', 'holman_ic_30101',
-                  marks=pytest.mark.xfail(reason='Not implemented yet.')),
-     pytest.param('30102.ele220', 'ele220', 'holman_ic_30102',
-                  marks=pytest.mark.xfail(reason='Not implemented yet.')),
-     ('30101.eq0_postfit', 'eq', 'holman_ic_30101'),
-     ('30102.eq0_postfit', 'eq', 'holman_ic_30102'),
-     ('30101.eq0_horizons', 'eq', 'holman_ic_30101_horizons'),
-     ('30102.eq0_horizons', 'eq', 'holman_ic_30102_horizons'),
-      ])
+# Getting the rotn matrix ecliptic_to_equatorial & vice-versa
+direction = -1
+R3_eq_to_ecl = mpc.rotate_matrix(mpc.Constants.ecl * direction)
+R6_eq_to_ecl = np.block( [ [R3_eq_to_ecl, np.zeros((3,3))],[np.zeros((3,3)),R3_eq_to_ecl] ])
+direction = +1
+R3_ecl_to_eq = mpc.rotate_matrix(mpc.Constants.ecl * direction)
+R6_ecl_to_eq = np.block( [ [R3_ecl_to_eq, np.zeros((3,3))],[np.zeros((3,3)),R3_ecl_to_eq] ])
+
+names_of_variables                  =  ('input_helio_ecl_cov',           'expected_bary_eq_cov', 'comments')
+
+# see 'https://www.visiondummy.com/2014/04/geometric-interpretation-covariance-matrix/'
+values_of_variables_for_each_test   = [(np.eye(6)           ,            np.eye(6),               'rotating identity does nothing' ),
+                                       (R6_ecl_to_eq        ,            R6_ecl_to_eq,            'when input CoV ~ Rotn Matrix'),
+                                       (R6_ecl_to_eq        ,            R6_ecl_to_eq,            'when input CoV ~ Rotn Matrix'),
+]
+
+@pytest.mark.parametrize( names_of_variables, values_of_variables_for_each_test[1:] )
+def test_ecliptic_to_equatorial_covariance(input_helio_ecl_cov, expected_bary_eq_cov, comments):
+    '''
+    Should do more testing on this to ensure that the CoV is being transformed as desired/expected
+    '''
+
+    P = parse_input.ParseElements()
+    
+    # set helio CoV as Identity matrix
+    P.helio_ecl_cov_EXISTS, P.helio_ecl_cov = True,input_helio_ecl_cov
+    
+    # check that the bary CoV does NOT yet exist
+    assert P.bary_eq_cov_EXISTS == False and P.bary_eq_cov is None
+
+    # now convert the helio-ecl to bary-eq
+    P.make_bary_equatorial()
+    
+    # check that the bary CoV DOES now yet exist
+    assert P.bary_eq_cov_EXISTS == True and P.bary_eq_cov is not None
+
+    # check that the bary CoV has the expected value
+    assert np.allclose( expected_bary_eq_cov, P.bary_eq_cov), \
+        f"expected_bary_eq_cov={expected_bary_eq_cov}, P.bary_eq_cov={P.bary_eq_cov}"
+
+    
+names_of_variables                  = ('data_file', 'file_type', 'test_result_file')
+values_of_variables_for_each_test   = [
+    pytest.param('30101.ele220', 'ele220', 'holman_ic_30101', marks=pytest.mark.xfail(reason='Not implemented yet.')),
+    pytest.param('30102.ele220', 'ele220', 'holman_ic_30102', marks=pytest.mark.xfail(reason='Not implemented yet.')),
+    ('30101.eq0_postfit',  'eq', 'holman_ic_30101'),
+    ('30102.eq0_postfit',  'eq', 'holman_ic_30102'),
+    ('30101.eq0_horizons', 'eq', 'holman_ic_30101_horizons'),
+    ('30102.eq0_horizons', 'eq', 'holman_ic_30102_horizons'),
+ ]
+@pytest.mark.parametrize( names_of_variables, values_of_variables_for_each_test )
 def test_instantiation_with_data(data_file, file_type, test_result_file):
     '''
     Test that instantiation with data works (essentially test everything).
     '''
-    parse_input.ParseElements(os.path.join(DATA_DIR, data_file), file_type)
+    # Instantiate from file (which calls *make_bary_equatorial*) and then save to 'holman_ic'
+    parse_input.ParseElements(os.path.join(DATA_DIR, data_file), file_type, save_parsed=True )
+    # Check the output
     is_parsed_good_enough(os.path.join(DATA_DIR, test_result_file))
+    # Tidy
+    #if os.path.isfile('holman_ic') : os.remove('holman_ic')
 
 
 # Non-test helper functions
@@ -191,30 +245,31 @@ def is_parsed_good_enough(results_file):
     Helper function to help test whether a just-created holman_ic file matches
     the one in the dev_data well enough.
     '''
+    
     if cmp('./holman_ic', results_file):
         assert True  # If files are identical, no further testing needed.
+        
     else:  # If files not identical, investigate further:
-        fileA = open('./holman_ic', 'r')
-        fileB = open(results_file, 'r')
-        five_tf = []
-        for _ in range(0, 5):  # First five lines should be identical
-            lineA = fileA.readline()
-            lineB = fileB.readline()
-            five_tf.append(lineA == lineB)
-        xyzA = np.array(fileA.readline().split(), dtype=float)
-        xyzB = np.array(fileB.readline().split(), dtype=float)
-        vA = np.array(fileA.readline().split(), dtype=float)
-        vB = np.array(fileB.readline().split(), dtype=float)
-        error, good_tf = compare_xyzv(np.concatenate([xyzA, vA]),
-                                      np.concatenate([xyzB, vB]),
-                                      1e-13, 1e-14)  # 15 mm, 1.5 mm/day
-        if np.all(good_tf) & np.all(five_tf):
-            print('Awesome!')
-        else:
-            print(f'First five lines identical: {five_tf:}')
-            print(f'Position off by: {error[:3]:}')
-            print(f'Velocity off by: {error[3:6]:}')
-        assert np.all(good_tf) & np.all(five_tf)
+        with open('./holman_ic', 'r') as fileA, open(results_file, 'r') as fileB :
+            five_tf = []
+            for _ in range(0, 5):  # First five lines should be identical
+                lineA = fileA.readline()
+                lineB = fileB.readline()
+                five_tf.append(lineA == lineB)
+            xyzA = np.array(fileA.readline().split(), dtype=float)
+            xyzB = np.array(fileB.readline().split(), dtype=float)
+            vA = np.array(fileA.readline().split(), dtype=float)
+            vB = np.array(fileB.readline().split(), dtype=float)
+            error, good_tf = compare_xyzv(np.concatenate([xyzA, vA]),
+                                          np.concatenate([xyzB, vB]),
+                                          1e-13, 1e-14)  # 15 mm, 1.5 mm/day
+            if np.all(good_tf) & np.all(five_tf):
+                print('Awesome!')
+            else:
+                print(f'First five lines identical: {five_tf:}')
+                print(f'Position off by: {error[:3]:}')
+                print(f'Velocity off by: {error[3:6]:}')
+            assert np.all(good_tf) & np.all(five_tf)
 
 
 def compare_xyzv(xyzv0, xyzv1, threshold_xyz, threshold_v):
@@ -231,3 +286,4 @@ def compare_xyzv(xyzv0, xyzv1, threshold_xyz, threshold_v):
 
 
 # End
+
