@@ -1,6 +1,13 @@
 """
 	Tests of the sql module
-	Currently (20200805) incomplete: MJP transfered most of the sql demo/tests from Demonstrate_SQLandPreCalc.ipynb
+    
+	Currently (20200805) incomplete:
+    GOOD POINTS:
+        MJP transfered most of the sql demo/tests from
+        Demonstrate_SQLandPreCalc.ipynb
+    BAD POINTS
+        (i) Some later tests are dependent on NBODY Integrations
+        (ii) Sifter tests not in here
 """
 
 # Import third-party packages
@@ -9,6 +16,7 @@ import numpy as np
 import sys, os
 from astropy_healpix import healpy
 import pytest
+import sqlite3
 
 # Import neighboring packages
 # --------------------------------------------------------------
@@ -29,22 +37,68 @@ filenames = [os.path.join(DATA_DIR, file)
 
 # Tests ...
 # --------------------------------------------------------------
-def test_func_create_db_and_tables():
-    
-    # In order to save data, we require sql-db to exist, so let's set that up...
-    # Force deletion then creation of db...
-    if os.path.isfile( sql.fetch_db_filepath() ):
-        os.remove(sql.fetch_db_filepath())
-    conn = sql.create_connection( sql.fetch_db_filepath() )
-    cur  = conn.cursor()
-    
-    # Test creation of db
-    assert os.path.isfile( os.path.join( sql.fetch_db_filepath() ) ), 'no db'
 
-    # Create required table(s) for cheby-coeff storage
-    sql.create_object_coefficients_table(conn)
-    sql.create_objects_by_jdhp_table(conn)
-    sql.create_object_desig_table(conn)
+# Using decorators to do the db cleaning ...
+# - This deletes any extant db before the test
+# - And deletes any extand db after the test
+def db_handler(func):
+    def inner_function(*args, **kwargs):
+    
+        # Delete db if any exists for any reason
+        filepath = sql.DB.fetch_db_filepath()
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+            
+        # Run test function
+        result = func(*args, **kwargs)
+
+        # Delete the db
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+        
+        # Return any result
+        return result
+
+    return inner_function
+
+@db_handler
+def test_DB():
+    
+    # Instantiate DB object & check it has the expected attributes
+    db = sql.DB()
+    assert hasattr(db,'create_table')
+    assert hasattr(db,'fetch_db_filepath')
+    assert hasattr(db,'create_connection')
+    assert hasattr(db,'db_file')
+    assert hasattr(db,'conn')
+    cur  = db.conn.cursor()
+    assert isinstance( cur, sqlite3.Cursor )
+        
+    # Check db exists
+    # ( if no db exists, the above instantiation
+    #   should have created one)
+    assert os.path.isfile( db.db_file )
+    
+
+
+@db_handler
+def test_SQLChecker_TableCreation():
+
+    # Instantiate
+    C = sql.SQLChecker()
+    assert hasattr(C,'create_table')
+    assert hasattr(C,'fetch_db_filepath')
+    assert hasattr(C,'create_connection')
+    assert hasattr(C,'db_file')
+    assert hasattr(C,'conn')
+    cur  = C.conn.cursor()
+    assert isinstance( cur, sqlite3.Cursor )
+    
+    # Check db exists
+    assert os.path.isfile( C.db_file )
+    
+    # Create all checker tables
+    C.create_all_checker_tables()
 
     # Double-check that this worked by getting the count of tables with the name
     # - if the count is 1, then table exists
@@ -58,32 +112,37 @@ def test_func_create_db_and_tables():
     # Test that the expected column names are in the *object_coefficients* table
     cur.execute("SELECT * FROM object_coefficients ")
     names = [description[0] for description in cur.description]
-    expected_names = ['coeff_id', 'object_id'] + sql.generate_sector_field_names()
+    expected_names = ['coeff_id', 'object_id'] + C.generate_sector_field_names()
     assert np.all( [n in expected_names for n in names ])
-    
-    
-    # Return connection
-    return conn
+  
+  
+"""
 
+@db_handler
 def test_inserts():
     
     # (0) Create demo MSC(s) & create empty db using functions from test_orbit_cheby
     MSCs = test_orbit_cheby.test_loader_from_nbodysim(test_orbit_cheby.orbfit_filenames[0])
     
-    # (1) Ensure db exists
-    conn = test_func_create_db_and_tables()
+    # (1) Instantiate
+    C = sql.SQLChecker()
 
     # (2) Test Low level direct designation insert: result = object_id = 1
-    result = sql.insert_desig(conn ,MSCs[0].primary_unpacked_provisional_designation )
+    result = C.insert_desig(conn ,MSCs[0].primary_unpacked_provisional_designation )
     assert result == 1
 
-    # (3) Query functionality: result = object_id = 1
-    result = sql.query_number_by_desig(conn, MSCs[0].primary_unpacked_provisional_designation)
+    # (3a) Test that there is something in the db by executing a query
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM object_coefficients WHERE object_id=?", ( 1, ))
+    result = cur.fetchall()
+    assert len(result) ==1
+    # (3b) There is also an appropriate query functionality: result = object_id = 1
+    result = C.query_number_by_desig( MSCs[0].primary_unpacked_provisional_designation )
     assert result == 1
     
     # (4) Test MSC upsert
     object_id = result
-    sql.upsert_MSC(conn ,MSCs[0] , object_id )
+    C.upsert_MSC( MSCs[0] , object_id )
 
     # (5) Test that there is something in the database by querying it ...
     cur = conn.cursor()
@@ -106,7 +165,6 @@ def test_inserts():
         # We expect these fields to be empty because the input MSC has data for only a subset of sectors
         else:
             assert result[0][n] is None
-
 
 
 def test_queries():
@@ -191,3 +249,5 @@ def test_healpix():
     print('result=',result)
     assert isinstance(result, list)
     assert result == [object_id]
+
+"""

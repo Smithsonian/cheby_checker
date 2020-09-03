@@ -56,7 +56,8 @@ class DB():
         self.conn    = self.create_connection()
 
 
-    def fetch_db_filepath(self,):
+    @staticmethod
+    def fetch_db_filepath():
         '''
         '''
         B = orbit_cheby.Base()
@@ -121,7 +122,7 @@ class SQLChecker(DB):
     # ---------------------------------------------
     # Create the *CHECKER* tables
     # ---------------------------------------------
-    def create_all_checker_tables():
+    def create_all_checker_tables(self,):
         self.create_object_desig_table()
         self.create_object_coefficients_table()
         self.create_objects_by_jdhp_table()
@@ -147,11 +148,11 @@ class SQLChecker(DB):
             """
         # create table
         if self.conn is not None:
-            self.create_table( sql_statementc)
+            self.create_table( sql_statement)
         
         # Create indicees
         createSecondaryIndex =  "CREATE INDEX index_desig ON object_desig (primary_unpacked_provisional_designation);"
-        conn.cursor().execute(createSecondaryIndex)
+        self.conn.cursor().execute(createSecondaryIndex)
 
 
 
@@ -214,9 +215,9 @@ class SQLChecker(DB):
             
             # Create indicees
             createSecondaryIndex =  "CREATE INDEX index_jdhp ON objects_by_jdhp (jd, hp);"
-            conn.cursor().execute(createSecondaryIndex)
+            self.conn.cursor().execute(createSecondaryIndex)
             createSecondaryIndex =  "CREATE INDEX index_pupd ON objects_by_jdhp (object_id);"
-            conn.cursor().execute(createSecondaryIndex)
+            self.conn.cursor().execute(createSecondaryIndex)
 
 
     # --------------------------------------------------------
@@ -286,7 +287,7 @@ class SQLChecker(DB):
      
             inputs:
             -------
-            conn: Connection object
+            ...
             
             object_id : integer
                 - The assumption is that this has been generated via the function, insert_desig()
@@ -461,7 +462,7 @@ class SQLChecker(DB):
         sqlstr =    "SELECT object_coefficients.object_id," + \
                     ", ".join( sector_field_names ) + \
                     f" FROM object_coefficients INNER JOIN objects_by_jdhp ON objects_by_jdhp.object_id = object_coefficients.object_id WHERE objects_by_jdhp.jd=? and objects_by_jdhp.hp in ({','.join(['?']*len(HPlist))})"
-        cur = conn.cursor()
+        cur = self.conn.cursor()
         cur.execute(sqlstr , (int(JD), *(int(_) for _ in HPlist), ))
 
         # Parse the result into a dict-of-dicts
@@ -473,7 +474,7 @@ class SQLChecker(DB):
         # INNER JOIN
         # DISTINCT
         # WHERE
-        cur = conn.cursor()
+        cur = self.conn.cursor()
 
         # This will get the unique object-IDs
         "SELECT DISTINCT object_id FROM objects_by_jdhp WHERE jd=? and hp in ?"
@@ -504,7 +505,7 @@ class SQLChecker(DB):
 
 class SQLSifter(DB):
     
-    def __init__():
+    def __init__(self,):
         super().__init__()
 
 

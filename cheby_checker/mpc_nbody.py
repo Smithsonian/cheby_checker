@@ -66,27 +66,35 @@ class NbodySim():
     '''
 
     def __init__(self, input_file=None, filetype=None, save_parsed=False):
+    
         #If input filename provided, process it:
         if isinstance(input_file, str) & isinstance(filetype, str):
-            print('HERE ... ' , input_file, filetype, save_parsed)
             self.pparticle = parse_input.ParseElements(input_file, filetype,
                                                        save_parsed=save_parsed)
         else:
             print("Keywords 'input_file' and/or 'filetype' missing; "
                   "initiating empty object.")
             self.pparticle = None
+            
+        # Expected class variables
         self.geocentric = False  # Can be changed to something like
         #self.pparticle.geocentric if ParseElements gains knowledge.
-        self.input_vectors = None
-        self.input_n_particles = None
-        self.output_times = None
-        self.output_vectors = None
-        self.output_n_times = None
+        self.input_vectors      = None
+        self.input_n_particles  = None
+        self.output_times       = None
+        self.output_vectors     = None
+        self.output_n_times     = None
         self.output_n_particles = None
-        self.time_parameters = None
+        self.time_parameters    = None
 
     def __call__(self, tstart=None, vectors=None, tstep=20, trange=600,
                  save_output=None, verbose=False):
+        '''
+        Allows the NbodySim object to be called as a function
+         - Performs integration by calling *integration_function* within *run_nbody*
+        '''
+        
+        # Get the initial conditions for the particle integration
         if vectors is None:
             vectors = self.pparticle
             if vectors is None:
@@ -100,11 +108,24 @@ class NbodySim():
                       "you must supply a 'tstart' value.")
                 raise TypeError("If you didn't parse a particle from input "
                                 "file, you must supply a 'tstart' value.")
-        (self.input_vectors, self.input_n_particles, self.output_times,
-         self.output_vectors, self.output_n_times, self.output_n_particles
-         ) = run_nbody(vectors, tstart, tstep, trange, self.geocentric, verbose)
-        print(f'###!!!{type(self.output_times):}!!!###' if verbose else '')
         self.time_parameters = [tstart, tstep, trange]
+
+        # Call the routine that runs the nbody integration
+        (self.input_vectors,
+        self.input_covariances,
+        self.input_n_particles,
+        self.output_times,
+        self.output_vectors,
+        self.output_covariances,
+        self.output_n_times,
+        self.output_n_particles) = run_nbody(vectors,
+                                            tstart,
+                                            tstep,
+                                            trange,
+                                            self.geocentric, verbose)
+        print(f'###!!!{type(self.output_times):}!!!###' if verbose else '')
+        
+        # Save output if requested
         if save_output is not None:
             if isinstance(save_output, str):
                 self.save_output(output_file=save_output)
@@ -148,8 +169,10 @@ class NbodySim():
 # -----------------------------------------------------------------------------
 
 
-def run_nbody(input_vectors, tstart, tstep, trange, geocentric=False,
-              verbose=False):
+def run_nbody(  init_states, tstart, tstep, trange,
+                init_covariances = None,
+                geocentric=False,
+                verbose=False):
     '''
     Run the nbody integrator with the parsed input.
 
@@ -165,28 +188,106 @@ def run_nbody(input_vectors, tstart, tstep, trange, geocentric=False,
 
     Output:
     -------
-    reparsed_input = numpy array, input elements, reparsed into array
-    n_particles = integer, the input number of particles
-    times = numpy array, all the output times (including sub-steps)
-    output_vectors = numpy array, output elements of dimensions
-                                  (n_times, n_particles_out, 6)
-    n_times = integer, number of time outputs
-    n_particles_out = integer, number of output particles (different why?)
+    reparsed_input      = numpy array
+     - input elements, reparsed into array
+    n_particles         = integer,
+     - the input number of particles
+    times               = numpy array,
+     - all the output times (including sub-steps)
+    states              = numpy array,
+     - output elements of dimensions (n_times, n_particles_out, 6)
+    output_covariance   = numpy array,
+     - output elements of dimensions (n_times, n_particles_out*6, 6)
+    n_times             = integer,
+     - number of time outputs
+    n_particles_out     = integer,
+     - number of output particles (different why?)
     '''
     # First get input (3 types allowed) into a useful format:
-    reparsed_input, n_particles = _fix_input(input_vectors, verbose)
+    init_states, init_covariances, n_particles = _fix_input(init_states, init_covariances, verbose)
+
     # Now run the nbody integrator:
-    print('run_nbody')
-    print(f'tstart={tstart}; tstep={tstep}; trange={trange}; geocentric={geocentric}; n_particles={n_particles}; reparsed_input={[str(_)+"," if str(_) !=reparsed_input[-1] else _ for _ in reparsed_input]}')
+    times, output_vectors, n_times, n_particles_out = integration_function( tstart,
+                                                                            tstep,
+                                                                            trange,
+                                                                            geocentric,
+                                                                            n_particles,
+                                                                            init_states)
+                                                                            
+    # Split the output vectors
+    final_states, partial_derivatives = _split_integration_output(output_vectors , n_times, n_particles_out )
+                              
+    # Calculate the covariance matrix (at each timestep) from the \partial X / \partial X_0 data
+    if init_covariances is not None:
+        final_covariance_arrays = _get_covariance_from_tangent_vectors(init_covariances, partial_derivatives )
+    else:
+        final_covariance_arrays = None
+        
+    return( init_states,
+            init_covariances,
+            n_particles,
+            times,
+            final_states,
+            final_covariance_arrays,
+            n_times,
+            n_particles_out)
+
+def _split_integration_output( output_from_integration_function , n_times, n_particles_out ):
+    '''
+    Get the states and partials out of the array returned from the integration_function
     
-    (times, output_vectors, n_times, n_particles_out
-     ) = integration_function(tstart, tstep, trange, geocentric,
-                              n_particles, reparsed_input)
-    return(reparsed_input, n_particles, times, output_vectors,
-           n_times, n_particles_out)
+    MJP : 20200902 : Reminder to self.
+    I may want to make the state array be 3D      : (n_times, n_particles, 6 )
+    I may want to make the covariance array be 4D : (n_times, n_particles, 6,6 )
+    '''
+    original_shape = output_from_integration_function.shape
+    assert original_shape == (n_times, 7*n_particles_out, 6)
+    
+    # Make a handy mask : True => CoVariance Components, False => State components
+    mask = np.ones_like(output_from_integration_function, dtype=bool)
+    mask[:,0:n_particles_out,:] = False
+
+    # State (xyzuvw) components:
+    states = output_from_integration_function[~mask].reshape(original_shape[0],-1,6)
+
+    # Partial Deriv Components
+    # MJP 20200902: *** UNCLEAR WHETHER THESE WILL NEED TO BE TRANSPOSED ***
+    partials = output_from_integration_function[mask].reshape(original_shape[0],n_particles_out,6,6)
+
+    return states, partials
+    
+def _get_covariance_from_tangent_vectors( init_covariances, partial_derivatives ):
+    '''
+    
+    Follow Milani et al 1999
+    Gamma_t = [partial X / partial X_0] Gamma_0 [partial X / partial X_0]^T
+    '''
+    assert init_covariances.ndim == 3 and partial_derivatives.ndim == 4, \
+        f'init_covariances.ndim={init_covariances.ndim} , partial_derivatives.ndim={partial_derivatives.ndim}'
+    
+    # Take the inverse of the covariance matrix to get the normal matrix
+    # NB: We make a stack of identical matricees to use in the matrix multiplication below
+    Gamma0      = np.linalg.inv(init_covariances)
+    GammaStack0 = np.tile( Gamma0, (partial_derivatives.shape[0],1,1,1) )
+
+    # We need each of the individual pd arrays to be individually transposed
+    # NB, tuple fixes dimensions 0 & 1 , while indicates that dimensions 2 & 3 will be swapped/transposed
+    pds_transposed  = partial_derivatives.transpose( (0,1,3,2) )
+
+    # Do matrix multiplication: using the pd's to get the CoV as a func of time
+    # NB matmul/@ automagically knows how to work on a stack of matricees
+    # - https://stackoverflow.com/questions/34142485/difference-between-numpy-dot-and-python-3-5-matrix-multiplication
+    GammaStack_t    = pds_transposed @ GammaStack0 @ partial_derivatives
+    
+    # Magically, np.linalg.inv also knows how to deal with a stack of arrays/matrices
+    # - https://stackoverflow.com/questions/11972102/is-there-a-way-to-efficiently-invert-an-array-of-matrices-with-numpy
+    CoV_t           = np.linalg.inv( GammaStack_t )
+    
+    return CoV_t
+        
 
 
-def _fix_input(pinput, verbose=False):
+def _fix_input(pinput, init_covariances, verbose=False):
     '''
     Convert the input to a useful format.
 
@@ -201,33 +302,34 @@ def _fix_input(pinput, verbose=False):
     reparsed = numpy array of elements.
     len(reparsed)//6 = integer, number of particles.
     '''
-    if isinstance(pinput, parse_input.ParseElements):
+    if isinstance(pinput, parse_input.ParseElements) :
         print('###!!!ONE!!!###' if verbose else '')
-        els = pinput.barycentric_equatorial_cartesian_elements
-        reparsed = np.array([els[i] for i in ['x_BaryEqu', 'y_BaryEqu',
-                                              'z_BaryEqu', 'dx_BaryEqu',
-                                              'dy_BaryEqu', 'dz_BaryEqu']])
-    elif isinstance(pinput, list):
+        init_states      = pinput.bary_eq_vec
+        # We wrap in an extra array because we want the covariance input to be 3D: shape = (n_particles,6,6)
+        init_covariances = np.array( [pinput.bary_eq_cov] )
+
+    elif isinstance(pinput, list) :
         print('###!!!TWO!!!###' if verbose else '')
-        if isinstance(pinput[0], parse_input.ParseElements):
+        if np.all( [ isinstance(_, parse_input.ParseElements) for _ in pinput] ):
             print('###!!!TWO.5!!!###' if verbose else '')
-            reparsed = []
-            for particle in pinput:
-                els = particle.barycentric_equatorial_cartesian_elements
-                _ = [reparsed.append(els[i])
-                     for i in ['x_BaryEqu', 'y_BaryEqu', 'z_BaryEqu',
-                               'dx_BaryEqu', 'dy_BaryEqu', 'dz_BaryEqu']]
-            reparsed = np.array(reparsed)
+            # We flatten here because the *integration_function* demands 1D input
+            init_states         = np.array( [p.bary_eq_vec for p in pinput] ).flatten()
+            init_covariances    = np.array( [p.bary_eq_cov for p in pinput] )
         else:
-            reparsed = np.array(pinput)
+            init_states         = np.array(pinput)
+            init_covariances    = np.array(init_covariances) if init_covariances is not None else None
+            
     elif isinstance(pinput, np.ndarray):
-        if (len(np.shape(pinput)) == 1) & (len(pinput) % 6 == 0):
+        if (pinput.ndim == 1) & (len(pinput) % 6 == 0):
             print('###!!!THREE!!!###' if verbose else '')
-            reparsed = pinput
+            init_states         = pinput
+            init_covariances    = np.array(init_covariances) if init_covariances is not None else None
+
     else:
         raise(TypeError('"pinput" not understood.\n'
                         'Must be ParseElements object, '
-                        'list of ParseElements or numpy array.'))
-    return reparsed, len(reparsed) // 6
+                        'list of ParseElements, or numpy array.'))
+                        
+    return init_states, init_covariances, len(init_states) // 6
 
 # End
