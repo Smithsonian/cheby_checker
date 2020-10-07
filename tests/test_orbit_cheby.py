@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# sifter/tests/test_base
+# sifter/tests/test_orbit_cheby
 
 '''
     --------------------------------------------------------------
@@ -113,7 +113,7 @@ def test_from_coord_arrays( flat_file , expected_sectors ):
     assert expected_sectors[0] - 1 not in M.sector_coeffs
 
 
-@pytest.mark.parametrize( ('flat_file' ) ,FLAT_FILES  )
+@pytest.mark.parametrize( ('flat_file' ) , FLAT_FILES  )
 def test_generate_cheb_for_sector(flat_file):
     ''' 
         Use MSC function to generate the chebyshev coefficients for a given (32 day) sector

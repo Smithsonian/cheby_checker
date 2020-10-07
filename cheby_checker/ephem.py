@@ -76,7 +76,6 @@ class Ephem():
         self.times              = np.asarray(times)
         assert self.observatoryXYZ.shape == (self.times.shape[0],3)
 
-
         # Establish the minimal required set of sectors to be fetched from the database :
         # Turn dates into minimal set of sectors
         sector_numbers = np.asarray(sorted(set( orbit_cheby.Base.map_JD_to_sector_number( self.obsJDs , orbit_cheby.Base.standard_MJDmin) ) ) )

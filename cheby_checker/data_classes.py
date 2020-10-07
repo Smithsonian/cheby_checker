@@ -75,7 +75,7 @@ var_maps = {k:var_map(vars) for k,vars in var_names.items()}
 
 class Vectorial(orbit_cheby.Base):
     '''
-        May use as a (hidden) parent class from which
+        Intended as a (hidden) parent class from which
         Pointing & Detections will inherit
         
         NB (1): Using __slots__ to get rid of (slowish) __dict__
@@ -102,7 +102,7 @@ class Vectorial(orbit_cheby.Base):
         # - Iterable of iterables (inner iterables of length len(var_names[self.iama]))
         # NB
         # - I could have used a structured-array or record-array, but I find the initialization
-        # - to be annoying as hell, so gave up. Insted I am handling attributable access to arr
+        # - to be annoying as hell, so gave up. Instead I am handling attributable access to arr
         # -  via __getattribute__
         else:
             self.arr = np.atleast_2d( arg ).astype(float)
@@ -161,7 +161,6 @@ class Pointings(Vectorial):
          - Iterable of iterables (inner iterables of length len(pntng_var_names))
         where pntng_var_names.keys = ( obstime, ra, dec, pos1, pos2, pos3, radius)
         
-        ### ,namedtuple('Pointing', pntng_var_names.keys())
     '''
     
     # Add in pntng_var_names in addn to those from Vectorial
