@@ -365,7 +365,8 @@ def _parse_Covariance_List(Els):
         # Populate the symmetric part
         for i in range(1,6):
             for j in range(i):
-                print(f'Setting Cov[{i,j}] = CoV{[j,i]}')
+                # # MA: Killed totally annoying and unneccessary print
+                #print(f'Setting Cov[{i,j}] = CoV{[j,i]}')
                 CoV[i,j]=CoV[j,i]
                 
         # Set boolean
