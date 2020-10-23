@@ -37,28 +37,23 @@ import json
 # --------------------------------------------------------------
 try:
     from orbit_cheby import orbit_cheby
+    from orbit_cheby import sql
+    from orbit_cheby import obs_pos
+    from orbit_cheby import mpc_nbody
 except ImportError:
     from . import orbit_cheby
+    from . import sql
+    from . import obs_pos
+    from . import mpc_nbody
+
 assert orbit_cheby.Base(), \
     'Seeing this text at evaluation indicates FAILURE to import orbit_cheby (as Base() should be available)'
-
-try:
-    from orbit_cheby import sql
-except ImportError:
-    from . import sql
-
-
-try:
-    from orbit_cheby import obs_pos
-except ImportError:
-    from . import obs_pos
-
 
 
 
 # --------------------------------------------------------
-# Primary External Class for Access to ChebyChecker's
-#  Methods for Pre-calculating useful quantities
+# Primary external class for creating & accessing
+# various pre-calculated quantities
 # --------------------------------------------------------
 
 class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
@@ -81,6 +76,30 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
         
         # connect to db
         self.conn = sql.create_connection(sql.fetch_db_filepath())
+        
+        
+    def end_to_end_precalc(self,filenames): # __call__(self, filenames):
+        '''
+        Consider adding a high level function to handle ...
+        (i) calling mpc_nbody on 1-or-many ORBFIT files
+        (ii) calling MSCLoader on the results of (i)
+        (iii) calling PreCalc.upsert() on the results of (ii)
+        '''
+        # Initiate NbodySim class with input files:
+        # Run the integrator, by calling the object.
+        Sim = mpc_nbody.NbodySim(filenames, 'eq')
+        Sim(tstep=20, trange=600) # <<-- Change to use default times from Base
+        
+        # Use the MSC_Loader to do all of the work to decalre and populate a list of MSC objects
+        # NEEDS TO BE UPDATED TO USE Sim.output_times & Sim.output_vectors
+        MSCs = orbit_cheby.MSC_Loader(FROM_ARRAY = True ,
+                                        primary_unpacked_provisional_designations = name,
+                                        times_TDB = times,
+                                        statearray = states).MSCs
+                                        
+        # Do the precalculations and upsert
+        self.upsert( MSCs , observatoryXYZ)
+
 
     def upsert(self, MSCs , geocenterXYZ ):#, integerJDs=None  ):
         '''
