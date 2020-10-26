@@ -45,10 +45,23 @@ au_km = 149597870.700  # This is now a definition
 
 class ParseElements():
     '''
-    Class for parsing elements and returning them in the correct format.
+    Class for parsing elements and returning them in the format required by
+    NbodySim in mpc_nbody
+    
+    Can be instantiated empty
+    
+    Can be instantiated with "input"
+    
+    input :
+    -------
+    string or list-of-strings
+     - each string must be either:
+       --- valid file-path
+       --- valid file-contents (e.g. orbfit output)
+     
     '''
 
-    def __init__(self, input_file=None, filetype=None, save_parsed=False ):
+    def __init__(self, input=None, filetype='eq', save_parsed=False , save_file='save_file.tmp', CHECK_EPOCHS=True):
     
         # The variables that will be used to hold the elements
         # - They get populated by *parse_orbfit* & *make_bary_equatorial*
@@ -60,21 +73,75 @@ class ParseElements():
         self.bary_eq_vec            = None
         self.bary_eq_cov_EXISTS     = False
         self.bary_eq_cov            = None
+        self.time                   = None
         
-        # If input filename provided, process it:
-        if isinstance(input_file, str) & isinstance(filetype, str):
-            if filetype == 'ele220':
-                self.parse_ele220(input_file)
-            if (filetype == 'fel') | (filetype == 'eq'):
-                self.parse_orbfit(input_file)
+    
+        
+        # If input provided, parse it:
+        try :
+            assert input is not None
+            
+            # Interpret input & read any files that need to be read
+            list_of_file_contents = self._parse_input_type(input)
+            
+            # Extract the required info from each of the file-contents
+            for file_contents in list_of_file_contents :
+            
+                # Option to process ele220 files is not fully written
+                if filetype == 'ele220':
+                    self.parse_ele220(file_contents, CHECK_EPOCHS=CHECK_EPOCHS)
+                    
+                # The assumed standard input will be orbfit files ...
+                if (filetype == 'fel') | (filetype == 'eq'):
+                    self.parse_orbfit(file_contents, CHECK_EPOCHS=CHECK_EPOCHS)
+                
+            # Convert all input coords to Barycentric Equatorial
             self.make_bary_equatorial()
+            
+            # Optionally save the parsed data to file
             if save_parsed:
-                self.save_elements()
-        else:
-            print("Keywords 'input_file' and/or 'filetype' missing; "
-                  "initiating empty object.")
+                self.save_elements(save_file=save_file)
+                
+        # If no input provided / it couldn't be parsed, instantiate empty object
+        except:
+            print("instantiating empty object.")
+                  
+    def _parse_input_type(self,input):
+        '''
+        Because we allow file(s) or file-content(s), need to parse
+        
+        input :
+        -------
+        string or list-of-strings
+         - each string must be either:
+           --- valid file-path
+           --- valid file-contents (e.g. orbfit output)
+        
+        returns:
+        --------
+        list :
+         - each list-item consists of file-contents
+         
+        '''
+        # Make a list
+        if isinstance(input, str): input = list(str)
+        
+        # Check we have a list
+        assert isinstance(input, list)
+        
+        # If we have filepaths, get contents
+        # otherwise, assume these already are data similar to file-contents
+        contents = []
+        for item in input:
+            if os.path.isfile(item):
+                with open(item,'r') as f:
+                    contents.append(f.readlines())
+            else:
+                contents.append(input)
+                
+        return contents
 
-    def save_elements(self, output_file='holman_ic'):
+    def save_elements(self, save_file='save_file.tmp'):
         """
         Save the barycentric equatorial cartesian elements to file.
 
@@ -85,7 +152,7 @@ class ParseElements():
         The file is overwritten if it already exists.
         """
         self.tstart = self.time.tdb.jd
-        outfile = open(output_file, 'w')
+        outfile = open(save_file, 'w')
         outfile.write(f"tstart {self.tstart:}\n")
         outfile.write("tstep +20.0\n")
         outfile.write("trange 600.\n")
@@ -98,27 +165,22 @@ class ParseElements():
             suffix = '\n' if n in [2,5] else ''
             outfile.write(f"{coeff: 18.15e} " + suffix)
 
-    def parse_ele220(self, ele220file=None):
+    def parse_ele220(self, ele220file_contents, CHECK_EPOCHS=True ):
         '''
         Parse a file containing a single ele220 line.
         Currently returns junk data.
         NOT ACTUALLY IMPLEMENTED YET!!!
         '''
-        if ele220file is None:
-            raise TypeError("Required argument 'ele220file'"
-                            " (pos 1) not found")
-
         # make fake data & set appropriate variables
         self._get_and_set_junk_data()
 
-    def parse_orbfit(self, felfile):
+    def parse_orbfit(self, felfile_contents, CHECK_EPOCHS=True):
         '''
         Parse a file containing OrbFit elements for a single object & epoch.
-        Currently returns junk data.
 
         Inputs:
         -------
-        felfile : string, filename of fel/eq formatted OrbFit output
+        felfile_contents : string, *contents* of fel/eq formatted OrbFit output
 
         Populates:
         --------
@@ -128,39 +190,63 @@ class ParseElements():
         self.helio_ecl_cov          : 1D np.ndarray
         self.time                   : astropy Time object
         '''
+        
+        # Parse the contents of the orbfit file
+        try:
 
-        # Read the contents of the orbfit output "fel" file
-        obj = {}
-        with open(felfile,'r') as fh:
-            el = fh.readlines()
-        cart_head = '! Cartesian position and velocity vectors\n'
-
-        # Only do this if the file actually has cartesian coordinates.
-        if el.count(cart_head) > 0:
-            # get Cartesian Elements out of the file contents
-            carLoc = len(el) - 1 - list(reversed(el)).index(cart_head)
-            carEls = el[carLoc:carLoc + 25]
-            
-            # Form an array of the heliocentric ecliptic cartesian coefficients
+            # Get Cartesian Elements out of the file contents
+            # NB - There can be multiple blocks, so we get the LAST block
+            cart_head = '! Cartesian position and velocity vectors\n'
+            carLoc   = len(felfile_contents) - 1 - list(reversed(felfile_contents)).index(cart_head)
+            carEls   = felfile_contents[carLoc:carLoc + 25]
             (_, car_x, car_y, car_z, car_dx, car_dy, car_dz
                        ) = carEls[1].split()
-            self.helio_ecl_vec = np.array([ float(car_x), float(car_y),  float(car_z), \
-                                            float(car_dx), float(car_dy), float(car_dz)]
-                                            )
+
+            # Form the heliocentric ecliptic cartesian coefficients in to an array
+            # and stack with any others extracted from previous files
+            local_helio_ecl_vec = np.array([float(car_x),   float(car_y),  float(car_z), \
+                                            float(car_dx),  float(car_dy), float(car_dz)] )
+            if self.helio_ecl_vec is None:
+                self.helio_ecl_vec = np.array([local_helio_ecl_vec])
+            else :
+                self.helio_ecl_vec = np.stack((self.helio_ecl_vec , local_helio_ecl_vec))
+                                                    
+                                            
             self.helio_ecl_vec_EXISTS = True
                                                       
             # Using Astropy.time for time conversion,
             # because life's too short for timezones and time scales.
-            _, mjd_tdt, _ = carEls[2].split()
-            self.time = Time(float(mjd_tdt), format='mjd', scale='tt')
-
+            _, mjd_tdt, _   = carEls[2].split()
+            local_Time      = Time(float(mjd_tdt), format='mjd', scale='tt')
+            
+            # In production, we likely want to be using "standard-epochs" ending in 00.
+            # - This will allow multiple objects to be simultaneously integrated
+            if CHECK_EPOCHS==True and "00." not in mjd_tdt:
+                raise TypeError("Supplied file may not contain standard epochs:"
+                                f"mjd_tdt= {mjd_tdt}")
+                
+            if self.time is None :
+                self.Time = local_Time
+            else:
+                # If we are processing multiple files, then
+                # check that all supplied epochs are the same
+                if self.Time != local_Time:
+                    raise TypeError("The epochs vary from file-to-file: "
+                                    f"felfile_contents= {felfile_contents}")
+                    
             # Parse carEls (the contents of the orbfit file) to get
             # the cartesian covariance matrix
-            self.helio_ecl_cov_EXISTS, self.helio_ecl_cov = _parse_Covariance_List(carEls)
-            
-        else:
-            raise TypeError("There does not seem to be any valid elements "
-                            f"in the input file {felfile:}")
+            self.helio_ecl_cov_EXISTS, local_helio_ecl_cov = _parse_Covariance_List(carEls)
+            if self.helio_ecl_cov is None:
+                self.helio_ecl_cov = np.array([local_helio_ecl_cov])
+            else :
+                self.helio_ecl_cov = np.stack( (self.helio_ecl_cov, local_helio_ecl_cov ) )
+            print('jgkkjgkljgljgljhl!!!')
+
+        except Exception as e:
+            print( "Supplied felfile_contents could not be processed. "
+                    f"felfile_contents={felfile_contents}"
+                    f"e = {e}")
 
     def make_bary_equatorial(self):
         '''
@@ -348,7 +434,7 @@ def _parse_Covariance_List(Els):
     CoV        = np.zeros( (6,6) )
     CoV_EXISTS = False
     
-    # Populate triangle directly
+    # Populate triangular part of matrix directly
     ElCov=[]
     for El in Els:
         if El[:4] == ' COV':
