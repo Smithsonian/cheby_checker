@@ -75,6 +75,7 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
         obs_pos.ObsPos.__init__(self)
         
         # connect to db
+        self.db = sql.SQLChecker()
         self.conn = sql.create_connection(sql.fetch_db_filepath())
         
         
@@ -133,10 +134,10 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
         for M in MSC_list:
             
             # Insert the name & get back an object_id in return
-            object_id = sql.insert_desig(self.conn , M.primary_unpacked_provisional_designation )
+            object_id = self.db.insert_desig(M.primary_unpacked_provisional_designation)
         
             # update list of coefficients
-            sql.upsert_MSC(self.conn, M , object_id)
+            self.db.upsert_MSC(self.db.conn, M , object_id)
             
             # Use the coefficient-dictionary(ies) to get the HP for each integer-JD in JDlist
             # NB: need to restrict the queried dates to the those supported by the MSC
@@ -144,7 +145,7 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
             HPlist   = M.generate_HP(self.JDlist[indicees],  geocenterXYZ[:,indicees] , APPROX = True)
 
             # update HP data
-            sql.insert_HP(self.conn, self.JDlist[indicees], HPlist, object_id)
+            self.db.insert_HP(self.db.conn, self.JDlist[indicees], HPlist, object_id)
 
     def get_nightly_precalcs(self,JD, HPlist):
         '''

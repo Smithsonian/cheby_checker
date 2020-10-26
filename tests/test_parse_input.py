@@ -44,6 +44,7 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dev_data')
 def test_instantiation():
     '''Test instantiation of the ParseElements class with no observations.'''
     assert isinstance(parse_input.ParseElements(), parse_input.ParseElements)
+    print('test_instantiation successful!')
 
 """
 
@@ -85,6 +86,7 @@ def test_parse_orbfit(data_file):
     assert P.helio_ecl_cov_EXISTS   is True
     
     assert isinstance(P.helio_ecl_cov, np.ndarray)
+
     assert P.helio_ecl_cov.ndim == 3
     assert P.helio_ecl_cov.shape == (1,6,6)
     
@@ -93,10 +95,9 @@ def test_save_elements():
     '''Test that saving elements works correctly.'''
     P = parse_input.ParseElements()
     P._get_and_set_junk_data(BaryEqDirect=True)
-    save_file = 'save_file.tmp'
-    P.save_elements(save_file=save_file)
-    assert cmp(save_file, os.path.join(DATA_DIR, 'expected_junk_save.dat'))
-    if os.path.isfile(save_file):os.remove(save_file)
+    P.save_elements()
+    assert cmp('./holman_ic', os.path.join(DATA_DIR, 'holman_ic_junk_expected'))
+
 
 
 @pytest.mark.parametrize(
@@ -135,6 +136,7 @@ def test_equatorial_helio2bary(target, jd_tdb, id_type):
     print(error)
     assert np.all(error[:3] < 1e-13)   # XYZ accurate to 15 milli-metres
     assert np.all(error[3:6] < 1e-14)  # V accurate to 1.5 milli-metres/day
+    print('test_equatorial_helio2bary successful!')
 
 
 # I'm not really sure whether ecliptic_to_equatorial is supposed to have
@@ -193,76 +195,82 @@ def test_ecliptic_to_equatorial(target, jd_tdb, id_type, centre):
     error = np.abs(expected_output_xyz - output_xyz)
     assert np.all(error[:3] < 1e-13)  # XYZ accurate to 15 milli-metres
     assert np.all(error[3:6] < 1e-14)  # V accurate to 1.5 milli-metres/day
+    print('test_ecliptic_to_equatorial successful!')
 
 
 # Getting the rotn matrix ecliptic_to_equatorial & vice-versa
 direction = -1
 R3_eq_to_ecl = mpc.rotate_matrix(mpc.Constants.ecl * direction)
-R6_eq_to_ecl = np.block( [ [R3_eq_to_ecl, np.zeros((3,3))],[np.zeros((3,3)),R3_eq_to_ecl] ])
+R6_eq_to_ecl = np.block([[R3_eq_to_ecl, np.zeros((3, 3))],
+                         [np.zeros((3, 3)), R3_eq_to_ecl]])
 direction = +1
 R3_ecl_to_eq = mpc.rotate_matrix(mpc.Constants.ecl * direction)
-R6_ecl_to_eq = np.block( [ [R3_ecl_to_eq, np.zeros((3,3))],[np.zeros((3,3)),R3_ecl_to_eq] ])
+R6_ecl_to_eq = np.block([[R3_ecl_to_eq, np.zeros((3, 3))],
+                         [np.zeros((3, 3)), R3_ecl_to_eq]])
 
-names_of_variables                  =  ('input_helio_ecl_cov',           'expected_bary_eq_cov', 'comments')
-
+names_of_variables   = ('input_helio_ecl_cov',
+                        'expected_bary_eq_cov', 'comments')
 # see 'https://www.visiondummy.com/2014/04/geometric-interpretation-covariance-matrix/'
-values_of_variables_for_each_test   = [(np.eye(6)           ,            np.eye(6),               'rotating identity does nothing' ),
-                                       (R6_ecl_to_eq        ,            R6_ecl_to_eq,            'when input CoV ~ Rotn Matrix'),
-                                       (R6_ecl_to_eq        ,            R6_ecl_to_eq,            'when input CoV ~ Rotn Matrix'),
-]
+values_for_each_test = [(np.eye(6), np.eye(6), 'rotating identity does nothing'),
+                        (np.zeros([6, 6]), np.zeros([6, 6]), 'rotating zeros does nothing'),
+                        (R6_ecl_to_eq, R6_ecl_to_eq, 'when input CoV ~ Rotn Matrix'),
+                        (R6_eq_to_ecl, R6_eq_to_ecl, 'when input CoV ~ Rotn Matrix'),
+                        ] 
 
-@pytest.mark.parametrize( names_of_variables, values_of_variables_for_each_test[1:] )
+
+@pytest.mark.parametrize(names_of_variables, values_for_each_test[1:])
 def test_ecliptic_to_equatorial_covariance(input_helio_ecl_cov, expected_bary_eq_cov, comments):
     '''
     Should do more testing on this to ensure that the CoV is being transformed as desired/expected
     '''
 
     P = parse_input.ParseElements()
-    
+
     # set helio CoV as Identity matrix
     P.helio_ecl_cov_EXISTS, P.helio_ecl_cov = True,input_helio_ecl_cov
-    
+
     # check that the bary CoV does NOT yet exist
     assert P.bary_eq_cov_EXISTS == False and P.bary_eq_cov is None
 
     # now convert the helio-ecl to bary-eq
     P.make_bary_equatorial()
-    
+
     # check that the bary CoV DOES now yet exist
     assert P.bary_eq_cov_EXISTS == True and P.bary_eq_cov is not None
 
     # check that the bary CoV has the expected value
     assert np.allclose( expected_bary_eq_cov, P.bary_eq_cov), \
         f"expected_bary_eq_cov={expected_bary_eq_cov}, P.bary_eq_cov={P.bary_eq_cov}"
+    print('test_ecliptic_to_equatorial_covariance successful!')
 
-
-names_of_variables                  = ('input_data_filepath', 'file_type', 'expected_results_file')
-values_of_variables_for_each_test   = [
-    pytest.param(os.path.join(DATA_DIR,'30101.ele220'), 'ele220', 'holman_ic_30101', marks=pytest.mark.xfail(reason='Not implemented yet.')),
-    pytest.param(os.path.join(DATA_DIR,'30102.ele220'), 'ele220', 'holman_ic_30102', marks=pytest.mark.xfail(reason='Not implemented yet.')),
-    ( os.path.join(DATA_DIR,'30101.eq0_postfit'),  'eq', 'holman_ic_30101'),
-    ( os.path.join(DATA_DIR,'30102.eq0_postfit'),  'eq', 'holman_ic_30102'),
-    ( os.path.join(DATA_DIR,'30101.eq0_horizons'), 'eq', 'holman_ic_30101_horizons'),
-    ( os.path.join(DATA_DIR,'30102.eq0_horizons'), 'eq', 'holman_ic_30102_horizons'),
+    
+names_of_variables     = ('data_file', 'file_type', 'test_result_file')
+values_for_each_test   = [
+    pytest.param('30101.ele220', 'ele220', 'holman_ic_30101',
+                 marks=pytest.mark.xfail(reason='Not implemented yet.')),
+    pytest.param('30102.ele220', 'ele220', 'holman_ic_30102',
+                 marks=pytest.mark.xfail(reason='Not implemented yet.')),
+    ('30101.eq0_postfit', 'eq', 'holman_ic_30101'),
+    ('30102.eq0_postfit', 'eq', 'holman_ic_30102'),
+    ('30101.eq0_horizons', 'eq', 'holman_ic_30101_horizons'),
+    ('30102.eq0_horizons', 'eq', 'holman_ic_30102_horizons'),
  ]
-@pytest.mark.parametrize( names_of_variables, values_of_variables_for_each_test )
-def test_instantiation_with_data(input_data_filepath, file_type, expected_results_file):
+@pytest.mark.parametrize( names_of_variables, values_for_each_test )
+def test_instantiation_with_data(data_file, file_type, test_result_file):
     '''
     Test that instantiation with data works (essentially test everything).
     '''
-    # Instantiate from file (which calls *make_bary_equatorial*) and then save to 'save_file.tmp'
-    save_file = 'save_file.tmp'
-    parse_input.ParseElements(  input=input_data_filepath ,
-                                filetype=file_type,
-                                save_parsed=True,
-                                save_file=save_file)
-                                
-    print('os.path.isfile(save_file)==',os.path.isfile(save_file))
+    # Instantiate from file (which calls *make_bary_equatorial*)
+    # and then save to 'holman_ic'
+    parse_input.ParseElements(os.path.join(DATA_DIR, data_file),
+                              file_type, save_parsed=True )
+
     # Check the output
     is_parsed_good_enough( save_file , os.path.join(DATA_DIR, expected_results_file) )
     
     # Tidy
-    #if os.path.isfile(save_file) : os.remove(save_file)
+    if os.path.isfile('holman_ic') : os.remove('holman_ic')
+    print('test_instantiation_with_data successful!')
 
 
 # Non-test helper functions
