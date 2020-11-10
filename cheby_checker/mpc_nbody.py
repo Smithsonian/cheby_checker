@@ -80,9 +80,9 @@ class NbodySim():
 
 
     def __call__(self,
-                tstart      ,
-                tstep       ,
-                trange      ,
+                tstart=None,
+                tstep=20,
+                trange=600,
                 epoch       =None,
                 vectors     =None,
                 covariances =None,
