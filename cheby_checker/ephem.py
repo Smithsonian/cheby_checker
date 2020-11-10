@@ -38,12 +38,9 @@ import numpy as np
 # --------------------------------------------------------------
 try:
     import orbit_cheby
-except ImportError:
-    from . import orbit_cheby
-
-try:
     import data_classes
-except ImportError:
+except:
+    from . import orbit_cheby
     from . import data_classes
 
 detn_var_names, Detections = data_classes.var_names['Detections'], data_classes.Detections
@@ -63,17 +60,18 @@ class Ephem():
            Will get object data from database & instantiate MSC(s)
         '''
     
-        # Rectify designations to ensure in list
+        # Rectify designations to ensure in list-format
         self.designations = list(np.atleast_1d(designations))
         
         # Get the observatory positions
-        assert observatoryXYZ is not None or obsCode is not None , 'Both observatoryXYZ == None and obsCode == None'
+        assert observatoryXYZ is not None or obsCode is not None , \
+            'Both observatoryXYZ == None and obsCode == None'
         self.observatoryXYZ   = np.asarray(observatoryXYZ) if obsCode is None else ObsPos().get_heliocentric_equatorial_xyz(times,
                                                                                                                             obsCode=obsCode,
                                                                                                                             verbose=False)
 
         # Ensure that the times & positions have appropriate dimensions
-        self.times              = np.asarray(times)
+        self.times                        = np.asarray(times)
         assert self.observatoryXYZ.shape == (self.times.shape[0],3)
 
         # Establish the minimal required set of sectors to be fetched from the database :
@@ -105,28 +103,33 @@ class Ephem():
         for M in self.MSCs:
             
             # Get the RA & Dec
-            RADEC    = self.M.generate_RaDec( self.obsJDs  , observatoryXYZ=self.obsXYZ)
-            #, APPROX = False , DELTASWITCH = False, delta=np.array([0,0,0]))
+            RADEC    = self.M.generate_RaDec( self.obsJDs  , observatoryXYZ=self.observatoryXYZ)
     
             # Get the covariance matrix in RA & Dec
-            covRADEC = self.M.covRaDec( self.obsJDs , self.obsXYZ )
+            covRADEC = self.M.covRaDec( self.obsJDs , self.observatoryXYZ )
+            print(f"covRADEC.shape = {covRADEC.shape}")
 
             # Create pseudo-detections from the calculated positions ...
             # Set-up an empty Detections instance of the correct length ...
+            print(f"***NEED TO THOROUGHLY CHECK THE COMPONENTS OF THE DETECTION ARE CORRECTLY POPULATED***")
+            print(f"***ESPECIALLY FOR THE COVARIANCE MATRIX***")
+
             Ds = Detections(len(self.times))
             
             # (ii) copy across the times & observatory-positions
-            Ds.D[:, detn_var_names['obstime']] = self.times
-            Ds.D[:, np.array([detn_var_names['pos1'], detn_var_names['pos2'],detn_var_names['pos3']]) ] = self.observatoryXYZ
+            Ds.D[:, detn_var_names['obstime']]              = self.times
+            Ds.D[:, np.array([  detn_var_names['pos1'],
+                                detn_var_names['pos2'],
+                                detn_var_names['pos3']]) ]  = self.observatoryXYZ
             
             # (iii) populate the ra, dec & associated uncert
             Ds.D[:,detn_var_names['ra']]     = RADEC[:,0]
             Ds.D[:,detn_var_names['dec']]    = RADEC[:,1]
-            Ds.D[:,detn_var_names['rmsra']]  = covRADEC[:,11] ## <<-- These positions need to be updated !!!!!
-            Ds.D[:,detn_var_names['rmsdec']] = covRADEC[:,22]
+            Ds.D[:,detn_var_names['rmsra']]  = covRADEC[:,0] ## <<-- These positions may need to be updated !!!!!
+            Ds.D[:,detn_var_names['rmsdec']] = covRADEC[:,1]
 
             # Store the Detections object in a dictionary
-            self.prediction_dict[ Ds ]
+            self.prediction_dict[ M.primary_unpacked_provisional_designation ] = Ds
 
         return self.prediction_dict
 

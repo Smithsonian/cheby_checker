@@ -867,6 +867,10 @@ class MSC(Base):
         '''
         dRD     = self.dRaDecdXYZ( times_tdb , observatoryXYZ )
         cov_XYZ = self.covXYZ( times_tdb  )
+        
+        # Is there a way to make this more efficient?
+        # - Similar to the mpc_nbody code ...
+        # - CoV_t = np.linalg.inv( GammaStack_t )
         return np.array( [ np.linalg.multi_dot([dRD[i].T , cov_XYZ[i], dRD[i]]) for i in range(len(dRD)) ] )
 
     

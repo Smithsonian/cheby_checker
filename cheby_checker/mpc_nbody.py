@@ -100,7 +100,7 @@ class NbodySim():
                 vectors     = self.pparticle.bary_eq_vec
                 covariances = self.pparticle.bary_eq_cov
             except AttributeError as e :
-                print(f "Invalid ParseElements ? : {e}")
+                print(f"Invalid ParseElements ? : {e}")
 
         if vectors is None or epoch is None :
             raise TypeError("If you didn't parse a particle from an input "
@@ -115,9 +115,9 @@ class NbodySim():
         self.output_vectors,
         self.output_covariances,
         self.output_n_times,
-        self.output_n_particles) = self.run_nbody(  epoch
+        self.output_n_particles) = self.run_nbody(  epoch,
                                                     vectors,
-                                                    covariances
+                                                    covariances,
                                                     tstart,
                                                     tstep,
                                                     trange,
@@ -138,7 +138,7 @@ class NbodySim():
     # --------------------------------------------
 
     def run_nbody(  self,
-                    epoch
+                    epoch,
                     input_states,
                     input_covariances,
                     tstart,

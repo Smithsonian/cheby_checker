@@ -79,7 +79,7 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
         self.conn = sql.create_connection(sql.fetch_db_filepath())
         
         
-    def end_to_end_precalc(self,filenames): # __call__(self, filenames):
+    def end_to_end_precalc(self,filenames, observatoryXYZ=None):
         '''
         Consider adding a high level function to handle ...
         (i) calling mpc_nbody on 1-or-many ORBFIT files
@@ -89,7 +89,7 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
         # Initiate NbodySim class with input files:
         # Run the integrator, by calling the object.
         Sim = mpc_nbody.NbodySim(filenames, 'eq')
-        Sim(tstep=20, trange=600) # <<-- Change to use default times from Base
+        Sim(tstart=self.standard_MJDmin , tstep=20, trange=standard_MJDmax) # <<-- No justification for 20 days ...
         
         # Use the MSC_Loader to do all of the work to decalre and populate a list of MSC objects
         # NEEDS TO BE UPDATED TO USE Sim.output_times & Sim.output_vectors
@@ -99,23 +99,25 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
                                         statearray = states).MSCs
                                         
         # Do the precalculations and upsert
-        self.upsert( MSCs , observatoryXYZ)
+        # NB, In general we will *not* be passing observatory coords
+        self.upsert( MSCs , observatoryXYZ=observatoryXYZ )
 
 
-    def upsert(self, MSCs , geocenterXYZ ):#, integerJDs=None  ):
+    def upsert(self, MSCs , observatoryXYZ=None ):
         '''
             Main method used to insert/update coefficients for an object
             Also handles the healpix calculations used for efficiency-of-read
-            
-            NB This function could be a lot cleaner if we calculated the geocenterXYZ internally
-            
+                        
             Inputs:
             -------
             MSCs : List of Multi-Sector-Cheby class objects
             
-            geocenterXYZ : np.array
-             - Position of the geocenter (in Heliocentric Equatorial coords)
+            observatoryXYZ : np.array (optional)
+             - Position of the observatory from which you want to calculate nightly healpix (in Heliocentric Equatorial coords)
              - Needs to cover the span of the integer days defined in MSC.JDlist
+             - If not supplied, defaults to the geocenter
+             - In general, we want to default to the geocenter
+             - But for some spacecraft we *might* want to deviate from this, hence allowing the optional override
             
             Returns:
             --------
@@ -126,9 +128,16 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
         # ensure that the supplied variable is formatted correctly
         MSC_list = self._rectify_inputs(MSCs)
         
-        # ensure that the supplied observatory coords have the right shape
+        # If observatory coords are not supplied, set to be the location of the geocenter
         # N.B. Default list of Julian Dates to use, self.JDlist = (2440000 ==> 1968, 2460000.0 ==> 2023)
-        assert geocenterXYZ.shape == (3 , len(self.JDlist) ), f'the shape of geocenterXYZ needs to be {(3, len(self.JDlist))} : instead it is {geocenterXYZ.shape}'
+        if observatoryXYZ is not None:
+            observatoryXYZ = self.get_heliocentric_equatorial_xyz(self.JDlist,
+                                                                    obsCode="500",
+                                                                    verbose=False)
+                                        
+        # Ensure that the observatory coords have the right shape
+        assert observatoryXYZ.shape == (3 , len(self.JDlist) ), \
+            f'the shape of observatoryXYZ needs to be {(3, len(self.JDlist))} : instead it is {observatoryXYZ.shape}'
         
         # iterate over each MSC in list ...
         for M in MSC_list:
@@ -142,7 +151,7 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
             # Use the coefficient-dictionary(ies) to get the HP for each integer-JD in JDlist
             # NB: need to restrict the queried dates to the those supported by the MSC
             indicees = np.where( self.JDlist < MSCs[0].get_valid_range_of_dates()[1] )[0]
-            HPlist   = M.generate_HP(self.JDlist[indicees],  geocenterXYZ[:,indicees] , APPROX = True)
+            HPlist   = M.generate_HP(self.JDlist[indicees],  observatoryXYZ[:,indicees] , APPROX = True)
 
             # update HP data
             self.db.insert_HP(self.db.conn, self.JDlist[indicees], HPlist, object_id)
