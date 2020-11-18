@@ -526,7 +526,9 @@ def test_nbody_vs_Horizons(tstart, tstep, trange, geocentric,
                         geocentric=geocentric,
                         verbose=False )
     
+    
     # Check ~5 time steps (or less if there are many)
+    ### This should get refactored to use is_nbody_output_good_enough
     for j in sorted(set(np.linspace(0, output_n_times - 1, 5).astype(int)) ):
         
         # Get Horizons positions for that time and compare
@@ -556,7 +558,10 @@ def test_nbody_vs_Horizons(tstart, tstep, trange, geocentric,
     assert output_n_particles == len(targets)
     assert np.all(input_vectors == vector_s)
     assert input_n_particles == output_n_particles
-    ### This should get refactored to use is_nbody_output_good_enough !!!
+
+
+
+
 
 
 
@@ -606,14 +611,13 @@ def test_NbodySim(data_file, filetype, holman_ic_test_file, nbody_test_file):
 
     # ------------ (2) TEST INTEGRATION --------------------
     # Do integration ...
-    Sim(tstart=2456117.641933589, tstep=20, trange=600, save_output=True)
+    Sim(tstart=2456184.7528431923, tstep=20, trange=600, save_output=True)
                             
     # Test nbody output
     is_nbody_output_good_enough(Sim.output_times,
                                 Sim.output_vectors,
                                 target=data_file[:5])
 
-    assert False
 
 # Non-test helper functions
 # -----------------------------------------------------------------------------
@@ -626,13 +630,17 @@ def is_nbody_output_good_enough(times, data, target='30102'):
     # Check 20 timesteps (or less if there are many)
     some_times = np.linspace(0, len(times) - 1, 20).astype(int)
     for j in set(some_times):
-        # Get Horizons positions for that time and compare
-        horizons_xyzv = nice_Horizons(target, '500@0', times[j],
-                                      'smallbody')
+    
+        # Get Horizons "state"" for that time
+        horizons_xyzv = nice_Horizons(target, '500@0', times[j], 'smallbody')
+        
+        # The "state" from our integration
         mpc_xyzv = data[j, 0, :]
-        # Check whether position/v within threshold.
-        error, good_tf = compare_xyzv(horizons_xyzv, mpc_xyzv,
-                                        1e-7, 1e-8) # MJP 2020-09-03 : Artificially increased thresholds to allow me to make subsequent progress while waiting for Holman to debug
+        
+        # Check whether our integration agrees with Horizons ( within threshold )
+        error, good_tf = compare_xyzv(horizons_xyzv,
+                                        mpc_xyzv,
+                                        1e-7, 1e-8) # MJP 2020-09-03 : Artificially increased thresholds to allow me to make progress while waiting for Holman to debug
                                         #5e-11, 2e-13)  # 7.5m, 30 mm/day
         if np.all(good_tf):
             pass # print('Awesome!')
