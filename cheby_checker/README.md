@@ -11,7 +11,7 @@
 - Functionality to allow calculation of observatory positions. 
 - It's not at all efficient, but I want to have the function outside of any of the other modules
 
- ### mpc_nbody & parse_input
+ ### nbody
 
  - Wrapper around REBOUND 
  - See notebooks/Demonstate_Functionality_mpc_nbody.ipynb
