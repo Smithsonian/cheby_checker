@@ -49,6 +49,7 @@ def test_threading_server_and_client(HOST = '127.0.0.1', PORT = 65431):
     # Ensure server thread ends
     server_thread.join()
     
+    
 # Tests of cheby-specific sockets classes
 # --------------------------------------------------------------
 
