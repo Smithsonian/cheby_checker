@@ -27,14 +27,6 @@ Obviously this is non-optimal, but one would hope it could be automated (via set
 
  - git clone -b holman https://github.com/matthewholman/reboundx.git
 
- - The following step is necessary until holman merges pull request from MA
- - vi /Users/matthewjohnpayne/Envs/reboundx/examples/ephem_forces/ephem_forces.py
-   #### This file is in : 
-   - ../../../reboundx/examples/ephem_forces/ephem_forces.py
-   #### Assume that the library file will be in the same directory : 
-   - ../../../reboundx/examples/ephem_forces/libreboundx.so
-   - rebx_location = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'libreboundx.so' )
-
  - cd reboundx/examples/central_force/
  - perl -pi -e 's/OPENGL=1/OPENGL=0/g' Makefile
  - make clean; make
@@ -42,5 +34,6 @@ Obviously this is non-optimal, but one would hope it could be automated (via set
 
 
 
-## to-do : 2020-08-04
- - See README in cheby_checker/cheby_checker code repo 
+## to-do : 2021-06-08
+ - See README in cheby_checker/cheby_checker code repo
+ - See Google Doc in ... 
