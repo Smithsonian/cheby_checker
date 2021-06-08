@@ -129,14 +129,11 @@ class SQLChecker(DB):
         
     def create_object_desig_table(self,):
         """ Create the object_desig table that we need for name-to-integer mapping
-            
-            inputs:
-            -------
-            
-            return:
-            -------
-            
-            """
+        
+        Created table has columns that look like
+            object_id   : integer
+            primary_unpacked_provisional_designation    : text
+        """
         
         
         # Create table ...
@@ -159,12 +156,14 @@ class SQLChecker(DB):
     def create_object_coefficients_table(self,):
         """ Create the object_coefficients table(s) that we need for ephemeris calcultions
             
-            inputs:
-            -------
-            
-            return:
-            -------
-            
+            Created table has columns that look like
+                coeff_id        : integer
+                object_id       : integer
+                sector_%d_%d    : text blob      <<-- *MANY* of these sectors
+                
+                
+            *** WHY DO WE WANT/NEED THE TABLE TO HAVE MANY MANY SECTOR FIELSD ???***
+            *** WHY NOT JUST HAVE (a) SECTOR #/ID, AND (B) COEFFICIENTS ???      ***
             """
         
         
@@ -190,12 +189,12 @@ class SQLChecker(DB):
     def create_objects_by_jdhp_table(self,):
         """ Create the specific objects_by_jdhp table that we need for *mpchecker2*
             
-            inputs:
-            -------
-            
-            return:
-            -------
-            
+            Created table has columns that look like
+                            jdhp_id     : integer
+                            jd          : integer
+                            hp          : integer
+                            object_id   : integer
+                
             """
 
         # Create table ...
@@ -228,19 +227,21 @@ class SQLChecker(DB):
         """
             insert/update multi_sector_cheby object
             
-            N.B ...
+            N.B. (1) ...
             https://stackoverflow.com/questions/198692/can-i-pickle-a-python-dictionary-into-a-sqlite3-text-field
             pdata = cPickle.dumps(data, cPickle.HIGHEST_PROTOCOL)
             curr.execute("insert into table (data) values (:data)", sqlite3.Binary(pdata))
 
-
+            N.B. (2) ...
+            The insert statement wouldn't have to look so terrible if the table was constructed
+            differently/more-simply in create_object_coefficients_table
 
             inputs:
             -------
-            conn: Connection object
             
             M : MSC-object
              - see orbit_cheby module for detailed specification
+             - here we need M to possess a dictionary-attribute named "sector_coeffs"
              
             object_id : integer
              - The assumption is that this has been generated via the function, insert_desig()
@@ -252,11 +253,7 @@ class SQLChecker(DB):
 
 
         """
-        # Sanity checks ?
-        # assert ...
-        
-        # I guess that it will be quicker to do a single insert across all the required fields for a single object
-        
+                
         # (i) Get the sector field names required for this specific MSC
         # - Current method seems unnecessarily verbose
         sector_field_names =   self.generate_sector_field_names( sector_dict = \

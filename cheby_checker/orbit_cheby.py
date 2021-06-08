@@ -669,7 +669,7 @@ class MSC(Base):
 
 
 
-    # Assorted Date Functions ...
+    # Date Function(s) ...
     # --------------------------------------------------------------
 
     def get_valid_range_of_dates( self,  ):
@@ -793,7 +793,7 @@ class MSC(Base):
         _dY = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, d, 0]) ) \
                -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0,-d, 0]) ) )
         _dZ = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, 0, d]) ) \
-               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, 0,-0]) ) )
+               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, 0,-d]) ) )
     
         return np.stack(np.array( (_dX, _dY, _dZ) ), axis=1).T / (2*d)
     

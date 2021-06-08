@@ -27,20 +27,23 @@ from astropy.time import Time
 import getpass
 import json
 import itertools
-
+import copy
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
 try:  # Import ephem_forces from whereever REBX_DIR is set to live
     sys.path.append(os.environ['REBX_DIR'])
-    from examples.ephem_forces.ephem_forces import integration_function
+    from examples.ephem_forces.ephem_forces import production_integration_function_wrapper
 except (KeyError, ModuleNotFoundError):
-    from reboundx.examples.ephem_forces.ephem_forces import integration_function
+    from reboundx.examples.ephem_forces.ephem_forces import production_integration_function_wrapper
 
 # Payne's dev laptop set up differently ...:
 if getpass.getuser() in ['matthewjohnpayne']:
     sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/')
+    sys.path.append('/Users/matthewjohnpayne/Envs/mpc_orb/mpc_orb/')
 import mpcpp.MPC_library as mpc
+from parse import MPCORB
+
 
 
 # Constants and stuff
@@ -99,13 +102,13 @@ class ParseElements():
 
     def __init__(   self,
                     input=None,
-                    filetype='eq',
+                    filetype='json',
                     save_parsed=False ,
                     save_file='save_file.tmp',
                     CHECK_EPOCHS=True):
     
         # The variables that will be used to hold the elements
-        # - They get populated by *parse_orbfit* & *make_bary_equatorial*
+        # - They get populated by *parse_orbfit_felfile_txt* & *make_bary_equatorial*
         self.helio_ecl_vec_EXISTS   = False
         self.helio_ecl_vec          = None
         self.helio_ecl_cov_EXISTS   = False
@@ -115,6 +118,8 @@ class ParseElements():
         self.bary_eq_cov_EXISTS     = False
         self.bary_eq_cov            = None
         self.time                   = None
+        self.non_grav_EXISTS        = False
+        self.non_grav_array         = []
         
     
         print(f"input={input}")
@@ -127,15 +132,16 @@ class ParseElements():
             list_of_file_contents = self._parse_input_type(input)
             
             # Extract the required info from each of the file-contents
+            print("list_of_file_contents:", type(list_of_file_contents) , [type(_) for _ in list_of_file_contents] )
             for file_contents in list_of_file_contents :
             
-                # Option to process ele220 files is not fully written
-                if filetype == 'ele220':
-                    self.parse_ele220(file_contents, CHECK_EPOCHS=CHECK_EPOCHS)
+                # Option to process orbfit-json files is not fully written
+                if filetype == 'json':
+                    self.parse_orbfit_json(file_contents, CHECK_EPOCHS=CHECK_EPOCHS)
                     
-                # The assumed standard input will be orbfit files ...
+                # Option to process orbfit-eq0/eq1 fel-files
                 if (filetype == 'fel') | (filetype == 'eq'):
-                    self.parse_orbfit(file_contents, CHECK_EPOCHS=CHECK_EPOCHS)
+                    self.parse_orbfit_felfile_txt(file_contents, CHECK_EPOCHS=CHECK_EPOCHS)
                 
             # Convert all input coords to Barycentric Equatorial
             self.make_bary_equatorial()
@@ -178,8 +184,15 @@ class ParseElements():
         contents = []
         for item in input:
             if os.path.isfile(item):
-                with open(item,'r') as f:
-                    contents.append(f.readlines())
+                # Try to open as JSON  ...
+                try:
+                    with open(item) as json_file:
+                        contents.append( json.load(json_file) )
+
+                # If json-fails, then open as standard text file
+                except:
+                    with open(item,'r') as f:
+                        contents.append(f.readlines())
             else:
                 contents.append(input)
                 
@@ -210,18 +223,75 @@ class ParseElements():
                 suffix = '\n' if n in [2,5] else ''
                 outfile.write(f"{coeff: 18.15e} " + suffix)
             
-    def parse_ele220(self, ele220file_contents, CHECK_EPOCHS=True ):
-        '''
-        Parse a file containing a single ele220 line.
-        Currently returns junk data.
-        NOT ACTUALLY IMPLEMENTED YET!!!
-        '''
-        # make fake data & set appropriate variables
-        self._get_and_set_junk_data()
-
-    def parse_orbfit(self, felfile_contents, CHECK_EPOCHS=True):
+    def parse_orbfit_json(self, jsonfile_dictionary, CHECK_EPOCHS=True ):
         '''
         Parse a file containing OrbFit elements for a single object & epoch.
+        Assumes input is in standard mpcorb-json format
+        '''
+        
+        # Instantiate MPCORB: NB This parses & validates ...
+        M = MPCORB(jsonfile_dictionary)
+        
+        # ----------- TIME -------------------------
+        # Using Astropy.time for time conversion,
+        # because life's too short for timezones and time scales.
+        epoch,timesystem    = M.epoch_data["epoch"],M.epoch_data["timesystem"]
+        
+        allowed_timesystems = {'TDT':'tt'}
+        assert timesystem in allowed_timesystems
+        local_Time      = Time(float(epoch), format='mjd', scale=allowed_timesystems[timesystem] )
+
+        # In production, we likely want to be using "standard-epochs" ending in 00.
+        # - This will allow multiple objects to be simultaneously integrated
+        if CHECK_EPOCHS==True and "00." not in epoch:
+            raise TypeError("Supplied file may not contain standard epochs:"
+                            f"epoch= {epoch}")
+        if self.time is None :
+            self.time = local_Time
+        else:
+            # If we are processing multiple files, then
+            # check that all supplied epochs are the same
+            if self.time != local_Time:
+                raise TypeError("The epochs vary from file-to-file: "
+                                f"jsonfile_dictionary= {jsonfile_dictionary}")
+
+        # ----------- ELEMENTS/VARIABLES -----------
+        # Get Cartesian dict out of the overall jsonfile_dictionary
+        cart_dict = M.CAR
+
+        # Parse the elements and stack with any others extracted from previous files
+        # - The elements are always of length 6
+        numparams                   = cart_dict['numparams']
+        element_array               = np.atleast_2d( cart_dict['element_array'] ).reshape(1,6)
+        self.helio_ecl_vec_EXISTS   = True if numparams else False
+        if self.helio_ecl_vec is None:
+            self.helio_ecl_vec = element_array
+        else :
+            self.helio_ecl_vec = np.append(self.helio_ecl_vec , element_array, axis=0)
+                                                
+
+        
+        # ----------- COVARIANCE  -------------------
+        # Parse jsonfile_dictionary to get the cartesian covariance matrix
+        # The cov matrix will be of dimension N^2, with N>=6, as the non-gravs are incluuded
+        local_helio_ecl_cov         = np.atleast_3d(cart_dict['covariance_array']).reshape(1,numparams,numparams )
+        self.helio_ecl_cov_EXISTS   = True #if local_helio_ecl_cov else False
+        if self.helio_ecl_cov is None:
+            self.helio_ecl_cov = local_helio_ecl_cov
+        else :
+            self.helio_ecl_cov = np.append( self.helio_ecl_cov, local_helio_ecl_cov  )
+
+                
+        # ----------- NONGRAVS -----------------------
+        self.non_grav_array.append( M.nongrav_data )
+        self.non_grav_EXISTS = np.any( _["non_gravs"] for _ in self.non_grav_array )
+
+                
+
+    def parse_orbfit_felfile_txt(self, felfile_contents, CHECK_EPOCHS=True):
+        '''
+        Parse a file containing OrbFit elements for a single object & epoch.
+        Assumes input is in the "old" ~text format (filetype ~ .eq0/.eq1)
 
         Inputs:
         -------
@@ -481,36 +551,8 @@ def _parse_Covariance_List(Els):
         # Set boolean
         CoV_EXISTS = True
     return CoV_EXISTS, CoV
- 
 
-"""
-def _old_parse_Covariance_List(Els):
-    '''
-    Convenience function for reading and splitting the covariance
-    lines of an OrbFit file.
-    Not intended for user usage.
-    '''
-    ElCov  = []
-    covErr = ""
-    for El in Els:
-        if El[:4] == ' COV':
-            ElCov.append(El)
-    if len(ElCov) == 7:
-        _, c11, c12, c13 = ElCov[0].split()
-        _, c14, c15, c16 = ElCov[1].split()
-        _, c22, c23, c24 = ElCov[2].split()
-        _, c25, c26, c33 = ElCov[3].split()
-        _, c34, c35, c36 = ElCov[4].split()
-        _, c44, c45, c46 = ElCov[5].split()
-        _, c55, c56, c66 = ElCov[6].split()
-    if len(ElCov) != 7:
-        c11, c12, c13, c14, c15, c16, c22 = "", "", "", "", "", "", ""
-        c23, c24, c25, c26, c33, c34, c35 = "", "", "", "", "", "", ""
-        c36, c44, c45, c46, c55, c56, c66 = "", "", "", "", "", "", ""
-        covErr = ' Empty covariance Matrix for '
-    return (covErr, c11, c12, c13, c14, c15, c16, c22, c23, c24, c25, c26,
-            c33, c34, c35, c36, c44, c45, c46, c55, c56, c66)
-"""
+
 
 
 
@@ -560,16 +602,11 @@ class NbodySim():
         self.time_parameters    = None
 
         #If input filename provided, process it using ParseElements :
-        try:
-            assert input
+        if input:
             self.PE= ParseElements( input       = input,
                                     filetype    = filetype,
                                     save_parsed = save_parsed,
                                     CHECK_EPOCHS= CHECK_EPOCHS)
-                         
-        except Exception as e:
-            print(f"NbodySim.__init__: Instantiating empty object.")
-            print(f"Exception={e.__str__()}")
 
 
     def __call__(self,
@@ -593,6 +630,7 @@ class NbodySim():
                 epoch       = self.PE.time.tdb.jd
                 vectors     = self.PE.bary_eq_vec
                 covariances = self.PE.bary_eq_cov
+                nongrav_arr = self.PE.non_grav_array
             except AttributeError as e :
                 print(f"Invalid ParseElements ? : {e}")
 
@@ -612,6 +650,7 @@ class NbodySim():
         self.output_n_particles) = self.run_nbody(  epoch,
                                                     vectors,
                                                     covariances,
+                                                    nongrav_arr,
                                                     tstart,
                                                     tstep,
                                                     trange,
@@ -636,8 +675,7 @@ class NbodySim():
                     input_states,
                     input_covariances,
                     tstart,
-                    tstep,
-                    trange,
+                    tend,
                     geocentric=False,
                     verbose=False):
         '''
@@ -685,19 +723,28 @@ class NbodySim():
         n_particles = input_states.shape[0]
         
         # Now run the nbody integrator:
-        times, output_vectors, n_times, n_particles_out = integration_function( tstart,
-                                                                                tstep,
-                                                                                trange,
-                                                                                geocentric,
-                                                                                n_particles,
-                                                                                input_states)
-                                                                                
-        # Split the output vectors
-        final_states, partial_derivatives = self._split_integration_output(output_vectors , n_times, n_particles_out )
-                                  
+        outtime, states, partial_derivatives_wrt_state, partial_derivatives_wrt_NG, return_value = \
+            production_integration_function_wrapper(    tstart,
+                                                        tend,
+                                                        epoch,
+                                                        geocentric,
+                                                        n_particles,
+                                                        input_states,
+                                                        non_grav_dict_list = None,
+                                                        epsilon = 1e-8,
+                                                        tstep_max = 32.)
+                                                        
+        # Reshape the partial derivative arrays
+        partial_derivatives_wrt_state, partial_derivatives_wrt_NG = self.reshape_partial_deriv_arrays(  partial_derivatives_wrt_state,
+                                                                                                        partial_derivatives_wrt_NG)
+        
+        
+        
         # Calculate the covariance matrix (at each timestep) from the \partial X / \partial X_0 data
         if input_covariances is not None:
-            final_covariance_arrays = self._get_covariance_from_tangent_vectors(input_covariances, partial_derivatives )
+            final_covariance_arrays = self._get_covariance_from_tangent_vectors(input_covariances,
+                                                                                partial_derivatives_wrt_state,
+                                                                                partial_derivatives_wrt_NG = partial_derivatives_wrt_NG )
         else:
             final_covariance_arrays = None
             
@@ -705,63 +752,68 @@ class NbodySim():
                 input_states,
                 input_covariances,
                 n_particles,
-                times,
-                final_states,
-                final_covariance_arrays,
-                n_times,
-                n_particles_out)
+                outtime,
+                states,
+                final_covariance_arrays)
 
-    def _split_integration_output(self, output_from_integration_function , n_times, n_particles_out ):
+    def reshape_partial_deriv_arrays( self,  partial_derivatives_wrt_state,  partial_derivatives_wrt_NG):
         '''
-        Get the states and partials out of the array returned from the integration_function
+        (1) partial_derivatives_wrt_state
+        From: partial_derivatives_wrt_state.shape = (N_times, 6*n_particlea, 6)
+        To  : partial_derivatives_wrt_state.shape = (N_times, n_particlea, 6, 6)
         
-        MJP : 20200902 : Reminder to self.
-        I may want to make the state array be 3D      : (n_times, n_particles, 6 )
-        I may want to make the covariance array be 4D : (n_times, n_particles, 6,6 )
-        '''
-        original_shape = output_from_integration_function.shape
-        assert original_shape == (n_times, 7*n_particles_out, 6)
-        
-        # Make a handy mask : True => CoVariance Components, False => State components
-        mask = np.ones_like(output_from_integration_function, dtype=bool)
-        mask[:,0:n_particles_out,:] = False
-
-        # State (xyzuvw) components:
-        states = output_from_integration_function[~mask].reshape(original_shape[0],-1,6)
-
-        # Partial Deriv Components
-        # MJP 20200902: *** UNCLEAR WHETHER THESE WILL NEED TO BE TRANSPOSED ***
-        partials = output_from_integration_function[mask].reshape(original_shape[0],n_particles_out,6,6)
-
-        return states, partials
-        
-    def _get_covariance_from_tangent_vectors(self, init_covariances, partial_derivatives ):
+        (2) partial_derivatives_wrt_NG
+        *** NOT YET IMPLEMENTED partial_derivatives_wrt_NG ***
         '''
         
+        # (1) (N_times, 6*n_particlea, 6) -> (N_times, n_particlea, 6, 6)
+        partial_derivatives_wrt_state = partial_derivatives_wrt_state.reshape(partial_derivatives_wrt_state.shape[0],-1,6,6)
+        
+        # (2)
+        if partial_derivatives_wrt_NG is not None:
+            raise Error('Have not coded partial_derivatives_wrt_NG into _get_covariance_from_tangent_vectors ')
+
+        return partial_derivatives_wrt_state , partial_derivatives_wrt_NG
+        
+        
+    def _get_covariance_from_tangent_vectors(self, init_covariances, partial_derivatives_wrt_state ,  partial_derivatives_wrt_NG=None ):
+        '''
         Follow Milani et al 1999
         Gamma_t = [partial X / partial X_0] Gamma_0 [partial X / partial X_0]^T
         '''
-        assert init_covariances.ndim == 3 and partial_derivatives.ndim == 4, \
-            f'init_covariances.ndim={init_covariances.ndim} , partial_derivatives.ndim={partial_derivatives.ndim}'
         
+        if partial_derivatives_wrt_NG is not None:
+            raise Error('Have not coded partial_derivatives_wrt_NG into _get_covariance_from_tangent_vectors ')
+
+        assert init_covariances.ndim == 3
+        assert partial_derivatives_wrt_state.ndim == 4
+        assert partial_derivatives_wrt_NG is None or partial_derivatives_wrt_NG.ndim  == 4
+        #print(f'partial_derivatives_wrt_state.shape = {partial_derivatives_wrt_state.shape}')
+
         # Take the inverse of the covariance matrix to get the normal matrix
         # NB: We make a stack of identical matricees to use in the matrix multiplication below
         Gamma0      = np.linalg.inv(init_covariances)
-        GammaStack0 = np.tile( Gamma0, (partial_derivatives.shape[0],1,1,1) )
+        print(f'Gamma0.shape = {Gamma0.shape}')
+        GammaStack0 = np.tile( Gamma0, (partial_derivatives_wrt_state.shape[0],1,1,1) )
+        #print(f'GammaStack0.shape = {GammaStack0.shape}')
 
         # We need each of the individual pd arrays to be individually transposed
-        # NB, tuple fixes dimensions 0 & 1 , while indicates that dimensions 2 & 3 will be swapped/transposed
-        pds_transposed  = partial_derivatives.transpose( (0,1,3,2) )
+        # NB, tuple fixes dimensions 0 & 1 , but indicates that dimensions 2 & 3 will be swapped/transposed
+        pds_transposed  = partial_derivatives_wrt_state.transpose( (0,1,3,2) )
+        #print(f'pds_transposed.shape = {pds_transposed.shape}')
 
         # Do matrix multiplication: using the pd's to get the CoV as a func of time
         # NB matmul/@ automagically knows how to work on a stack of matricees
         # - https://stackoverflow.com/questions/34142485/difference-between-numpy-dot-and-python-3-5-matrix-multiplication
-        GammaStack_t    = pds_transposed @ GammaStack0 @ partial_derivatives
-        
+        GammaStack_t    = pds_transposed @ GammaStack0 @ partial_derivatives_wrt_state
+        #print(f'GammaStack_t.shape = {GammaStack_t.shape}')
+
         # Magically, np.linalg.inv also knows how to deal with a stack of arrays/matrices
         # - https://stackoverflow.com/questions/11972102/is-there-a-way-to-efficiently-invert-an-array-of-matrices-with-numpy
         CoV_t           = np.linalg.inv( GammaStack_t )
-        
+        #print(f'CoV_t.shape = {CoV_t.shape}')
+
+
         return CoV_t
             
 
@@ -803,52 +855,7 @@ class NbodySim():
         outfile.write('\n#End')
 
 
-    """
-    def _fix_input(pinput, init_covariances, verbose=False):
-        '''
-        Convert the input to a useful format.
 
-        Input:
-        ------
-        pinput = Either ParseElements object,
-                 list of ParseElements objects,
-                 or numpy array of elements.
-
-        Output:
-        -------
-        reparsed = numpy array of elements.
-        len(reparsed)//6 = integer, number of particles.
-        '''
-        if isinstance(pinput, parse_input.ParseElements) :
-            print('###!!!ONE!!!###' if verbose else '')
-            init_states      = pinput.bary_eq_vec
-            # We wrap in an extra array because we want the covariance input to be 3D: shape = (n_particles,6,6)
-            init_covariances = np.array( [pinput.bary_eq_cov] )
-
-        elif isinstance(pinput, list) :
-            print('###!!!TWO!!!###' if verbose else '')
-            if np.all( [ isinstance(_, parse_input.ParseElements) for _ in pinput] ):
-                print('###!!!TWO.5!!!###' if verbose else '')
-                # We flatten here because the *integration_function* demands 1D input
-                init_states         = np.array( [p.bary_eq_vec for p in pinput] ).flatten()
-                init_covariances    = np.array( [p.bary_eq_cov for p in pinput] )
-            else:
-                init_states         = np.array(pinput)
-                init_covariances    = np.array(init_covariances) if init_covariances is not None else None
-                
-        elif isinstance(pinput, np.ndarray):
-            if (pinput.ndim == 1) & (len(pinput) % 6 == 0):
-                print('###!!!THREE!!!###' if verbose else '')
-                init_states         = pinput
-                init_covariances    = np.array(init_covariances) if init_covariances is not None else None
-
-        else:
-            raise(TypeError('"pinput" not understood.\n'
-                            'Must be ParseElements object, '
-                            'list of ParseElements, or numpy array.'))
-                            
-        return init_states, init_covariances, len(init_states) // 6
-    """
 
 
  

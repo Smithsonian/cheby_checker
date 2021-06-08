@@ -88,7 +88,11 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos):
         '''
         # Initiate NbodySim class with input files:
         # Run the integrator, by calling the object.
-        Sim = mpc_nbody.NbodySim(filenames, 'eq')
+        Sim = mpc_nbody.NbodySim(   input       = filenames,
+                                    filetype    = 'eq',
+                                    save_parsed =   False,
+                                    CHECK_EPOCHS=   True)
+                                    )
         Sim(tstart=self.standard_MJDmin , tstep=20, trange=standard_MJDmax) # <<-- No justification for 20 days ...
         
         # Use the MSC_Loader to do all of the work to decalre and populate a list of MSC objects
