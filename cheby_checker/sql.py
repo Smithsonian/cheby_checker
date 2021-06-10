@@ -28,13 +28,16 @@ import pickle
 
 # Import neighboring packages
 # --------------------------------------------------------------
-
-try:
-    from orbit_cheby import orbit_cheby
-except ImportError:
-    from . import orbit_cheby
-assert orbit_cheby.Base(), \
-    'Seeing this text at evaluation indicates FAILURE to import orbit_cheby (as Base() should be available)'
+# cheby_checker/                 # <<-- repo
+# cheby_checker/cheby_checker    # <<-- python
+# cheby_checker/tests            # <<-- tests
+this_dir = os.path.abspath(os.path.dirname( __file__ ))
+repo_dir = os.path.abspath(os.path.dirname( this_dir ))
+test_dir = os.path.join(repo_dir, 'tests')
+code_dir = os.path.join(repo_dir, 'cheby_checker')
+for d in [test_dir, code_dir]:
+    sys.path.append( d )
+from cheby_checker import Base
 
 
 
@@ -60,7 +63,7 @@ class DB():
     def fetch_db_filepath():
         '''
         '''
-        B = orbit_cheby.Base()
+        B = Base()
         db_dir = B._fetch_data_directory()
         return os.path.join(db_dir , B.db_filename)
 
@@ -115,55 +118,33 @@ class SQLChecker(DB):
     # Generic functionalities
     # ---------------------------------------------
 
-    def generate_sector_field_names(self,  sector_dict = orbit_cheby.Base().get_required_sector_dict() ):
+    def generate_sector_field_names(self,  sector_dict = Base().get_required_sector_dict() ):
         '''  Dynamically generate the field-specs that will be required for the coeffs-by-sector  '''
         return [ 'sector_%d_%d' % (i, jd) for i, jd in sector_dict.items() ]
+
+    def generate_blank_coefficient_dict(self,  sector_dict = Base().get_required_sector_dict() ):
+        '''  Generate a blank default dictionary for upsert to coeffs table ...  '''
+        return { _ : None for _ in self.generate_sector_field_names() }
 
     # ---------------------------------------------
     # Create the *CHECKER* tables
     # ---------------------------------------------
     def create_all_checker_tables(self,):
-        self.create_object_desig_table()
         self.create_object_coefficients_table()
         self.create_objects_by_jdhp_table()
         
-    def create_object_desig_table(self,):
-        """ Create the object_desig table that we need for name-to-integer mapping
-        
-        Created table has columns that look like
-            object_id   : integer
-            primary_unpacked_provisional_designation    : text
-        """
-        
-        
-        # Create table ...
-        
-        sql_statement = """
-            CREATE TABLE IF NOT EXISTS object_desig (
-            object_id integer PRIMARY KEY,
-            primary_unpacked_provisional_designation TEXT UNIQUE);
-            """
-        # create table
-        if self.conn is not None:
-            self.create_table( sql_statement)
-        
-        # Create indicees
-        createSecondaryIndex =  "CREATE INDEX index_desig ON object_desig (primary_unpacked_provisional_designation);"
-        self.conn.cursor().execute(createSecondaryIndex)
-
-
 
     def create_object_coefficients_table(self,):
         """ Create the object_coefficients table(s) that we need for ephemeris calcultions
             
             Created table has columns that look like
-                coeff_id        : integer
-                object_id       : integer
-                sector_%d_%d    : text blob      <<-- *MANY* of these sectors
+                object_coeff_id                             : integer
+                primary_unpacked_provisional_designation    : text
+                sector_%d_%d                                : text blob      <<-- *MANY* of these sectors
                 
                 
             *** WHY DO WE WANT/NEED THE TABLE TO HAVE MANY MANY SECTOR FIELSD ???***
-            *** WHY NOT JUST HAVE (a) SECTOR #/ID, AND (B) COEFFICIENTS ???      ***
+            *** WHY NOT JUST HAVE 3 FIELDS: (a) SECTOR #/ID, (b) desig, AND (c) COEFFICIENTS ???      ***
             """
         
         
@@ -177,13 +158,17 @@ class SQLChecker(DB):
         
         sql_statement = """
             CREATE TABLE IF NOT EXISTS object_coefficients (
-            coeff_id integer PRIMARY KEY,
-            object_id integer UNIQUE, """ + \
-                sector_spec + "); "
+            object_coeff_id INTEGER PRIMARY KEY,
+            primary_unpacked_provisional_designation TEXT UNIQUE NOT NULL,""" + \
+                sector_spec + "); "   # <<-- Lots of extra fields in here!!!
             
-        # create table
         if self.conn is not None:
+            # Create table
             self.create_table( sql_statement )
+            
+            # Create indicex on designation
+            createSecondaryIndex =  "CREATE INDEX index_desig ON object_coefficients (primary_unpacked_provisional_designation);"
+            self.conn.cursor().execute(createSecondaryIndex)
 
 
     def create_objects_by_jdhp_table(self,):
@@ -193,16 +178,16 @@ class SQLChecker(DB):
                             jdhp_id     : integer
                             jd          : integer
                             hp          : integer
-                            object_id   : integer
+                            object_coeff_id   : integer
                 
             """
 
         # Create table ...
         sql_statement = """ CREATE TABLE IF NOT EXISTS objects_by_jdhp (
-            jdhp_id integer PRIMARY KEY,
-            jd integer NOT NULL,
-            hp integer NOT NULL,
-            object_id integer NOT NULL
+            jdhp_id INTEGER PRIMARY KEY,
+            jd INTEGER NOT NULL,
+            hp INTEGER NOT NULL,
+            object_coeff_id INTEGER NOT NULL
             ); """
         
         
@@ -215,7 +200,7 @@ class SQLChecker(DB):
             # Create indicees
             createSecondaryIndex =  "CREATE INDEX index_jdhp ON objects_by_jdhp (jd, hp);"
             self.conn.cursor().execute(createSecondaryIndex)
-            createSecondaryIndex =  "CREATE INDEX index_pupd ON objects_by_jdhp (object_id);"
+            createSecondaryIndex =  "CREATE INDEX index_object_coeff_id ON objects_by_jdhp (object_coeff_id);"
             self.conn.cursor().execute(createSecondaryIndex)
 
 
@@ -223,9 +208,69 @@ class SQLChecker(DB):
     # --- Funcs to write to / update CHECKER db-tables
     # --------------------------------------------------------
 
-    def upsert_MSC(self, M, object_id):
+    def upsert_coefficients(self, primary_unpacked_provisional_designation , sector_names, sector_values):
+        """
+            Insert/Update coefficients in the *object_coefficients* table
+            
+            N.B.
+             - I am making the design decision to always replace all of the sectors
+             - If *all* sectors are initially populated and then an update wants to update a *subset*, then we
+               would risk having incompatible data, so in that scenario I would want to blank-out all of the
+               sectors that were not explicitly being updated
+             - The way I can think of to do this at present is to have default values that are always blank...
+
+            inputs:
+            -------
+            
+            object_id : integer
+             - The assumption is that this has been generated via the function, insert_desig()
+             - I could explicitly query for the object_id via the function, query_number_by_desig(), but it seems unnecessary
+
+            sector_names :
+             - column names in *object_coefficients* table that are to be populated
+             
+            sector_values :
+             - column values corresponding to the sector_names in *object_coefficients* table that are to be populated
+
+            return:
+            -------
+            
+        """
+        # Make a default insert disct that contains ...
+        # (a) the designation
+        # (b) all the sector fields with "None" values
+        insert_dict = {'primary_unpacked_provisional_designation':primary_unpacked_provisional_designation}
+        
+        # Check inputs ...
+        assert isinstance(primary_unpacked_provisional_designation, str) \
+            and len(sector_names)==len(sector_values)
+        
+        # Update the coeff dict using the input values
+        insert_dict.update( {k:v for k,v in zip(sector_names, sector_values) } )
+        
+        # Construct an sql insert statement
+        # NB(1): Because the primary_unpacked_provisional_designation field is unique, this should enforce replacement on duplication
+        # NB(2): It completely deletes the initial row, then replaces it with the new stuff
+        columns      = ', '.join(insert_dict.keys())
+        placeholders = ':'+', :'.join(insert_dict.keys())
+        query = 'REPLACE INTO object_coefficients (%s) VALUES (%s)' % (columns, placeholders)
+
+        # Execute the upsert ...
+        cur = self.conn.cursor()
+        cur.execute(query, insert_dict)
+        self.conn.commit()
+        
+        # Return the id of the row inserted
+        object_coeff_id = cur.lastrowid
+        return object_coeff_id
+
+
+
+    def upsert_MSC(self, M):
         """
             insert/update multi_sector_cheby object
+            
+            *** MOVE THIS TO orbit_cheby MSC OBJECT ??? ***
             
             N.B. (1) ...
             https://stackoverflow.com/questions/198692/can-i-pickle-a-python-dictionary-into-a-sqlite3-text-field
@@ -257,34 +302,29 @@ class SQLChecker(DB):
         # (i) Get the sector field names required for this specific MSC
         # - Current method seems unnecessarily verbose
         sector_field_names =   self.generate_sector_field_names( sector_dict = \
-                                                         { sector_num: orbit_cheby.Base().map_sector_number_to_sector_start_JD(sector_num , orbit_cheby.Base().standard_MJDmin) for sector_num in M.sector_coeffs.keys()}
+                                                         { sector_num: Base().map_sector_number_to_sector_start_JD(sector_num , Base().standard_MJDmin) for sector_num in M.sector_coeffs.keys()}
                                                          )
-        sector_field_names.append( 'object_id' )
         
         # (ii) Get the coefficients for each sector
         sector_field_values = [pickle.dumps(coeffs, pickle.HIGHEST_PROTOCOL) for coeffs in M.sector_coeffs.values()]
-        sector_field_values.append(object_id)
         
-        # (iii) Construct (in a horribly ungraceful manner) an sql insert statement
-        sql =  " INSERT OR REPLACE INTO object_coefficients (" + ",".join(sector_field_names) + ") VALUES (" + ",".join(["?" for _ in sector_field_values]) + ");"
-
-        # (iv) Execute the upsert ...
-        cur = self.conn.cursor()
-        cur.execute(sql, sector_field_values)
-        conn.commit()
-
+        # (iii) Do the insert
+        self.upsert_coefficients(M.primary_unpacked_provisional_designation , sector_field_names, sector_field_values)
+        
 
     def insert_HP(self, JDlist, HPlist, object_id ):
         """
             objects_by_jdhp is structured like ...
-            id integer PRIMARY KEY,
-            jd integer NOT NULL,
-            hp integer NOT NULL,
-            object_id integer NOT NULL
-     
+                            jdhp_id     : integer
+                            jd          : integer
+                            hp          : integer
+                            object_coeff_id   : integer
+                
             inputs:
             -------
-            ...
+            JDlist :
+            
+            HPlist :
             
             object_id : integer
                 - The assumption is that this has been generated via the function, insert_desig()
@@ -299,7 +339,7 @@ class SQLChecker(DB):
         # *** Delete old entries ***
         # - My assumption here is that if we are inserting entries for a known object, we have likely calculated a new orbit
         # - Hence for sanitary reasons we should delete the old ones and replace with the new.
-        self.delete_JDHP_by_object_id( object_id )
+        self.delete_JDHP_by_object_coeff_id( object_id )
         
         # Insert new ...
         # (a) construct "records" variable which is apparently ammenable to single insert statement ...
@@ -308,7 +348,7 @@ class SQLChecker(DB):
         records = [ (int(jd), int(hp), object_id) for jd,hp in zip(JDlist,HPlist) ]
         
         # (b) construct sql string
-        sqlstr = '''INSERT INTO objects_by_jdhp(jd,hp,object_id) VALUES(?,?,?);'''
+        sqlstr = '''INSERT INTO objects_by_jdhp(jd,hp,object_coeff_id) VALUES(?,?,?);'''
         
         # (c) Insert
         cur.executemany(sqlstr, records)
@@ -317,41 +357,21 @@ class SQLChecker(DB):
         self.conn.commit()
 
 
-    def insert_desig(self, primary_unpacked_provisional_designation):
-        """
-            object_desig is structured like ...
-            object_id integer PRIMARY KEY,
-            primary_unpacked_provisional_designation TEXT UNIQUE);
-            
-        """
-        # Do the insert
-        cur = self.conn.cursor()
-        sqlstr = "INSERT INTO object_desig (primary_unpacked_provisional_designation) VALUES ('%s') ON CONFLICT(primary_unpacked_provisional_designation) DO NOTHING" % primary_unpacked_provisional_designation
-        cur.execute( sqlstr )
-        self.conn.commit()
-
-        # Get the object_id & return it
-        # Might be able to replace this query with ... cursor.lastrowid, but not sure what happens in the do-nothing case ...
-        cur.execute('''SELECT  object_id FROM object_desig WHERE primary_unpacked_provisional_designation=?;''', (primary_unpacked_provisional_designation,) )
-        object_id = cur.fetchall()[0][0]
-        return object_id
-
-
 
     # --------------------------------------------------------
     # --- Funcs to delete data
     # --------------------------------------------------------
 
-    def delete_JDHP_by_object_id(self, object_id):
+    def delete_JDHP_by_object_coeff_id(self, object_coeff_id):
         """
-            Delete all rows from "objects_by_jdhp" that match the supplied "primary_unpacked_provisional_designation"
+            Delete all rows from "objects_by_jdhp" that match the supplied "object_coeff_id"
         """
         cur = self.conn.cursor()
 
         # Construct & execute the sql query
         # - This is matching/joining on object-id# and then deleting only from objects_by_jdhp
         #   (and leaving the entry in object_desig)
-        cur.execute( " DELETE FROM objects_by_jdhp WHERE object_id=?;", (int(object_id),) )
+        cur.execute( " DELETE FROM objects_by_jdhp WHERE object_coeff_id=?;", (int(object_coeff_id),) )
         self.conn.commit()
 
 
@@ -361,8 +381,8 @@ class SQLChecker(DB):
     # --------------------------------------------------------
 
     def query_object_coefficients(self,
-                                  object_id,
-                                  sector_numbers = None):
+                                    primary_unpacked_provisional_designation,
+                                    sector_numbers = None):
         """
            Define standard query used to get cheby-coeff data for a named object
            Can optionally select only a subset of sectors
@@ -390,11 +410,11 @@ class SQLChecker(DB):
             sector_field_names = self.generate_sector_field_names( sector_dict = {
                                                                 sector_num: sector_JD for \
                                                                 sector_num, sector_JD in zip(sector_numbers ,
-                                                                                          orbit_cheby.Base().map_sector_number_to_sector_start_JD(np.atleast_1d(sector_numbers) ,\
-                                                                                                                                                  orbit_cheby.Base().standard_MJDmin))})
+                                                                                            Base().map_sector_number_to_sector_start_JD(np.atleast_1d(sector_numbers) ,\
+                                                                                            Base().standard_MJDmin))})
         # Construct & execute the sql query
-        sqlstr = "SELECT " + ", ".join( sector_field_names ) + " FROM object_coefficients WHERE object_id=?"
-        cur.execute(sqlstr , ( object_id, ))
+        sqlstr = "SELECT " + ", ".join( sector_field_names ) + " FROM object_coefficients WHERE primary_unpacked_provisional_designation=?"
+        cur.execute(sqlstr , ( primary_unpacked_provisional_designation, ))
 
         # Parse the result ...
         result = cur.fetchall()[0]
@@ -402,26 +422,13 @@ class SQLChecker(DB):
 
 
 
-    def query_number_by_desig(self, primary_unpacked_provisional_designation):
-        """
-            Given a desig, return a number
-            
-            May be of little use in practice, but helpful for development
-        """
-        # Get the object_id & return it
-        cur = self.conn.cursor()
-        cur.execute('''SELECT object_id FROM object_desig WHERE primary_unpacked_provisional_designation=?;''', (primary_unpacked_provisional_designation,) )
-        object_id = cur.fetchall()[0][0]
-        return object_id
 
-    def query_desig_by_number(self, object_ids):
+    def query_desig_by_object_coeff_id(self, object_coeff_ids):
         """
         Given a list of object_ids, return the associated primary_unpacked_provisional_designations
 
         inputs:
         -------
-        conn: Connection object
-
         object_ids: list of integer object_ids
 
         return:
@@ -432,8 +439,9 @@ class SQLChecker(DB):
         """
         # Get the object_id & return it
         cur = self.conn.cursor()
-        cur.execute(f'''SELECT object_ID,primary_unpacked_provisional_designation FROM object_desig WHERE object_ID in ({','.join(['?']*len(object_ids))});''', (*(int(_) for _ in object_ids),) )
-        # key is object _id, value is desig
+        cur.execute(f'''SELECT object_coeff_id, primary_unpacked_provisional_designation FROM object_coefficients WHERE object_coeff_id in ({','.join(['?']*len(object_coeff_ids))});''', (*(int(_) for _ in object_coeff_ids),) )
+        
+        # key is object_coeff_id, value is desig
         return {_[0]:_[1] for _ in cur.fetchall()}
 
 
@@ -453,12 +461,12 @@ class SQLChecker(DB):
             sector_field_names = self.generate_sector_field_names( sector_dict = {
                                                              sector_num: sector_JD for \
                                                              sector_num, sector_JD in zip(sector_numbers ,
-                                                                                          orbit_cheby.Base().map_sector_number_to_sector_start_JD(np.atleast_1d(sector_numbers) ,\
-                                                                                                                                                  orbit_cheby.Base().standard_MJDmin))})
+                                                                                          Base().map_sector_number_to_sector_start_JD(np.atleast_1d(sector_numbers) ,\
+                                                                                                                                                  Base().standard_MJDmin))})
         # Construct & execute the sql query
-        sqlstr =    "SELECT object_coefficients.object_id," + \
+        sqlstr =    "SELECT object_coefficients.object_coeff_id," + \
                     ", ".join( sector_field_names ) + \
-                    f" FROM object_coefficients INNER JOIN objects_by_jdhp ON objects_by_jdhp.object_id = object_coefficients.object_id WHERE objects_by_jdhp.jd=? and objects_by_jdhp.hp in ({','.join(['?']*len(HPlist))})"
+                    f" FROM object_coefficients INNER JOIN objects_by_jdhp ON objects_by_jdhp.object_coeff_id = object_coefficients.object_coeff_id WHERE objects_by_jdhp.jd=? and objects_by_jdhp.hp in ({','.join(['?']*len(HPlist))})"
         cur = self.conn.cursor()
         cur.execute(sqlstr , (int(JD), *(int(_) for _ in HPlist), ))
 
@@ -468,19 +476,12 @@ class SQLChecker(DB):
 
 
 
-        # INNER JOIN
-        # DISTINCT
-        # WHERE
-        cur = self.conn.cursor()
-
-        # This will get the unique object-IDs
-        "SELECT DISTINCT object_id FROM objects_by_jdhp WHERE jd=? and hp in ?"
 
 
     def query_jd_hp(self, JD, HPlist):
         '''
             For a given (single) JD and list of Healpix,
-            the query returns the relevant object_ids
+            the query returns the relevant object_coeff_ids
             
             May be of little use in practice, but helpful for development
             
@@ -492,7 +493,7 @@ class SQLChecker(DB):
         # I hate this fucking query for many reasons ...
         # (i) Why the fuck do I need to force any input numpy-integers, to be integers ???
         #(ii) Why the fuck do I need to explicitly expand the number of "?" in the "in ()" statement ???
-        cur.execute(f"SELECT object_id FROM objects_by_jdhp WHERE jd=? and hp in ({','.join(['?']*len(HPlist))});", (int(JD), *(int(_) for _ in HPlist), ) )
+        cur.execute(f"SELECT object_coeff_id FROM objects_by_jdhp WHERE jd=? and hp in ({','.join(['?']*len(HPlist))});", (int(JD), *(int(_) for _ in HPlist), ) )
         #object_ids = [_[0] for _ in cur.fetchall()]
         return [_[0] for _ in cur.fetchall()]
 

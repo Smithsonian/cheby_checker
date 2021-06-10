@@ -23,7 +23,6 @@
     This does *NOT* do the underlying nbody integrations.
     This DOES fast interpolation using supplied chebyshev dictionaries
     
-    
     N.B. There is a strong assumption that coordinates are BARYCENTRIC EQUATORIAL
     - I.e. we are assuming that the nbody integration has supplied cartesian
     coordinates in a BARYCENTRIC EQUATORIAL frame.
