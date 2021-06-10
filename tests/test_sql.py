@@ -649,7 +649,12 @@ def test_query_coefficients_by_jd_hp():
     """
     The coefficients_by_jd_hp function is designed to report back the coefficients for
     any objects in the given JD & HPlist
-    
+            returns
+            -------
+            dictionary-of-dictionaries
+            - keys   = primary_unpacked_provisional_designation
+            - values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
+
     So we will need to pre-populate the tables with values that can give differing results
     depending on the search performed
     
@@ -682,8 +687,7 @@ def test_query_coefficients_by_jd_hp():
         C.insert_HP( JDlist, HPlist[i], object_coeff_id )  # <<-- E.g. HPlist[1] == [17,      18,      18,      19]
 
         # Save the inputs in a convenient dictionary to help with the query-verification below
-        save_dict[desig] = (object_coeff_id , { sfn:svr for sfn,svr in zip(sector_field_names, sector_values_raw) } )
-
+        save_dict[desig] = { sfn:svr for sfn,svr in zip(sector_field_names, sector_values_raw) }
 
 
 
@@ -697,23 +701,25 @@ def test_query_coefficients_by_jd_hp():
         # - In *expected_desigs* I define (by-hand) the expected desigs by day for the defined HPlist, and then use [n] for the JD-loop
         HPlist = [17]
         expected_desigs = [ [  '2020 AB','2020 XY','2021 PQ' ], ['2020 AB'], [], [] ][n]
-        expected_object_coeff_id    = {ed : save_dict[ed][0] for ed in expected_desigs }
-        expected_sector_values_raw  = {ed : save_dict[ed][1] for ed in expected_desigs }
         
         #query
-        # NB: key == object_coeff_id , value = dict of sector_names:sector_values
+        # NB:
+        #returns
+        #-------
+        #dictionary-of-dictionaries
+        #- keys   = primary_unpacked_provisional_designation
+        #- values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
         result_dict = C.query_coefficients_by_jd_hp(JD, HPlist , sector_numbers = [0,1])
         
         #check
         # (a) same number of returns
-        assert len(expected_object_coeff_id) == len(result_dict)
+        assert len(expected_desigs) == len(result_dict), f"expected_desigs={expected_desigs} , result_dict={result_dict}"
         # (b) same ids
-        assert np.all( [ id in result_dict for ed,id in expected_object_coeff_id.items()] )
+        assert np.all( [ ed in result_dict for ed in expected_desigs ])
         # (c) same coefficients [complicated due to the structure of the dictionaries passed around ...]
         for ed in expected_desigs:
-            expected_id       = expected_object_coeff_id[ed]
-            expected_svr_dict = expected_sector_values_raw[ed]
-            returned_svr_dict = result_dict[expected_id]
+            expected_svr_dict = save_dict[ed]
+            returned_svr_dict = result_dict[ed]
             for esfn,esvr in expected_svr_dict.items():
                 rsvr = returned_svr_dict[esfn]
                 assert np.all( esvr == rsvr )
@@ -725,24 +731,26 @@ def test_query_coefficients_by_jd_hp():
         # - In *expected_desigs* I define (by-hand) the expected desigs by day for the defined HPlist, and then use [n] for the JD-loop
         HPlist = [17, 18]
         expected_desigs = [ [ '2020 AB','2020 XY','2021 PQ' ], ['2020 AB','2020 XY','2021 PQ'], ['2020 AB','2020 XY'], ['2020 AB'] ][n]
-        expected_object_coeff_id    = {ed : save_dict[ed][0] for ed in expected_desigs }
-        expected_sector_values_raw  = {ed : save_dict[ed][1] for ed in expected_desigs }
         
         #query
-        # NB: key == object_coeff_id , value = dict of sector_names:sector_values
+        # NB:
+        #returns
+        #-------
+        #dictionary-of-dictionaries
+        #- keys   = primary_unpacked_provisional_designation
+        #- values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
         result_dict = C.query_coefficients_by_jd_hp(JD, HPlist , sector_numbers = [0,1])
 
 
         #check
         # (a) same number of returns
-        assert len(expected_object_coeff_id) == len(result_dict)
+        assert len(expected_desigs) == len(result_dict), f"expected_desigs={expected_desigs} , result_dict={result_dict}"
         # (b) same ids
-        assert np.all( [ id in result_dict for ed,id in expected_object_coeff_id.items()] )
+        assert np.all( [ ed in result_dict for ed in expected_desigs ])
         # (c) same coefficients [complicated due to the structure of the dictionaries passed around ...]
         for ed in expected_desigs:
-            expected_id       = expected_object_coeff_id[ed]
-            expected_svr_dict = expected_sector_values_raw[ed]
-            returned_svr_dict = result_dict[expected_id]
+            expected_svr_dict = save_dict[ed]
+            returned_svr_dict = result_dict[ed]
             for esfn,esvr in expected_svr_dict.items():
                 rsvr = returned_svr_dict[esfn]
                 assert np.all( esvr == rsvr )
@@ -751,28 +759,32 @@ def test_query_coefficients_by_jd_hp():
         # -------------------3--------------------
         # Searching for objects in a list of HPs (17 & 19)
         # - In *expected_desigs* I define (by-hand) the expected desigs by day for the defined HPlist, and then use [n] for the JD-loop
+        HPlist = [17, 19]
         expected_desigs = [ [ '2020 AB','2020 XY','2021 PQ' ], ['2020 AB'], ['2021 PQ'], ['2020 XY','2021 PQ' ] ][n]
-        expected_object_coeff_id    = {ed : save_dict[ed][0] for ed in expected_desigs }
-        expected_sector_values_raw  = {ed : save_dict[ed][1] for ed in expected_desigs }
         
         #query
-        # NB: key == object_coeff_id , value = dict of sector_names:sector_values
+        # NB:
+        #returns
+        #-------
+        #dictionary-of-dictionaries
+        #- keys   = primary_unpacked_provisional_designation
+        #- values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
         result_dict = C.query_coefficients_by_jd_hp(JD, HPlist , sector_numbers = [0,1])
 
 
         #check
         # (a) same number of returns
-        assert len(expected_object_coeff_id) == len(result_dict)
+        assert len(expected_desigs) == len(result_dict), f"n={n}, JD={JD}, HPlist={HPlist}, expected_desigs={expected_desigs} , result_dict={result_dict}"
         # (b) same ids
-        assert np.all( [ id in result_dict for ed,id in expected_object_coeff_id.items()] )
+        assert np.all( [ ed in result_dict for ed in expected_desigs ])
         # (c) same coefficients [complicated due to the structure of the dictionaries passed around ...]
         for ed in expected_desigs:
-            expected_id       = expected_object_coeff_id[ed]
-            expected_svr_dict = expected_sector_values_raw[ed]
-            returned_svr_dict = result_dict[expected_id]
+            expected_svr_dict = save_dict[ed]
+            returned_svr_dict = result_dict[ed]
             for esfn,esvr in expected_svr_dict.items():
                 rsvr = returned_svr_dict[esfn]
                 assert np.all( esvr == rsvr )
+
 
 
 

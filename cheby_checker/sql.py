@@ -451,6 +451,20 @@ class SQLChecker(DB):
             For a given (single) JD and list of Healpix,
             the query returns the relevant coefficients from the object_coefficients table
             
+            inputs
+            ------
+            JD: float or int
+             - julian date of the night. If <float> will be silently converted to <int>
+             
+            HPlist: list-of-integers
+             - healpix to be queried
+             - if integer (single healpix) supplied, is silently converted to list
+             
+            returns
+            -------
+            dictionary-of-dictionaries
+            - keys   = primary_unpacked_provisional_designation
+            - values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
         '''
         
         # What sector numbers are we searching for ?
@@ -464,15 +478,18 @@ class SQLChecker(DB):
                                                                                           Base().map_sector_number_to_sector_start_JD(np.atleast_1d(sector_numbers) ,\
                                                                                                                                                   Base().standard_MJDmin))})
         # Construct & execute the sql query
-        sqlstr =    "SELECT object_coefficients.object_coeff_id," + \
+        sqlstr =    "SELECT object_coefficients.primary_unpacked_provisional_designation," + \
                     ", ".join( sector_field_names ) + \
                     f" FROM object_coefficients INNER JOIN objects_by_jdhp ON objects_by_jdhp.object_coeff_id = object_coefficients.object_coeff_id WHERE objects_by_jdhp.jd=? and objects_by_jdhp.hp in ({','.join(['?']*len(HPlist))})"
         cur = self.conn.cursor()
         cur.execute(sqlstr , (int(JD), *(int(_) for _ in HPlist), ))
 
         # Parse the result into a dict-of-dicts
+        # - Outer dict is key-ed on primary_unpacked_provisional_designation
+        # - Inner dicts are key-ed on sector
         results      = cur.fetchall()
-        return { r[0] : { sfn:pickle.loads( coeff )  for sfn, coeff in zip(sector_field_names, r[1:]) if coeff != None } for r in results}
+        return { r[0] : { sfn:pickle.loads( coeff )  for sfn, coeff in zip(sector_field_names, r[1:]) if coeff != None } \
+                for r in results}
 
 
 
