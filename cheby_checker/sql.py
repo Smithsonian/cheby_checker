@@ -222,9 +222,7 @@ class SQLChecker(DB):
             inputs:
             -------
             
-            object_id : integer
-             - The assumption is that this has been generated via the function, insert_desig()
-             - I could explicitly query for the object_id via the function, query_number_by_desig(), but it seems unnecessary
+            primary_unpacked_provisional_designation : string
 
             sector_names :
              - column names in *object_coefficients* table that are to be populated
@@ -266,51 +264,7 @@ class SQLChecker(DB):
 
 
 
-    def upsert_MSC(self, M):
-        """
-            insert/update multi_sector_cheby object
-            
-            *** MOVE THIS TO orbit_cheby MSC OBJECT ??? ***
-            
-            N.B. (1) ...
-            https://stackoverflow.com/questions/198692/can-i-pickle-a-python-dictionary-into-a-sqlite3-text-field
-            pdata = cPickle.dumps(data, cPickle.HIGHEST_PROTOCOL)
-            curr.execute("insert into table (data) values (:data)", sqlite3.Binary(pdata))
-
-            N.B. (2) ...
-            The insert statement wouldn't have to look so terrible if the table was constructed
-            differently/more-simply in create_object_coefficients_table
-
-            inputs:
-            -------
-            
-            M : MSC-object
-             - see orbit_cheby module for detailed specification
-             - here we need M to possess a dictionary-attribute named "sector_coeffs"
-             
-            object_id : integer
-             - The assumption is that this has been generated via the function, insert_desig()
-             - I could explicitly query for the object_id via the function, query_number_by_desig(), but it seems unnecessary
-            
-            return:
-            -------
-            
-
-
-        """
-                
-        # (i) Get the sector field names required for this specific MSC
-        # - Current method seems unnecessarily verbose
-        sector_field_names =   self.generate_sector_field_names( sector_dict = \
-                                                         { sector_num: Base().map_sector_number_to_sector_start_JD(sector_num , Base().standard_MJDmin) for sector_num in M.sector_coeffs.keys()}
-                                                         )
-        
-        # (ii) Get the coefficients for each sector
-        sector_field_values = [pickle.dumps(coeffs, pickle.HIGHEST_PROTOCOL) for coeffs in M.sector_coeffs.values()]
-        
-        # (iii) Do the insert
-        self.upsert_coefficients(M.primary_unpacked_provisional_designation , sector_field_names, sector_field_values)
-        
+   
 
     def insert_HP(self, JDlist, HPlist, object_id ):
         """
@@ -327,8 +281,6 @@ class SQLChecker(DB):
             HPlist :
             
             object_id : integer
-                - The assumption is that this has been generated via the function, insert_desig()
-                - I could explicitly query for the object_id via the function, query_number_by_desig(), but it seems unnecessary
 
         """
         cur = self.conn.cursor()
@@ -355,6 +307,7 @@ class SQLChecker(DB):
         
         # (d) remember to commit ...
         self.conn.commit()
+
 
 
 
@@ -389,10 +342,10 @@ class SQLChecker(DB):
            
            inputs:
            -------
-           object_id: integer
-            - The assumption is that this has been generated via the function, insert_desig()
-           sector_number: integer
-            -
+            primary_unpacked_provisional_designation: string
+        
+            sector_numbers: integer
+        
            
            return:
            -------

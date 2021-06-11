@@ -3,7 +3,7 @@
 
 '''
     --------------------------------------------------------------
-    sifter's / mpchecker's orbit_cheby module.
+    cheby_checker's orbit_cheby module.
     
     Jan 2020
     Matt Payne & Margaret Pan & Mike Alexandersen
@@ -61,182 +61,6 @@ except ImportError:
     from . import mpc_nbody
 
 
-# Define top-line parameters
-# --------------------------------------------------------------
-
-class Base():
-    '''
-        Parent class to hold fundamental definitions / settings used across ...
-        ... various ChebyChecker components.
-        
-        [[ much of this originally in precalc.py ]]
-        
-    '''
-        
-    # --- Notes on the expected mapping of coord-components to position ...
-    # --- ... required in order to allow functions ** and ** to work properly ...
-    # --- These are fundamental to the proper operation of much of MSC.
-    # ------------------------------------------
-    '''
-        >>> coord_names     = ['x','y','z','vx','vy','vz']
-        0   1   2   3    4    5
-        >>> covar_names     = [ "_".join([coord_names[i], coord_names[j]]) for i in range(len(coord_names)) for j in range(i,len(coord_names))  ]
-        >>> covar_names
-        ['x_x', 'x_y', 'x_z', 'x_vx', 'x_vy', 'x_vz', 'y_y', 'y_z', 'y_vx', 'y_vy', 'y_vz', 'z_z', 'z_vx', 'z_vy', 'z_vz', 'vx_vx', 'vx_vy', 'vx_vz', 'vy_vy', 'vy_vz', 'vz_vz']
-        6      7      8      9      10      11      12     13     14      15      16      17     18      19      20      21       22       23       24       25       26
-        *      *      *                             *      *                              *
-    '''
-
-    
-    # --- Params / Constants ... ---------------
-    # ------------------------------------------
-    secsPerDay = 86400
-    epsilon    = 1e-6
-    
-    # --- Healpix settings ---------------------
-    # ------------------------------------------
-    HP_nside    = 16
-    HP_order    ='nested'
-    HPix        = hp(nside=HP_nside, order=HP_order)
-    HP_npix     = HPix.npix
-    '''
-    self.HP_nside=16
-    self.HP_order='nested'
-    self.hp = HEALPix(nside=self.HP_nside, order=self.HP_order)
-    self.npix = self.hp.npix
-    '''
-    
-    # --- Date settings ------------------------
-    # ------------------------------------------
-    
-    # We will assume that all sectors are of length 32-days
-    sector_length_days = 32
-    
-    # We will assume a sector is "covered" if there is data ...
-    # covering (at least)
-    #        +sector_gap < t < sector_length_days-sector_gap days
-    # out of the
-    #        0 < t < sector_length_days [==32]
-    # total length of the sector.
-    #  - I have no good justification for this number at present:
-    #  - It should be viewed as a free parameter whose value should be experimentally determined.
-    sector_gap = 4.0
-
-    # We will assume that the earliest standard epoch to be used will be JD:2440000
-    # - This will set the enumeration of the sectors
-    standard_MJDmin = 2440000 # 1968
-    standard_MJDmax = 2460000 # 2034
-
-    # Default list of Julian Dates to use (2440000 ==> 1968, 2460000.0 ==> 2023)
-    # - Could/Should change this so that the end date is checked to be X-days in the future, or something similar
-    JDlist = np.arange(standard_MJDmin, standard_MJDmax, 1)
-    
-    
-    # --- Data / File / DB settings ------------
-    # ------------------------------------------
-    # sqlite database specs ...
-    db_dir         = '.cheby_checker_data'
-    db_filename    = 'cheby_checker.db'
-    
-
-    # Data Function(s) ...
-    # --------------------------------------------------------------
-
-    def _fetch_data_directory(self):
-        '''
-            Returns the default path to the directory where data will be downloaded.
-            
-            By default, this method will return ~/.mpchecker2/data
-            and create this directory if it does not exist.
-            
-            If the directory cannot be accessed or created, then it returns the local directory (".")
-            
-            Returns
-            -------
-            data_dir : str
-            Path to location of `data_dir` where data (FITs files) will be downloaded
-            '''
-        
-        data_dir = os.path.join(os.path.expanduser('~'), self.db_dir)
-        print(" *** WARNING TO MPC STAFF *** \n THIS DEVELOPMENTAL CODE IS SAVING TO THE USERS-DIRECTORY \n THIS SHOULD BE CHANGED TO A SINGLE LOCN ON MARSDEN \n *** END OF WARNING ***" )
-        
-        
-        # If it doesn't exist, make a new data directory
-        if not os.path.isdir(data_dir):
-            
-            try:
-                os.mkdir(data_dir)
-            
-            # downloads locally if OS error occurs
-            except OSError:
-                warnings.warn('Warning: unable to create {}. '
-                              'Download directory set to be the current working directory instead.'.format(data_dir))
-                data_dir = '.'
-    
-        return data_dir
-
-
-    # Date Functions ...
-    # --------------------------------------------------------------
-    @staticmethod
-    def map_JD_to_sector_number( JD_TDB , JD0):
-        return ( np.asarray( JD_TDB ) - JD0).astype(int) // Base.sector_length_days
-    
-    @staticmethod
-    def map_sector_number_to_sector_start_JD( sector_number, JD0):
-        return JD0 + sector_number * Base.sector_length_days
-
-    @staticmethod
-    def map_JD_to_sector_number_and_sector_start_JD(JD_TDB, JD0):
-        '''
-            For a given JD_TDB, calculate the sector number it will be in
-            Assumes a standard starting julian date
-            
-            inputs:
-            -------
-            
-            return:
-            -------
-        '''
-        sector_number   = Base.map_JD_to_sector_number(JD_TDB , JD0)
-        return sector_number , Base.map_sector_number_to_sector_start_JD( sector_number, JD0)
-
-    def map_JDtimes_to_relative_times(self, times_TDB):
-        '''
-            For a given JD, map the JD to the sector # and 
-            the (relative) time within the sector (starting from 0 for each sector)
-        '''
-        sector_numbers, sector_JD0s = self.map_JD_to_sector_number_and_sector_start_JD( times_TDB, self.standard_MJDmin )
-        sector_relative_times = times_TDB - sector_JD0s
-        return sector_numbers , sector_relative_times
-    
-    @classmethod
-    def get_required_sector_dict(cls):
-        '''
-            Understand the basic sector-size used in constructing cheby-coefficients
-            - Use that to define a complete list of sectors spanning the JDs in JDlist
-            Will look like {0: 2440000, 1: 2440032, ...}
-            - N.B. The dictionary automatically handles making a "set" of the keys
-        '''
-        return {a:b for a,b in zip(*cls.map_JD_to_sector_number_and_sector_start_JD( cls.JDlist , cls.standard_MJDmin ))}
-
-
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
 
 
 class MSC_Loader(Base):
@@ -268,8 +92,7 @@ class MSC_Loader(Base):
         self.NbodySim       = None                                  # : Ingest method (From cheby_checker.mpc_nbody.NbodySim)
 
         self.FROM_DB        = None                                  # : Ingest method (From sqlite db)
-        self.primary_unpacked_provisional_designations   = None     # : Ingest method (From sqlite db)
-        self.sectors        = None                                  # : Ingest method (From sqlite db)
+        self.dict_of_dicts  = None                                  # : Ingest method (From sqlite db)
         
         # The list of MSCs that will be instantiated & returned
         self.MSCs           = []
@@ -283,8 +106,8 @@ class MSC_Loader(Base):
         # Allow initialization from different sources ...
         #
         # (i) From database (of pre-calculated chebyshevs)
-        if self.FROM_DB is not None and self.FROM_DB and self.primary_unpacked_provisional_designations:
-            self._populate_from_database( self.primary_unpacked_provisional_designations , sectors = self.sectors )
+        if self.FROM_DB and self.dict_of_dicts:
+            self._populate_from_database( self.dict_of_dicts )
 
         # (ii) From cheby_checker.mpc_nbody.NbodySim
         elif self.NbodySim is not None :
@@ -402,7 +225,7 @@ class MSC_Loader(Base):
 
 
 
-        # Loop over each of the objects and create a MSC-object for each ...
+        # Loop over each of the objects and create an MSC-object for each ...
         for i, unpacked in enumerate(self.primary_unpacked_provisional_designations):
             
             # Get the slice of states corresponding to the particular named object
@@ -418,13 +241,16 @@ class MSC_Loader(Base):
 
 
 
-    def _populate_from_database(self, primary_unpacked_provisional_designations , sectors = None ):
+    def _populate_from_database(self, dict_of_dicts ):
         '''
-            Will need method to construct MSC from 1-or-many sectors stored in the sqlite db as coeffs
+            Method to construct MSCs from 1-or-many sectors stored in the sqlite db as coeffs
 
             inputs:
             -------
-            
+            dict_of_dicts : dictionary-of-dictionaries
+             - As returned by query_coefficients_by_jd_hp
+             - Outer dict is key-ed on primary_unpacked_provisional_designation
+             - Inner dicts are key-ed on sector
 
             returns:
             --------
