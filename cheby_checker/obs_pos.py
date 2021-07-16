@@ -20,15 +20,10 @@ import getpass
 import numpy as np
 from astropy import units as u
 
-# Import neighboring packages
+# Import local modules
 # --------------------------------------------------------------
-# Different machines set up differently ...
-# ... adding paths to force stuff to work while developing
-if getpass.getuser() in ['matthewjohnpayne']:
-    sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/')
-else:
-    pass
-from mpcpp import MPC_library as mpc
+import MPC_library as mpc
+
 
 
 class ObsPos():

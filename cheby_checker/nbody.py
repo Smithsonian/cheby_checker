@@ -37,11 +37,11 @@ try:  # Import ephem_forces from whereever REBX_DIR is set to live
 except (KeyError, ModuleNotFoundError):
     from reboundx.examples.ephem_forces.ephem_forces import production_integration_function_wrapper
 
+import MPC_library as mpc
+
 # Payne's dev laptop set up differently ...:
 if getpass.getuser() in ['matthewjohnpayne']:
-    sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/')
     sys.path.append('/Users/matthewjohnpayne/Envs/mpc_orb/mpc_orb/')
-import mpcpp.MPC_library as mpc
 from parse import MPCORB
 
 
@@ -66,6 +66,12 @@ time_fieldname  = 'MJD_TDB' # To be clarified if this is correct
 coord_names     = ['x','y','z','vx','vy','vz']
 
 # This generates a 'triangular' list of 21-combinations of coord-names
+# ['x_x', 'x_y', 'x_z', 'x_vx', 'x_vy', 'x_vz',
+#         'y_y', 'y_z', 'y_vx', 'y_vy', 'y_vz',
+#                'z_z', 'z_vx', 'z_vy', 'z_vz',
+#                      'vx_vx', 'vx_vy', 'vx_vz',
+#                               'vy_vy', 'vy_vz',
+#                                        'vz_vz']
 covar_names     = [ "_".join([coord_names[i], coord_names[j]]) for i in range(len(coord_names)) for j in range(i,len(coord_names))  ]
 
 # Number of fields
@@ -84,7 +90,7 @@ nFields     = nComponents + 1
 
 class ParseElements():
     '''
-    Class for parsing elements and returning them in the format required by
+    Class for parsing input elements and returning them in the format required by
     NbodySim in mpc_nbody
     
     Can be instantiated empty
@@ -174,7 +180,8 @@ class ParseElements():
         '''
 
         # Make a list
-        if isinstance(input, str): input = [input]
+        if isinstance(input, str):
+            input = [input]
         
         # Check we have a list
         assert isinstance(input, list)
@@ -406,29 +413,6 @@ class ParseElements():
         return True
         
         
-    def _get_and_set_junk_data(self, BaryEqDirect=False ):
-        """Just make some junk data for saving."""
-        self.time                           = Time(2458849.5, format='jd', scale='tdb')
-        v   = np.array( [[3., 2., 1., 0.3, 0.2, 0.1]] )
-        CoV = 0.01 * np.ones((1,6,6))
-        
-        # Default is to make helio-ecl, then calc bary-eq from that
-        if not BaryEqDirect:
-            self.helio_ecl_vec              = v
-            self.helio_ecl_vec_EXISTS       = True
-            
-            self.helio_ecl_cov              = CoV
-            self.helio_ecl_cov_EXISTS       = True
-        
-            self.make_bary_equatorial()
-            
-        # Alternative is to directly set bary-eq
-        else:
-            self.bary_eq_vec                = v
-            self.bary_eq_vec_EXISTS         = True
-            
-            self.bary_eq_cov                = CoV
-            self.bary_eq_cov_EXISTS         = True
 
 
 
@@ -498,7 +482,6 @@ def equatorial_helio2bary(input_xyz, jd_tdb, backwards=False):
     input_xyz MUST BE EQUATORIAL!!!
     '''
     direction = -1 if backwards else +1
-    #print(f" input_xyz={input_xyz}\n input_xyz.shape={input_xyz.shape}\n input_xyz.ndim={input_xyz.ndim}")
     
     # Ensure we have an array of the correct shape to work with
     assert input_xyz.ndim == 2, f" input_xyz={input_xyz}\n input_xyz.shape={input_xyz.shape}\n input_xyz.ndim={input_xyz.ndim}"
@@ -911,7 +894,7 @@ def parse_nbody_txt( text_filepath ):
 
 
 
-# Functions to create json : *FAKE DATA*
+# Functions to create *FAKE DATA*
 # --------------------------------------------------------------
 
 

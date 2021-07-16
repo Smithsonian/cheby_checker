@@ -29,6 +29,7 @@ from astropy_healpix import HEALPix
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
+import MPC_library as mpc
 
 # Different machines set up differently ...
 # ... adding paths to force stuff to work while developing
@@ -40,7 +41,6 @@ else:
     pass
 
 from mpcpp.obs80.obs80 import parse80
-from mpcpp import MPC_library as mpc
 
 
 # Import neighboring packages
