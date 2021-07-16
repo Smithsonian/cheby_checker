@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# sifter/sifter/query
+# cheby_checker/cheby_checker/orbit_cheby.py
 
 '''
     --------------------------------------------------------------
@@ -49,16 +49,16 @@ from astropy_healpix import healpy
 from functools import lru_cache
 import json
 import itertools
-#import numdifftools as nd
+
 
 # Import neighboring packages
 # --------------------------------------------------------------
 try:
     import nbody_reader
-    import mpc_nbody
+    import nbody
 except ImportError:
     from . import nbody_reader
-    from . import mpc_nbody
+    from . import nbody
 
 
 
@@ -89,7 +89,7 @@ class MSC_Loader(Base):
         self.times_TDB      = None                                  # : Ingest method (From np.array)
         self.statearray     = None                                  # : Ingest method (From np.array)
         
-        self.NbodySim       = None                                  # : Ingest method (From cheby_checker.mpc_nbody.NbodySim)
+        self.NbodySim       = None                                  # : Ingest method (From nbody.NbodySim)
 
         self.FROM_DB        = None                                  # : Ingest method (From sqlite db)
         self.dict_of_dicts  = None                                  # : Ingest method (From sqlite db)
@@ -109,7 +109,7 @@ class MSC_Loader(Base):
         if self.FROM_DB and self.dict_of_dicts:
             self._populate_from_database( self.dict_of_dicts )
 
-        # (ii) From cheby_checker.mpc_nbody.NbodySim
+        # (ii) From nbody.NbodySim
         elif self.NbodySim is not None :
             if "primary_unpacked_provisional_designations" not in self.NbodySim.__dict__:
                 self.NbodySim.primary_unpacked_provisional_designations = [ str(_) for _ in range(self.NbodySim.output_n_particles)]
@@ -694,7 +694,7 @@ class MSC(Base):
         cov_XYZ = self.covXYZ( times_tdb  )
         
         # Is there a way to make this more efficient?
-        # - Similar to the mpc_nbody code ...
+        # - Similar to the nbody code ...
         # - CoV_t = np.linalg.inv( GammaStack_t )
         return np.array( [ np.linalg.multi_dot([dRD[i].T , cov_XYZ[i], dRD[i]]) for i in range(len(dRD)) ] )
 
