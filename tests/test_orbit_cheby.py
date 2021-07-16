@@ -32,7 +32,8 @@ from cheby_checker import mpc_nbody
 # Constants & Test Data
 # -----------------------------------------------------------------------------
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dev_data')
-FLAT_FILES = [os.path.join(DATA_DIR, '2022AA_demo.txt') , os.path.join(DATA_DIR, 'simulation_states.dat')]
+FLAT_FILES = [  os.path.join(DATA_DIR, '2022AA_demo.txt') ,
+                os.path.join(DATA_DIR, 'simulation_states.dat')]
 orbfit_filenames = [os.path.join(DATA_DIR, file) for file in ['30101.eq0_horizons', '30102.eq0_horizons']]
 
 
