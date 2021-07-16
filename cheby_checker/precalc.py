@@ -39,12 +39,12 @@ try:
     from orbit_cheby import orbit_cheby
     from orbit_cheby import sql
     from orbit_cheby import obs_pos
-    from orbit_cheby import mpc_nbody
+    from orbit_cheby import nbody
 except ImportError:
     from . import orbit_cheby
     from . import sql
     from . import obs_pos
-    from . import mpc_nbody
+    from . import nbody
 
 assert orbit_cheby.Base(), \
     'Seeing this text at evaluation indicates FAILURE to import orbit_cheby (as Base() should be available)'
@@ -87,16 +87,17 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
     def end_to_end_precalc(self,filenames, observatoryXYZ=None):
         '''
         A high level function to handle ...
-        (i) calling mpc_nbody on 1-or-many ORBFIT files
+        (i) calling nbody on 1-or-many ORBFIT files
         (ii) calling MSCLoader on the results of (i)
         (iii) calling PreCalc.upsert() on the results of (ii)
         '''
         # Initiate NbodySim class with input files:
-        Sim = mpc_nbody.NbodySim(   input       = filenames,
+        Sim = nbody.NbodySim(   input       = filenames,
                                     filetype    = 'eq',
                                     save_parsed =   False,
                                     CHECK_EPOCHS=   True)
                                     )
+                                    
         # Run the integrator, by calling the object.
         # *** No justification for choice of 20 days, but not sure it matters (integrator using variable timesteps...)***
         Sim(tstart=self.standard_MJDmin , tstep=20, trange=standard_MJDmax)
@@ -125,6 +126,7 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
             Inputs:
             -------
             MSCs : List of Multi-Sector-Cheby class objects
+             - MSC class is defined in orbit_cheby.py
             
             observatoryXYZ : np.array (optional)
              - Position of the observatory from which you want to calculate nightly healpix (in Heliocentric Equatorial coords)
@@ -297,7 +299,8 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
              
             returns
             -------
-            # *** THIS IS THE DESIRED SIGNATURE (2021-06-10) : MSC_Loader NEEDS TO BE REWRITTEN TO ALLOW THIS ***
+            # *** THIS IS THE DESIRED SIGNATURE (2021-06-10) :   ***
+            # *** MSC_Loader NEEDS TO BE REWRITTEN TO ALLOW THIS ***
             MSCs : List of Multi-Sector-Cheby class objects
         '''
 
@@ -307,7 +310,8 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
         dict_of_dicts = query_coefficients_by_jd_hp(conn, JD, HPlist , sector_numbers = None)
         
         # Swap the object_ids for the designations
-        # *** THIS IS THE DESIRED SIGNATURE (2021-06-10) : MSC_Loader NEEDS TO BE REWRITTEN TO ALLOW THIS ***
+        # *** THIS IS THE DESIRED SIGNATURE (2021-06-10) :   ***
+        # *** MSC_Loader NEEDS TO BE REWRITTEN TO ALLOW THIS ***
         return orbit_cheby.MSC_Loader(  FROM_DATABASE = True ,
                                         dict_of_dicts = dict_of_dicts ).MSCs
     
