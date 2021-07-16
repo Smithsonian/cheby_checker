@@ -28,13 +28,15 @@ from novas.compat import solsys
 # This opens DE405 by default.  #Only loads up to DE421; stop using novas!
 jd_start, jd_end, number = eph_manager.ephem_open()
 
-# This sets up DATA_PATH as the directory MPC_library.py lives in.
+# This sets up DEV_DATA_PATH as the dev_data directory that the 430 ephemlives in.
 import os
-DATA_PATH, _ = os.path.split(__file__)
+PARENT_PATH   = os.path.split(os.path.split(__file__)[0])[0]
+DEV_DATA_PATH = os.path.join( PARENT_PATH, "dev_data")
 
 # This loads the jplephem package and loads an ephemeris:
 from jplephem.spk import SPK
-jpl_kernel = SPK.open(os.path.join(DATA_PATH, "de430.bsp"))
+jpl_kernel = SPK.open(os.path.join(DEV_DATA_PATH, "de430.bsp"))
+
 
 class Observatory:
 
