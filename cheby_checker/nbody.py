@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# mpc_nbody/mpc_nbody/mpc_nbody.py
+# /cheby_checker/cheby_checker/nbody.py
 
 '''
 ----------------------------------------------------------------------------
-mpc_nbody is a wrapper around a REBOUNDX integrator:
+nbody is a wrapper around a REBOUNDX integrator:
 reboundx/examples/ephem_forces
 
 Nov 2020
@@ -91,7 +91,8 @@ nFields     = nComponents + 1
 class ParseElements():
     '''
     Class for parsing input elements and returning them in the format required by
-    NbodySim in mpc_nbody
+    NbodySim class
+    (see below for definition of NBodySim class)
     
     Can be instantiated empty
     
