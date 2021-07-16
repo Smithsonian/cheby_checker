@@ -31,11 +31,12 @@ jd_start, jd_end, number = eph_manager.ephem_open()
 # This sets up DEV_DATA_PATH as the dev_data directory that the 430 ephemlives in.
 import os
 PARENT_PATH   = os.path.split(os.path.split(__file__)[0])[0]
-DEV_DATA_PATH = os.path.join( PARENT_PATH, "dev_data")
+DATA_PATH = os.path.join( PARENT_PATH, "dev_data")
 
 # This loads the jplephem package and loads an ephemeris:
 from jplephem.spk import SPK
-jpl_kernel = SPK.open(os.path.join(DEV_DATA_PATH, "de430.bsp"))
+print("kernal file to be opened in cheby version of MPC_library = ", os.path.join(DATA_PATH, "de430.bsp"))
+jpl_kernel = SPK.open(os.path.join(DATA_PATH, "de430.bsp"))
 
 
 class Observatory:
