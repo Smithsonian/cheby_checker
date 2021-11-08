@@ -20,10 +20,6 @@ RUN apt-get -y update && apt-get install -y 	gcc  		\
 						vim		\
 						sudo		
 
-# --- PYTHON INSTALLS -----------
-# Anaconda installing 
-RUN python3.6 -m pip install numpy 
-RUN python3.8 -m pip install numpy pytest astropy astropy_healpix astroquery scipy novas novas_de405 jplephem 	
  
 # --- REBOUND INSTALLS ----------
 RUN git clone https://github.com/hannorein/rebound.git
@@ -40,13 +36,23 @@ RUN make
 ENV REBX_DIR=/reboundx
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/reboundx/src
 
-RUN wget ftp://ssd.jpl.nasa.gov/pub/eph/small_bodies/asteroids_de441/sb441-n16.bsp
+# Get the ephemeris file in to the container (goes into the ephem_forces sub-dir of reboundx). 
+#RUN wget ftp://ssd.jpl.nasa.gov/pub/eph/small_bodies/asteroids_de441/sb441-n16.bsp
+COPY sb441-n16.bsp /reboundx/examples/ephem_forces/sb441-n16.bsp
+
+
 
 
 # --- CHEBY_CHECKER INSTALLS ----
-WORKDIR /
-RUN git clone https://github.com/matthewjohnpayne/cheby_checker.git
+# While in development, will bind a local version (see build_container.py)
+#WORKDIR /
+#RUN git clone https://github.com/matthewjohnpayne/cheby_checker.git
 
+
+
+# --- PYTHON INSTALLS -----------
+# Anaconda installing 
+RUN python3.6 -m pip install numpy pytest astropy astropy_healpix astroquery scipy novas novas_de405 jplephem
 
 
 # --- Run deployment code on entry :
