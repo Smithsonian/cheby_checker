@@ -53,6 +53,11 @@ from cheby_checker import Base
 # -------------------------------------------------------------
 
 class DB():
+    '''
+    Class to handle basic database connections & locations
+    
+    Currently uses sqlite3 db
+    '''
 
     def __init__(self,):
         self.db_file = self.fetch_db_filepath()
@@ -109,6 +114,15 @@ class DB():
 
 
 class SQLChecker(DB):
+    '''
+    Class to handle all database interactions required by cheby_checker
+
+    This includes table creation, data inserts/upserts/removals, and
+    data queries
+
+    Currently uses sqlite3 db
+
+    '''
 
     def __init__(self,):
         super().__init__()
@@ -379,6 +393,8 @@ class SQLChecker(DB):
     def query_desig_by_object_coeff_id(self, object_coeff_ids):
         """
         Given a list of object_ids, return the associated primary_unpacked_provisional_designations
+        
+        *** THIS FUNCTION SEEMS TO BE OF LITTLE USE ***
 
         inputs:
         -------
@@ -472,7 +488,18 @@ class SQLChecker(DB):
 
 
 class SQLSifter(DB):
-    
+    '''
+    Class to handle all database interactions required by sifter
+
+    This includes table creation, data inserts/upserts/removals, and
+    data queries
+
+    Currently uses sqlite3 db
+
+    *** PROBABLY HAS NOT BEEN PROPERLY TESTED WITHIN test_sql.py AS YET (Nov 2021) ***
+
+    '''
+
     def __init__(self,):
         super().__init__()
 

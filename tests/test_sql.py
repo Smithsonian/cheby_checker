@@ -45,10 +45,14 @@ filenames = [os.path.join(DATA_DIR, file)
 # Tests ...
 # --------------------------------------------------------------
 
-# Using decorators to do the db cleaning ...
-# - This deletes any extant db before the test
-# - And deletes any extand db after the test
+
 def db_handler(func):
+    '''
+    Using decorators to do the db cleaning ...
+     - This deletes any extant db before the test
+     - And deletes any extant db after the test
+    '''
+    
     def inner_function(*args, **kwargs):
     
         # Delete db if any exists for any reason
@@ -78,6 +82,9 @@ def db_handler(func):
 def test_DB():
     '''
     Test the basic operation of the "DB" class object.
+    
+    The sql.DB class handles basic database connections & locations
+     - Currently uses sqlite3 db
     
     N.B. (1)
     Instantiation invoves the following two functions,
@@ -131,7 +138,10 @@ def test_DB():
 @db_handler
 def test_SQLChecker():
     """
-    Test the basic operation of the "SQLChecker" class object.
+    Test the basic operation of the "SQLChecker" class object:
+     - SQLChecker handles all database interactions required by cheby_checker
+    
+    In this first test of SQLChecker, we just test instantiation.
     
     N.B. (1)
     Instantiating "SQLChecker" is the same as instantiating "DB"
@@ -199,7 +209,7 @@ def test_SQLChecker_generate_sector_field_names():
     C = sql.SQLChecker()
     cur = C.conn.cursor()
     
-    # Create all checker tables (creates three tables)
+    # Create all checker tables (creates two tables)
     C.create_all_checker_tables()
     
     # Call the function
@@ -227,7 +237,7 @@ def test_SQLChecker_TableCreation():
     C = sql.SQLChecker()
     cur = C.conn.cursor()
     
-    # Create all checker tables (creates three tables)
+    # Create all checker tables (creates *TWO* tables)
     C.create_all_checker_tables()
 
     # Double-check that this worked by getting the count of tables with the name
@@ -611,6 +621,12 @@ def test_query_object_coefficients():
 def test_query_desig_by_object_coeff_id():
     """
     Test the query_desig_by_object_coeff_id
+    NB(1): When *query_desig_by_object_coeff_id* is called with a list of object_ids,
+           it returns the associated primary_unpacked_provisional_designations
+        
+    NB(2): Not sure *query_desig_by_object_coeff_id* is ever used any more.
+           May be pointtless to keep it.
+    
     """
 
     # Instantiate & create all checker tables (creates two tables)
@@ -627,6 +643,7 @@ def test_query_desig_by_object_coeff_id():
         sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
     
         # Call convenience upsert function to get data into the system
+        # NB: *upsert_coefficients* returns the object_coeff_id of the inserted coefficients
         object_coeff_id = C.upsert_coefficients(desig , sector_field_names, sector_values)
         
         # Save object_coeff_id into dict, so that we use the lengthening dict as the basis for a query below
@@ -649,11 +666,12 @@ def test_query_coefficients_by_jd_hp():
     """
     The coefficients_by_jd_hp function is designed to report back the coefficients for
     any objects in the given JD & HPlist
-            returns
-            -------
-            dictionary-of-dictionaries
-            - keys   = primary_unpacked_provisional_designation
-            - values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
+    
+        returns
+        -------
+        dictionary-of-dictionaries
+        - keys   = primary_unpacked_provisional_designation
+        - values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
 
     So we will need to pre-populate the tables with values that can give differing results
     depending on the search performed
@@ -700,7 +718,11 @@ def test_query_coefficients_by_jd_hp():
         # Searching for objects in a single HP (17)
         # - In *expected_desigs* I define (by-hand) the expected desigs by day for the defined HPlist, and then use [n] for the JD-loop
         HPlist = [17]
-        expected_desigs = [ [  '2020 AB','2020 XY','2021 PQ' ], ['2020 AB'], [], [] ][n]
+        expected_desigs = [     [  '2020 AB','2020 XY','2021 PQ' ], # <<-- Expected for n = 0 [JD=2440000] & HP = 17
+                                ['2020 AB'],                        # <<-- Expected for n = 1 [JD=2440001] & HP = 17
+                                [],                                 # <<-- Expected for n = 2 [JD=2440002] & HP = 17
+                                []                                  # <<-- Expected for n = 3 [JD=2440003] & HP = 17
+                            ][n]
         
         #query
         # NB:
@@ -730,7 +752,12 @@ def test_query_coefficients_by_jd_hp():
         # Searching for objects in a list of HPs (17 & 18)
         # - In *expected_desigs* I define (by-hand) the expected desigs by day for the defined HPlist, and then use [n] for the JD-loop
         HPlist = [17, 18]
-        expected_desigs = [ [ '2020 AB','2020 XY','2021 PQ' ], ['2020 AB','2020 XY','2021 PQ'], ['2020 AB','2020 XY'], ['2020 AB'] ][n]
+        expected_desigs = [
+                    [ '2020 AB','2020 XY','2021 PQ' ],      # <<-- Expected for n = 0 [JD=2440000] & HP = [17, 18]
+                    ['2020 AB','2020 XY','2021 PQ'],        # <<-- Expected for n = 1 [JD=2440001] & HP = [17, 18]
+                    ['2020 AB','2020 XY'],                  # <<-- Expected for n = 2 [JD=2440002] & HP = [17, 18]
+                    ['2020 AB']                             # <<-- Expected for n = 3 [JD=2440003] & HP = [17, 18]
+                        ][n]
         
         #query
         # NB:
