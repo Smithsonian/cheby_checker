@@ -87,7 +87,6 @@ nFields     = nComponents + 1
 # Data classes/methods
 # -----------------------------------------------------------------------------
 
-
 class ParseElements():
     '''
     Class for parsing input elements and returning them in the format required by

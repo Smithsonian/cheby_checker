@@ -50,12 +50,12 @@ def test_Base():
         assert hasattr(b,variable)
 
     # Check has the expected function-attributes
-    functions = ['_fetch_data_directory' ,
-        'map_JD_to_sector_number',
-        'map_sector_number_to_sector_start_JD',
-        'map_JDtimes_to_relative_times',
-        'get_required_sector_dict'
-        ]
+    functions = [   '_fetch_data_directory' ,
+                    'map_JD_to_sector_number',
+                    'map_sector_number_to_sector_start_JD',
+                    'map_JDtimes_to_relative_times',
+                    'get_required_sector_dict'
+            ]
     for f in functions:
         assert hasattr(b,f)
 

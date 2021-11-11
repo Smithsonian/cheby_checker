@@ -6,7 +6,7 @@
     cheby checker.
     
     Jun 2021
-    Matt Payne
+    Matt Payne  
     
     This module provides access to some parameters / funcs / classes
     that don't sit well anywhere else, and are pretty general and / or
@@ -117,7 +117,7 @@ class Base():
         '''
             Returns the default path to the directory where data will be downloaded.
             
-            By default, this method will return ~/.mpchecker2/data
+            By default, this method will return ~/.cheby_checker_data/data
             and create this directory if it does not exist.
             
             If the directory cannot be accessed or created, then it returns the local directory (".")
@@ -129,7 +129,7 @@ class Base():
             '''
         
         data_dir = os.path.join(os.path.expanduser('~'), self.db_dir)
-        print(" *** WARNING TO MPC STAFF *** \n THIS DEVELOPMENTAL CODE IS SAVING TO THE USERS-DIRECTORY \n THIS SHOULD BE CHANGED TO A SINGLE LOCN ON MARSDEN \n *** END OF WARNING ***" )
+        print(" *** WARNING TO MPC STAFF *** \n THIS DEVELOPMENTAL CODE IS SAVING TO THE USERS-DIRECTORY \n THIS SHOULD BE CHANGED ON DEPLOYMENT \n *** END OF WARNING ***" )
         
         
         # If it doesn't exist, make a new data directory

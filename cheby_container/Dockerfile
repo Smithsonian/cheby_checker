@@ -47,7 +47,7 @@ COPY sb441-n16.bsp /reboundx/examples/ephem_forces/sb441-n16.bsp
 # While in development, will bind a local version (see build_container.py)
 #WORKDIR /
 #RUN git clone https://github.com/matthewjohnpayne/cheby_checker.git
-
+WORKDIR /cheby_checker/cheby_checker
 
 
 # --- PYTHON INSTALLS -----------
