@@ -564,7 +564,7 @@ def _parse_Covariance_List(Els):
 
 class NbodySim():
     '''
-    Class for containing all of the N-body related stuff.
+    Provides methods to call reboundx-ephemeris NBody integrator
     '''
 
     def __init__(   self,
