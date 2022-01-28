@@ -37,12 +37,21 @@ try:  # Import ephem_forces from whereever REBX_DIR is set to live
 except (KeyError, ModuleNotFoundError):
     from reboundx.examples.ephem_forces.ephem_forces import production_integration_function_wrapper
 
+# cheby_checker/                 # <<-- repo
+# cheby_checker/cheby_checker    # <<-- python
+# cheby_checker/tests            # <<-- tests
+this_dir = os.path.abspath(os.path.dirname( __file__ ))
+repo_dir = os.path.abspath(os.path.dirname( this_dir ))
+test_dir = os.path.join(repo_dir, 'tests')
+code_dir = os.path.join(repo_dir, 'cheby_checker')
+
+# old conversion library
 import MPC_library as mpc
 
-# Payne's dev laptop set up differently ...:
-if getpass.getuser() in ['matthewjohnpayne']:
-    sys.path.append('/Users/matthewjohnpayne/Envs/mpc_orb/mpc_orb/')
-from parse import MPCORB
+# Assume mpc_orb installed at the same "level" as cheby_checker :
+top_dir = os.path.abspath(os.path.dirname( this_dir ) )
+sys.path.append( os.path.join( top_dir , 'mpc_orb/mpc_orb') )
+import MPCORB
 
 
 
@@ -229,6 +238,7 @@ class ParseElements():
             for n,coeff in enumerate(vec):
                 suffix = '\n' if n in [2,5] else ''
                 outfile.write(f"{coeff: 18.15e} " + suffix)
+                
             
     def parse_orbfit_json(self, jsonfile_dictionary, CHECK_EPOCHS=True ):
         '''

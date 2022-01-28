@@ -1,17 +1,21 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 # /tests/test_nbody.py
 
 '''
 ----------------------------------------------------------------------------
 tests for mpc_nbody
 
-Nov 2020
-Mike Alexandersen & Matthew Payne & Matthew Holman
+Dec 2021
+Matthew Payne
 
-The tests are organized as follows
-(i) Tests of ParseElements
-(ii) Tests of NbodySim
-(iii) Tests of output parser
+Prev Work:
+Mike Alexandersen, Matthew Payne & Matthew Holman
+
+This code simplified as of Dec 2021
+Removing many tests of non-json input
+ - The non-json input methods *may* still work, but for now I just want to ensure that the json inputs work
+ 
+ 
 ----------------------------------------------------------------------------
 '''
 
@@ -38,13 +42,25 @@ try:  # Import ephem_forces from whereever REBX_DIR is set to live
 except (KeyError, ModuleNotFoundError):
     from reboundx.examples.ephem_forces import ephem_forces
 
-sys.path.append(os.path.dirname(os.path.dirname(
-                os.path.realpath(__file__))))
-from cheby_checker import nbody
+# cheby_checker/                 # <<-- repo
+# cheby_checker/cheby_checker    # <<-- python
+# cheby_checker/tests            # <<-- tests
+this_dir = os.path.abspath(os.path.dirname( __file__ ))
+repo_dir = os.path.abspath(os.path.dirname( this_dir ))
+test_dir = os.path.join(repo_dir, 'tests')
+code_dir = os.path.join(repo_dir, 'cheby_checker')
+for d in [test_dir, code_dir]:
+    sys.path.append( d )
 
-if getpass.getuser() in ['matthewjohnpayne']:  # Payne's dev laptop set up differently ...:
-    sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/')
-import mpcpp.MPC_library as mpc
+# import the main mnbody code that we want to test ...
+#from cheby_checker
+import nbody
+
+# old conversion library that may be useful for cross-comparison of various tests ...
+from code_dir import MPC_library as mpc
+
+
+
 
 # Constants & Test Data
 # -----------------------------------------------------------------------------
@@ -132,9 +148,11 @@ def compare_xyzv(xyzv0, xyzv1, threshold_xyz, threshold_v):
 
 
 
+
 # Tests of ParseElements
 # -----------------------------------------------------------------------------
 
+"""
 @pytest.mark.parametrize(   ('data_file'),
                          [  '30101.eq0_postfit',
                             '30102.eq0_postfit',
@@ -181,7 +199,7 @@ def test_parse_orbfit_felfile_txt(data_file):
 
     assert P.helio_ecl_cov.ndim == 3
     assert P.helio_ecl_cov.shape == (1,6,6)
-    
+"""
 
 
 @pytest.mark.parametrize(   ('data_file'),
@@ -201,7 +219,6 @@ def test_parse_orbfit_json_A(data_file):
     P = nbody.ParseElements()
     
     # Check that the expected attributes exist
-    # and that they are initiated == None
     assert P.helio_ecl_vec_EXISTS   is False
     assert P.helio_ecl_vec          is None
     assert P.helio_ecl_cov_EXISTS   is False
@@ -235,7 +252,7 @@ def test_parse_orbfit_json_A(data_file):
     
 
 
-
+"""
 def test_save_elements():
     '''Test that saving input-elements to an outpuut-file works correctly.'''
     # Get rid of an save_file.tmp file in the test directory
@@ -451,6 +468,6 @@ def test_instantiation_from_data_files(data_file, file_type, test_result_file):
     # Tidy-up by removing any local test file
     if os.path.isfile(save_file) : os.remove(save_file)
 
-
+"""
 
 # End 

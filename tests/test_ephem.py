@@ -28,13 +28,16 @@ filenames = [os.path.join(DATA_DIR, file)
 def convenience_data_generation():
     ''' Get data into database : See Demonstrate_EndToEnd_Orbit_Precalc.ipynb'''
 
-    # Use the Sim-object approach to run simulation
+    # Use the Sim-object approach to run a simulation
     Sim = mpc_nbody.NbodySim(filenames[0], 'eq')
     Sim(tstep=20, trange=1000)
+
     # Initialize an MSC object
     M = orbit_cheby.MSC_Loader(NbodySim = Sim).MSCs[0]
+
     # Declare a "PreCalc" object
     P = precalc.PreCalc()
+
     # Do the upsert
     P.upsert( MSCs , observatoryXYZ)
     

@@ -21,8 +21,15 @@ import pytest
 
 # Import neighboring packages
 # --------------------------------------------------------------
-sys.path.append(os.path.dirname(os.path.dirname(
-                                                os.path.realpath(__file__))))
+# cheby_checker/                 # <<-- repo
+# cheby_checker/cheby_checker    # <<-- python
+# cheby_checker/tests            # <<-- tests
+this_dir = os.path.abspath(os.path.dirname( __file__ ))
+repo_dir = os.path.abspath(os.path.dirname( this_dir ))
+test_dir = os.path.join(repo_dir, 'tests')
+code_dir = os.path.join(repo_dir, 'cheby_checker')
+for d in [test_dir, code_dir]:
+    sys.path.append( d )
 from cheby_checker import orbit_cheby
 from cheby_checker import nbody_reader
 from cheby_checker import mpc_nbody
