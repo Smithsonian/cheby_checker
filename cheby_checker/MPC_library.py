@@ -35,8 +35,8 @@ DATA_PATH = os.path.join( PARENT_PATH, "dev_data")
 
 # This loads the jplephem package and loads an ephemeris:
 from jplephem.spk import SPK
-print("kernal file to be opened in cheby version of MPC_library = ", os.path.join(DATA_PATH, "de430.bsp"))
-jpl_kernel = SPK.open(os.path.join(DATA_PATH, "de430.bsp"))
+print("kernal file to be opened in cheby version of MPC_library = ", os.path.join(DATA_PATH, "de440.bsp"))
+jpl_kernel = SPK.open(os.path.join(DATA_PATH, "de440.bsp"))
 
 
 class Observatory:
@@ -79,7 +79,7 @@ class Observatory:
         # as position.
         ObservatoryXYZ = {}
         with open(os.path.join(DATA_PATH, 'obscode.dat'), 'r') as f:
-            next(f)
+            #next(f)
             for line in f:
                 code, longitude, rhocos, rhosin, Obsname = self.parseObsCode(line)
                 if longitude and rhocos and rhosin:

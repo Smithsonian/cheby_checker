@@ -10,6 +10,7 @@
 
 - Functionality to allow calculation of observatory positions. 
 - It's not at all efficient, but I want to have the function outside of any of the other modules
+- Initially written to be dependent on naval obs code (), but later could be shifted to wis.py
 
  ### nbody
 

@@ -61,6 +61,7 @@ class Base():
     
     # --- Params / Constants ... ---------------
     # ------------------------------------------
+    au_km      = 149597870.700  # This is now a definition
     secsPerDay = 86400
     epsilon    = 1e-6
     

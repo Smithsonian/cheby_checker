@@ -32,7 +32,8 @@ def test_Base():
     b = cheby_checker.Base()
     
     # Check has the expected variable-attributes
-    variables = ['secsPerDay' ,
+    variables = ['au_km',
+        'secsPerDay' ,
         'epsilon',
         'HP_nside',
         'HP_order',
@@ -61,6 +62,7 @@ def test_Base():
 
     # Check variables have reasonable values
     assert b.sector_length_days < 365. # Actually expect == 32, but I guess this may change...
+    assert b.au_km == 149597870.700
     assert b.secsPerDay == 86400
     assert np.all( b.JDlist == np.arange(b.standard_MJDmin, b.standard_MJDmax+1, 1) )
     assert b.standard_MJDmin < b.standard_MJDmax, f"b.standard_MJDmin={b.standard_MJDmin}, b.standard_MJDmax={b.standard_MJDmax}"

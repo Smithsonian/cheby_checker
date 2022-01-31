@@ -12,7 +12,7 @@ MAINTAINER Matt Payne @ MPC <matthewjohnpayne@gmail.com>
 RUN apt-get -y update && apt-get install -y 	gcc  		\
     						make 		\ 
     						git		\ 	
-						python3.8 	\
+						python3.6 	\
 						python3-pip	\
 						perl		\
 						wget 		\
@@ -63,7 +63,7 @@ RUN python3.6 -m pip install numpy pytest astropy astropy_healpix astroquery sci
 
 # --- Run deployment code on entry :
 COPY pythonServer.py /pythonServer.py
-ENTRYPOINT ["python3.8", "/pythonServer.py"]
+ENTRYPOINT ["python3.6", "/pythonServer.py"]
 
 
 

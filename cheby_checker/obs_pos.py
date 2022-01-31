@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 # cheby_checker/cheby_checker/obs_pos.py
 
 '''
@@ -42,7 +42,7 @@ class ObsPos():
         '''
         obsCode = self.check_obsCode(obsCode, verbose)
         return self.obsCodes.getObservatoryPosition(obsCode, jd_utc,
-                                                    old=False) * u.au
+                                                    old=False) #* u.au
 
     def get_heliocentric_ecliptic_xyz(self, jd_utc, obsCode=None,
                                       verbose=False):
