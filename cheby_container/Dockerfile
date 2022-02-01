@@ -46,6 +46,8 @@ COPY sb441-n16.bsp /reboundx/examples/ephem_forces/sb441-n16.bsp
 # This is used to facilitate the reading of mpc_orb.json format orbits data
 WORKDIR /
 RUN git clone https://github.com/matthewjohnpayne/mpc_orb.git
+WORKDIR mpc_orb
+RUN python3.6 -m pip install -e .
 
 
 # --- CHEBY_CHECKER INSTALLS ----

@@ -23,7 +23,7 @@ def build():
     kill()
     
     # build the image and name it "{image_name}" (NB --no-cache will force a rebuild)
-    os.system(f"docker build . -t {image_name}")# --no-cache")
+    os.system(f"docker build . -t {image_name} --no-cache")
     
     # get the path of the parent directory (i.e. for the entire repo)
     repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) ; print(f"repo_dir={repo_dir}")
