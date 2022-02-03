@@ -54,6 +54,7 @@ code_dir = os.path.join(repo_dir, 'cheby_checker')
 import MPC_library as mpc
 
 import coco
+from decorators import timer
 
 
 # Constants and stuff
@@ -128,19 +129,18 @@ class NbodySim():
         self.bary_eq_cov_EXISTS     = False
         self.bary_eq_cov            = None
         self.non_grav_EXISTS        = False
-        self.non_grav_array         = []
+        self.non_grav_dict_list     = []
 
         #  class variables: will be used to hold output
         self.output_times       = None
-        self.output_vectors     = None
-        self.output_n_times     = None
-        self.output_n_particles = None
+        self.output_states      = None
+        self.output_covar     = None
 
 
     # --------------------------------------------
     # Top-Level Function(s): (expected to be called by user)
     # --------------------------------------------
-
+    #@timer
     def run_mpcorb(self,**kwargs):
         '''
         Run the nbody integrator with the parsed input.
@@ -168,7 +168,7 @@ class NbodySim():
         self.make_bary_equatorial()
 
         # Run the Integration
-        integration_results = self.__run_integration()
+        self._run_integration()
         
         # Save output if requested
         if save_output:
@@ -180,8 +180,7 @@ class NbodySim():
     # --------------------------------------------
     # Functions to parse user-inputs
     # --------------------------------------------
-
-
+    #@timer
     def _parse_inputs_run_mpcorb(self, **kwargs):
         """ Parse inputs based on mpc_orb.json format
         
@@ -222,6 +221,7 @@ class NbodySim():
 
   
             
+    #@timer
     def _parse_orbfit_json(self, mpcorb_file_or_dict ):
         '''
         Parse a file containing OrbFit elements for a single object & epoch.
@@ -243,7 +243,7 @@ class NbodySim():
         self.helio_ecl_cov
         self.helio_ecl_cov_EXISTS
         
-        self.non_grav_array
+        self.non_grav_dict_list
         self.non_grav_EXISTS
         
         '''
@@ -307,14 +307,15 @@ class NbodySim():
 
                 
         # ----------- NONGRAVS -----------------------
-        self.non_grav_array.append( M.nongrav_data )
-        self.non_grav_EXISTS = np.any( _["non_gravs"] for _ in self.non_grav_array )
+        self.non_grav_dict_list.append( M.nongrav_data )
+        self.non_grav_EXISTS = np.any( _["non_gravs"] for _ in self.non_grav_dict_list )
         
         
         # ----------- return -----------------------
         return True
         
                 
+    #@timer
     def make_bary_equatorial(self):
         '''
         Transform heliocentric-ecliptic coordinates into
@@ -489,12 +490,13 @@ class NbodySim():
     # Functions to run NBody integration & parse results
     # --------------------------------------------
 
-    def __run_integration( self,):
+    #@timer
+    def _run_integration( self,):
         '''
         Run the nbody integrator with the parsed input.
         
         Designed as INTERNAL function: NOT expected to be called directly by the user
-        NB: Separating *__run_integration* from (e.g.) run_mpcorb to allow for multiple top level run_* types (e.g. run_array)
+        NB: Separating *_run_integration* from (e.g.) run_mpcorb to allow for multiple top level run_* types (e.g. run_array)
 
         Input:
         ------
@@ -543,19 +545,20 @@ class NbodySim():
         
         
         # Now run the nbody integrator:
-        outtime, states, partial_derivatives_wrt_state, partial_derivatives_wrt_NG, return_value = \
+        if self.verbose:
+            print(f"self.tstart={self.tstart}, self.tstop={self.tstop}, epochfloat(self.integration_epoch.tdb.to_value('jd'))={float(self.integration_epoch.tdb.to_value('jd'))},")
+            self.output_times, self.output_states, partial_derivatives_wrt_state, partial_derivatives_wrt_NG, return_value = \
             production_integration_function_wrapper(    self.tstart,
-                                                        self.tend,
+                                                        self.tstop,
                                                         float(self.integration_epoch.tdb.to_value('jd')) , # Converting Astropy.Time ...
                                                         self.bary_eq_vec,
-
                                                         non_grav_dict_list = self.non_grav_dict_list,
                                                         tstep = 20,
                                                         geocentric = self.geocentric,
-                                                        epsilon = 1e-8,
-                                                        tstep_min = 0.02,
+                                                        epsilon = 1e-7,  #1e-8
+                                                        tstep_min = 0.1, #0.02
                                                         tstep_max = 32.)
-                                                        
+
         # Reshape the partial derivative arrays
         partial_derivatives_wrt_state, partial_derivatives_wrt_NG = self.reshape_partial_deriv_arrays(  partial_derivatives_wrt_state,
                                                                                                         partial_derivatives_wrt_NG)
@@ -563,17 +566,17 @@ class NbodySim():
         
         
         # Calculate the covariance matrix (at each timestep) from the \partial X / \partial X_0 data
-        if input_covariances is not None:
-            final_covariance_arrays = self._get_covariance_from_tangent_vectors(self.bary_eq_cov,
+        if self.bary_eq_cov_EXISTS is not None:
+            self.output_covar = self._get_covariance_from_tangent_vectors(  self.bary_eq_cov,
                                                                                 partial_derivatives_wrt_state,
                                                                                 partial_derivatives_wrt_NG = partial_derivatives_wrt_NG )
         else:
-            final_covariance_arrays = None
-            
-        return( outtime,
-                states,
-                final_covariance_arrays)
+            self.output_covar = None
+        
+        return True
+                
 
+    #@timer
     def reshape_partial_deriv_arrays( self,  partial_derivatives_wrt_state,  partial_derivatives_wrt_NG):
         '''
         (1) partial_derivatives_wrt_state
@@ -594,6 +597,7 @@ class NbodySim():
         return partial_derivatives_wrt_state , partial_derivatives_wrt_NG
         
         
+    #@timer
     def _get_covariance_from_tangent_vectors(self, init_covariances, partial_derivatives_wrt_state ,  partial_derivatives_wrt_NG=None ):
         '''
         Follow Milani et al 1999
@@ -638,7 +642,7 @@ class NbodySim():
     # -----------------------------------
     # Save Funcs ...
     # -----------------------------------
-
+    #@timer
     def save_output(self, output_file='simulation_states.dat'):
         """
         Save all the outputs to file.
@@ -671,6 +675,7 @@ class NbodySim():
         outfile.write('\n#End')
 
 
+    #@timer
     def save_elements(self, save_file='save_file.tmp'):
         """
         Save the barycentric equatorial cartesian elements to file.
@@ -701,7 +706,7 @@ class NbodySim():
     # -----------------------------------
     # Misc Funcs ...
     # -----------------------------------
-
+    #@timer
     def _parse_Covariance_List(Els):
         '''
         Convenience function for reading and splitting the covariance
@@ -745,7 +750,7 @@ class NbodySim():
     # -----------------------------------
     # Functions to read nbody results
     # -----------------------------------
-
+    #@timer
     def parse_nbody_txt( text_filepath ):
         '''
             Read a text file
@@ -778,8 +783,7 @@ class NbodySim():
     # Functions to create *FAKE DATA*
     # - Seems like this belongs in TEST DIRECTORY-FUNCTIONALITIES ...
     # -----------------------------------
-
-
+    #@timer
     def create_nbody_txt( text_filepath ):
         '''
             Convenience function to create a text-file of coordinates

@@ -29,14 +29,16 @@ ENV REB_DIR=/rebound
 ENV LD_LIBRARY_PATH=/rebound/src
 
 WORKDIR /
-RUN git clone -b mpc_dev https://github.com/matthewjohnpayne/reboundx.git
+RUN git clone -b mpc_dev https://github.com/Smithsonian/reboundx.git
 WORKDIR /reboundx/examples/ephem_forces/
-RUN perl -pi -e 's/OPENGL=1/OPENGL=0/g' Makefile
 RUN make
 ENV REBX_DIR=/reboundx
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/reboundx/src
+ENV JPL_PLANET_EPHEM=/reboundx/examples/ephem_forces/linux_p1550p2650.440
+ENV JPL_SB_EPHEM=/reboundx/examples/ephem_forces/sb441-n16.bsp
 
 # Get the ephemeris file in to the container (goes into the ephem_forces sub-dir of reboundx). 
+# *** OBVIOUSLY THIS SHOULD BE PART OF REBOUUNDX REPO, BUT NO LFS ON PUBLIC FORKS!?!?!? ***
 #RUN wget ftp://ssd.jpl.nasa.gov/pub/eph/small_bodies/asteroids_de441/sb441-n16.bsp
 COPY sb441-n16.bsp /reboundx/examples/ephem_forces/sb441-n16.bsp
 

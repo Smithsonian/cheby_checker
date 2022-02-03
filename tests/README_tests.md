@@ -1,6 +1,15 @@
 # cheby_checker tests go in this directory
 
-## 2022 : MJP: The following have been checked to pass tests 
+## 2022 : MJP: The following are WIP, attempting to get tests to pass... 
+
+### test_nbody_run.py :
+- nbody.py has an INTERNAL dependance on the coco.py module (above)
+- nbody.py also depends on INTERNAL MPC_library.py: should shift away from this if/when possible
+- nbody.py also depends on flaky REBOUNDX:EPHEM library
+ - Need to implement ONE detailed test of code accuracy (additional detailed tests of integration accuracy should be performed within the REBOUNDX code itself)
+
+
+## 2022 : MJP: The following have been checked to pass tests within a containerized environment initialized/built using the code in "cheby_container"
 
 ### test_convenience_Horizons.py
  - convenience_Horizons.py only depends on EXTERNAL packages
@@ -26,4 +35,11 @@
 - coco.py has an INTERNAL dependance on the cheby_checker.py module (above)
 - coco.py also depends on INTERNAL MPC_library.py: should shift the rotn & ecliptic angle variables to coco & Base respectively.
 - pytest test_coco.py
+- passes within containerized environment
+
+### test_nbody_parse.py :
+- nbody.py has an INTERNAL dependance on the coco.py module (above)
+- nbody.py also depends on INTERNAL MPC_library.py: should shift away from this if/when possible
+- nbody.py also depends on flaky REBOUNDX:EPHEM library
+- pytest test_nbody_parse.py
 - passes within containerized environment

@@ -34,6 +34,7 @@ import pytest
 from filecmp import cmp
 import getpass
 import json
+import time
 
 
 
@@ -63,46 +64,13 @@ import nbody
 # old conversion library that may be useful for cross-comparison of various tests ...
 import MPC_library as mpc
 
+import convenience_Horizons as Horizons
 
 
 # Utility functions to help with testing
 # -----------------------------------------------------------------------------
 
-def is_parsed_good_enough(new_results_file, expected_results_file):
-    '''
-    Helper function to help test whether a just-created "new_results_file" file matches
-    the "expected_results_file" in the "dev_data" directory
-    '''
-    
-    if cmp(new_results_file, expected_results_file):
-        assert True  # If files are identical, no further testing needed.
-        
-    else:  # If files not identical, investigate further:
-        with open(new_results_file, 'r') as fileA, open(expected_results_file, 'r') as fileB :
-            five_tf = []
-            for _ in range(0, 5):  # First five lines should be identical
-                lineA = fileA.readline()
-                lineB = fileB.readline()
-                five_tf.append(lineA == lineB)
-            xyzA = np.array(fileA.readline().split(), dtype=float)
-            xyzB = np.array(fileB.readline().split(), dtype=float)
-            vA = np.array(fileA.readline().split(), dtype=float)
-            vB = np.array(fileB.readline().split(), dtype=float)
-            error, good_tf = compare_xyzv(np.concatenate([xyzA, vA]),
-                                          np.concatenate([xyzB, vB]),
-                                          1e-13, 1e-14)  # 15 mm, 1.5 mm/day
-            if np.all(good_tf) & np.all(five_tf):
-                pass # print('Awesome!')
-            else:
-                print(f'\n Problem detected in *is_parsed_good_enough* ... ')
-                print(f'new_results_file={new_results_file}, expected_results_file={expected_results_file}')
-                print(f'First five lines identical: {five_tf:}')
-                print(f'Position off by: {error[:3]:}')
-                print(f'Velocity off by: {error[3:6]:}')
-            assert np.all(good_tf) & np.all(five_tf)
-
-
-def compare_xyzv(xyzv0, xyzv1, threshold_xyz, threshold_v):
+def similar_xyzuvw(xyzv0, xyzv1, threshold_xyz=1e-13, threshold_v=1e-14): # 15 mm, 1.5 mm/day
     '''
     Calculate the difference between two sets of cartesian coordinates.
     '''
@@ -112,20 +80,8 @@ def compare_xyzv(xyzv0, xyzv1, threshold_xyz, threshold_v):
         xyzv1 = np.array(xyzv1)
     error = xyzv0 - xyzv1
     good_tf = np.abs(error) < np.array([threshold_xyz] * 3 + [threshold_v] * 3)
-    return error, good_tf
+    return np.all(good_tf), error
 
-
-def nice_Horizons(target, centre, epochs, id_type):
-    '''
-    Mike Alexandersen
-    Convenience function to reformat data returned by Horizons
-    Only require the inputs I actually want to vary.
-    Return in the format I actually want, not an astropy table.
-    '''
-    horizons_table  = Horizons(target, centre, epochs=epochs, id_type=id_type)
-    horizons_vector = horizons_table.vectors(refplane='earth')
-    horizons_xyzv   = horizons_vector['x', 'y', 'z', 'vx', 'vy', 'vz']
-    return np.array(list(horizons_xyzv.as_array()[0]))
 
 
 def is_nbody_output_good_enough(times, data, target='30102'):
@@ -206,12 +162,21 @@ def test_nbody_A():
             
     
 
-def test_initialize_integration_function_A():
+def test_integration_function_A():
     '''
     If we put ANYTHING into the ephem_forces.integration_function,
     will it work or crash and burn?
+    
     Most likely if there is a problem, it'll cause pytest to crash entirely,
     so might as well start with this.
+    
+    Note that *ephem_forces.integration_function* is NOT the main function that will
+    be called by cheby_checker.nbody, but it IS called by
+    *ephem_forces.production_integration_function_wrapper*, which IS called by
+    cheby_checker.nbody
+    
+    Note that this does NOT perform any tests of integration accuracy:
+    I am purely trying to get a simple call to execute
 
     '''
 
@@ -220,14 +185,12 @@ def test_initialize_integration_function_A():
     # X = 3.338875350265349E+00 Y =-9.176518267602161E-01 Z =-5.038590677470149E-01
     # VX= 2.805663315227095E-03 VY= 7.550408688437705E-03 VZ= 2.980028207454247E-03
     tstart = 2458849.5
-    row = [3.338875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.550408687780768E-03, 2.980028206579994E-03]
+    instates = np.array([[3.338875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.550408687780768E-03, 2.980028206579994E-03]])
 
     # Define the length of the integration (days)
     tstep = 20.0
     tend = tstart + 1.0
 
-    # Put the input coordinates into an array
-    instates = np.array([row])
 
     # Define the quantities associated with the variational equaitons
     n_var = 6
@@ -235,31 +198,80 @@ def test_initialize_integration_function_A():
     geocentric = 0
     invar_part = np.zeros(6, dtype=int)
     invar = np.identity(6)
-    scale = 1e-8
-    instatesp = np.array([row]*6)+scale*invar
-    instates=np.vstack([instates, instatesp])
 
     # Run the integration
     times, states, var, var_ng, status = ephem_forces.integration_function(tstart, tend, tstep, geocentric, n_particles, instates, n_var, invar_part, invar)
 
 
-    #assert isinstance(states, np.ndarray)
-    #assert isinstance(times, np.ndarray)
-    ##assert isinstance(partial_derivatives_wrt_state, np.ndarray)
-    #assert isinstance(return_value, int)
+    assert isinstance(states, np.ndarray)
+    assert isinstance(times, np.ndarray)
+    assert isinstance(var, np.ndarray)
 
 
-
-
-
-
-"""
-def test_initialize_integration_function_B():
+def test_integration_function_B():
     '''
+    ... ephem_forces.integration_function,
+    ...
+
+    '''
+
+    # Define the variables that will be used in the query
+    target  = '12345'
+    centre  = '500@0'
+    epochs  = ['2458850.0','2458880.0']
+    id_type = 'smallbody'
+    refplane='earth'
+
+    # Call the *nice_Horizons* function to get the cartesian states at the first time
+    # This is returning EQUATORIAL BERYCENTRIC coordinates
+    horizons_zero = Horizons.nice_Horizons(target, centre, epochs[0], id_type, refplane=refplane)
+    
+    # Run the integration
+    tstart = float(epochs[0])
+    tend   = float(epochs[-1])
+    tstep  = 0.01
+    geocentric = 0
+    n_particles = 1
+    instates = np.array([horizons_zero])
+    n_var = 6
+    invar_part = np.zeros(6, dtype=int)
+    invar = np.identity(6)
+    times, states, var, var_ng, status = ephem_forces.integration_function(tstart,
+                                                                            tend,
+                                                                            tstep,
+                                                                            geocentric,
+                                                                            n_particles,
+                                                                            instates,
+                                                                            n_var,
+                                                                            invar_part,
+                                                                            invar)
+
+    # Now call horizons again at some of the output times at which the integration_function produced output
+    for n, t in enumerate(times):
+
+        # Check horizons at the simulation-time output
+        h = Horizons.nice_Horizons(target, centre, t, id_type, refplane=refplane)
+
+        # Check similarity: threshold_xyz=1e-11, threshold_v=1e-12 : # 150 cm, 15 cm/day
+        similar_bool , error = similar_xyzuvw(h, states[n][0], threshold_xyz=1e-11, threshold_v=1e-12)
+        assert similar_bool
+        
+
+
+
+
+def test_production_integration_function_wrapper_A():
+    '''
+    First test of *ephem_forces.production_integration_function_wrapper*
     Doing a 2-particle integration
-    Testing the structure of the returned arrays
+    Testing the STRUCTURE of the returned arrays
+    *NOT* testing the numerical accuracy
+    
     '''
-    tstart, tstep, trange = 2456184.7, 20.0, 600
+    tstart  = 2456184.7
+    tstop   = tstart + 600
+    epoch   = tstart
+    
     geocentric = 0
     n_particles = 2
     instates = np.array([
@@ -268,24 +280,26 @@ def test_initialize_integration_function_B():
                         ])
         
     # Call the function
-    # Returns : outtime, states, var, return_value
-    (times, states, partial_derivatives_wrt_state, partial_derivatives_wrt_NG, return_value
-     ) = ephem_forces.production_integration_function_wrapper(  tstart,
-                                                                tstep,
-                                                                trange,
-                                                                geocentric,
-                                                                n_particles,
+    outtimes, states, partial_derivatives_wrt_state, partial_derivatives_wrt_NG, return_value = ephem_forces.production_integration_function_wrapper(  tstart,
+                                                                tstop,
+                                                                epoch,
                                                                 instates,
                                                                 non_grav_dict_list = None,
-                                                                epsilon = 1e-8)
-
+                                                                geocentric = 0 ,
+                                                                epsilon = 1e-8,
+                                                                tstep_min = 0.02,
+                                                                tstep_max = 32.)
+    # check that we get the expected variable-types back
     assert isinstance(states, np.ndarray)
-    assert isinstance(times, np.ndarray)
+    assert isinstance(outtimes, np.ndarray)
     assert isinstance(partial_derivatives_wrt_state, np.ndarray)
-    assert isinstance(return_value, int)
+    assert isinstance(return_value, tuple)
 
-    # times.shape, states.shape, partial_derivatives_wrt_state.shape ~~~ (161,) (161, 2, 6) (161, 12, 6)
-    assert times.shape[0] == states.shape[0] == partial_derivatives_wrt_state.shape[0]
+    # check that the SHAPES of the returned arrays are as expected ...
+    # outtimes.shape                        ~ (161,)
+    # states.shape                          ~ (161, 2, 6)
+    # partial_derivatives_wrt_state.shape   ~ (161, 12, 6)
+    assert  outtimes.shape[0] == states.shape[0] == partial_derivatives_wrt_state.shape[0]
     assert  states.ndim ==3 and \
             states.shape[1] == n_particles and \
             states.shape[2] == 6
@@ -293,9 +307,141 @@ def test_initialize_integration_function_B():
             partial_derivatives_wrt_state.shape[1] == 6*n_particles and \
             partial_derivatives_wrt_state.shape[2] == 6
     
+    
+def test_production_integration_function_wrapper_B():
+    '''
+    Doing a timing test of the production_integration_function_wrapper
+    
+    When running directly from a file in ephem_forcs, this test takes
+    ~1.6 secs to run (20,000 day integration)
+    
+    During development there were issues in which the same query run from a
+    different directory would take ~3mins (i.e. 100 times longer)
+    
+    I want to ensure that we don't have this problem
+    '''
+    start_time = time.time()
+    #print(__file__, ':test_production_integration_function_wrapper_B')
+    
+    # Define the inputs
+    instates = np.array([[3.338875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.550408687780768E-03, 2.980028206579994E-03]])
+    n_particles = 1
+    tstart, trange = 2458849.5, 2000
+    epoch = tstart
+    tend = tstart + trange
+    #print('tstart,tend,epoch,instates',tstart,tend,epoch,instates)
+    
+    # Run the integration
+    times, states, var, var_ng, status = ephem_forces.production_integration_function_wrapper(tstart, tend, epoch, instates)
+    #print(times.shape , states.shape, var.shape)
+    #print(times[:4],'\n',times[-4:])
+
+    # Checks ...
+    end_time = time.time()
+    allowed_time = 10 #seconds
+    print('end_time-start_time = ',end_time-start_time )
+    assert end_time-start_time < allowed_time
 
 
 
+def test_production_integration_function_wrapper_C():
+    '''
+    
+    Testing the numerical accuracy of the results returned from a
+    single run of the *ephem_forces.production_integration_function_wrapper*
+    function.
+    
+    Note that many more tests of the accuracy of the reboundx integrator
+    need to be performed, but they need to be done in the REBOUNDX
+    package itself
+    '''
+    
+    # Define the variables that will be used in the query
+    target  = '123456' # Asteroid #123456
+    centre  = '500@0'  # <<-- Barycentric
+    epochs  = ['2458850.0','2458880.0']
+    id_type = 'smallbody'
+    refplane='earth' # <<--Equatorial
+
+    # Call the *nice_Horizons* function to get the cartesian states at the first time
+    # This is returning EQUATORIAL BERYCENTRIC coordinates
+    horizons_zero = Horizons.nice_Horizons(target, centre, epochs[0], id_type, refplane=refplane)
+    print('horizons_zero=',horizons_zero)
+    
+    # Call the production_integration_function_wrapper that we want to test
+    # I believe that the integration is performed in EQUATORIAL BERYCENTRIC coordinates
+    tstart = epoch = epochs[0]
+    tstop  = epochs[-1]
+    instates = np.array([ horizons_zero ])
+    outtimes, states, partial_derivatives_wrt_state, partial_derivatives_wrt_NG, return_value = ephem_forces.production_integration_function_wrapper(   float(tstart),
+                                                                float(tstop),
+                                                                float(epoch),
+                                                                instates,
+                                                                non_grav_dict_list = None,
+                                                                geocentric = 0 ,
+                                                                epsilon = 1e-10,
+                                                                tstep_min = 0.02,
+                                                                tstep_max = 1.)
+                                                                
+    # Now call horizons again at some of the output times at which the *production_integration_function_wrapper()* produced output
+    for n, t in enumerate(outtimes):
+    
+        # Check horizons at the simulation-time output
+        h = Horizons.nice_Horizons(target, centre, t, id_type, refplane=refplane)
+
+        # Check similarity: threshold_xyz=1e-12, threshold_v=1e-13 : # 15 cm, 1.5 cm/day
+        similar_bool , error = similar_xyzuvw(h, states[n][0], threshold_xyz=1e-12, threshold_v=1e-13)
+        assert similar_bool
+    
+ 
+    
+    
+def test_run_integration():
+    '''
+    Test the NbodySim.__run_integration() function
+    This calls *production_integration_function_wrapper*
+    And then performs various functions to reshape the partial derivs,
+    and then calculates the cov-matrix at each timestep
+    '''
+    
+    # Instantiate
+    N = nbody.NbodySim()
+    
+    # Declare inputs
+    tstart = 2459200
+    tstop  = 2459300
+    data_file = '545808fel_num.json'
+    mpcorb_list = [ os.path.join(json_dir , data_file) ]
+
+    # Parse the inputs
+    N._parse_inputs_run_mpcorb(tstart = tstart , tstop = tstop , mpcorb_list = mpcorb_list)
+    
+    # Convert to barycentric equatorial
+    N.make_bary_equatorial()
+
+    # Check some quantities BEFORE running the test function ...
+    assert N.input_n_particles == 1
+    assert N.output_times   == None
+    assert N.output_states  == None
+    assert N.output_covar   == None
+
+    #
+    # Run the *__run_integration* function we want to test
+    #
+    N.verbose = True
+    print("running integration ... ")
+    N._run_integration()
+    
+    # Check the output is as expected
+    assert isinstance(N.output_times, np.ndarray)
+    assert isinstance(N.output_states, np.ndarray)
+    assert isinstance(N.output_covar, np.ndarray)
+    print(N.output_times.shape )
+    print(N.output_states.shape )
+    print(N.output_covar.shape )
+
+    
+"""
 
 
 names_of_variables     = ('data_file', 'file_type', 'tstart', 'tend')
@@ -544,3 +690,6 @@ def test_text_file_creation(test_filepath):
 
 # End
 
+#test_integration_function_B()
+test_production_integration_function_wrapper_B()
+#test_run_integration()
