@@ -27,14 +27,12 @@ def build():
     
     # get the path of the parent directory (i.e. for the entire repo)
     repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) ; print(f"repo_dir={repo_dir}")
-    #test_dir = "/Users/matthewjohnpayne/Envs/testing_for_container" # temp dir building to test the idea that working in a mounted dir is slow-as-fuck"
 
     # run the image in a container and name the container as "{container_name}"
     # NB: Mounting local version of repo during development
     command = " ".join([
         f"docker run -d",                           # run the container using some options ...
-        #f"-v {repo_dir}:/cheby_checker",            # mount local version of repo
-        #f"-v {test_dir}:/testing_for_container",    # mount local version of temp/test dir
+        f"-v {repo_dir}:/cheby_checker",            # mount local version of repo
         f"--name {container_name} {image_name}"     # name the container
         ])
     print(f"running command... {command}")
