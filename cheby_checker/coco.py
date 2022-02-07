@@ -72,7 +72,8 @@ def ecliptic_to_equatorial(input, backwards=False):
         
     # Matrix (CoV) input => R & R.T
     # NB: CoV.ndim ==3 , CoV.shape == (N,6,6)
-    elif input.ndim == 3 and input.shape == (1,6,6):
+    # MJP 2022-02-6: Deliberately leaving as 6x6 to ensure Non-Gravs don't get passed in ...
+    elif input.ndim == 3 and input.shape[1:] == (6,6):
         R = R6
         output = R @ input @ R.T
 

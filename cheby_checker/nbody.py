@@ -171,10 +171,10 @@ class NbodySim():
         self._run_integration()
         
         # Save output if requested
-        if save_output:
-            self.save_output()
+        #if save_output:
+        #    self.save_output()
             
-        return integration_results
+        return True
 
 
     # --------------------------------------------
@@ -292,7 +292,13 @@ class NbodySim():
             self.helio_ecl_vec = element_array
         else :
             self.helio_ecl_vec = np.append(self.helio_ecl_vec , element_array, axis=0)
-                                                
+
+        # ----------- CHECK NUMBER OF PARAMS -----------
+        '''
+        I think that the stacking may well screw-up if there are different numbers
+        of parameters for different objects in the same integration
+        I should check for that and emit an error/warning ...
+        '''
 
         
         # ----------- COVARIANCE  -------------------
@@ -303,7 +309,7 @@ class NbodySim():
         if self.helio_ecl_cov is None:
             self.helio_ecl_cov = local_helio_ecl_cov
         else :
-            self.helio_ecl_cov = np.append( self.helio_ecl_cov, local_helio_ecl_cov  )
+            self.helio_ecl_cov = np.append( self.helio_ecl_cov, local_helio_ecl_cov, axis=0)
 
                 
         # ----------- NONGRAVS -----------------------
@@ -347,6 +353,7 @@ class NbodySim():
 
         if self.helio_ecl_cov_EXISTS:
             # Only need to do a rotation for the CoV
+            # MJP 2022-02-05 : Need to "slice" to ensure only grav-components get rotated
             self.bary_eq_cov = coco.ecliptic_to_equatorial(self.helio_ecl_cov)
         
             # Set booleans as well (not sure if we'll really use these ...)
@@ -546,8 +553,9 @@ class NbodySim():
         
         # Now run the nbody integrator:
         if self.verbose:
-            print(f"self.tstart={self.tstart}, self.tstop={self.tstop}, epochfloat(self.integration_epoch.tdb.to_value('jd'))={float(self.integration_epoch.tdb.to_value('jd'))},")
-            self.output_times, self.output_states, partial_derivatives_wrt_state, partial_derivatives_wrt_NG, return_value = \
+            print(f"self.tstart={self.tstart}, self.tstop={self.tstop}, epoch=float(self.integration_epoch.tdb.to_value('jd'))={float(self.integration_epoch.tdb.to_value('jd'))},")
+            
+        self.output_times, self.output_states, partial_derivatives_wrt_state, partial_derivatives_wrt_NG, return_value = \
             production_integration_function_wrapper(    self.tstart,
                                                         self.tstop,
                                                         float(self.integration_epoch.tdb.to_value('jd')) , # Converting Astropy.Time ...
@@ -602,38 +610,51 @@ class NbodySim():
         '''
         Follow Milani et al 1999
         Gamma_t = [partial X / partial X_0] Gamma_0 [partial X / partial X_0]^T
+        
+        NB
+        init_covariances.shape              =  (#particles, 6, 6)
+        partial_derivatives_wrt_state.shape =  (#times, #particles, 6, 6)
+
         '''
         
         if partial_derivatives_wrt_NG is not None:
             raise Error('Have not coded partial_derivatives_wrt_NG into _get_covariance_from_tangent_vectors ')
 
+        # init_covariances.shape              =  (#particles, 6, 6)
+        # partial_derivatives_wrt_state.shape == (#times, #particles, 6, 6)
         assert init_covariances.ndim == 3
         assert partial_derivatives_wrt_state.ndim == 4
         assert partial_derivatives_wrt_NG is None or partial_derivatives_wrt_NG.ndim  == 4
-        #print(f'partial_derivatives_wrt_state.shape = {partial_derivatives_wrt_state.shape}')
 
         # Take the inverse of the covariance matrix to get the normal matrix
-        # NB: We make a stack of identical matricees to use in the matrix multiplication below
+        # NB1: We make a stack of identical matricees to use in the matrix multiplication below
+        # NB2: We want the stack height == Number of Times == partial_derivatives_wrt_state.shape[0]
+        #     => GammaStack0.shape == partial_derivatives_wrt_state.shape == (#times, #particles, 6, 6)
         Gamma0      = np.linalg.inv(init_covariances)
-        print(f'Gamma0.shape = {Gamma0.shape}')
         GammaStack0 = np.tile( Gamma0, (partial_derivatives_wrt_state.shape[0],1,1,1) )
-        #print(f'GammaStack0.shape = {GammaStack0.shape}')
+        #print('GammaStack0.shape = ' , GammaStack0.shape )
 
         # We need each of the individual pd arrays to be individually transposed
-        # NB, tuple fixes dimensions 0 & 1 , but indicates that dimensions 2 & 3 will be swapped/transposed
+        # NB, The "(0,1,3,2)" tuple fixes dimensions 0 & 1 , but indicates that dimensions 2 & 3 will be swapped/transposed
+        #     Because this just swaps the 6x6 dimensions, the shape remains == (#times, #particles, 6, 6)
         pds_transposed  = partial_derivatives_wrt_state.transpose( (0,1,3,2) )
-        #print(f'pds_transposed.shape = {pds_transposed.shape}')
+        #print('pds_transposed.shape = ' , pds_transposed.shape )
 
         # Do matrix multiplication: using the pd's to get the CoV as a func of time
         # NB matmul/@ automagically knows how to work on a stack of matricees
         # - https://stackoverflow.com/questions/34142485/difference-between-numpy-dot-and-python-3-5-matrix-multiplication
+        # GammaStack_t.shape = (#times, #particles, 6, 6)
         GammaStack_t    = pds_transposed @ GammaStack0 @ partial_derivatives_wrt_state
-        #print(f'GammaStack_t.shape = {GammaStack_t.shape}')
-
+        #print('GammaStack_t.shape = ' , GammaStack_t.shape )
+                
         # Magically, np.linalg.inv also knows how to deal with a stack of arrays/matrices
         # - https://stackoverflow.com/questions/11972102/is-there-a-way-to-efficiently-invert-an-array-of-matrices-with-numpy
-        CoV_t           = np.linalg.inv( GammaStack_t )
-        #print(f'CoV_t.shape = {CoV_t.shape}')
+        # CoV_t.shape = (#times, #particles, 6, 6)
+        # The try-ecxept loop is required to catch occasional problems with ...LinAlgError("Singular matrix")... due to singular input matrix
+        try:
+            CoV_t           = np.linalg.inv( GammaStack_t )
+        except:
+            CoV_t           = np.linalg.pinv( GammaStack_t )
 
 
         return CoV_t

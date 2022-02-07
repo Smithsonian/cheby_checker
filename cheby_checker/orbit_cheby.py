@@ -62,7 +62,9 @@ test_dir = os.path.join(repo_dir, 'tests')
 code_dir = os.path.join(repo_dir, 'cheby_checker')
 for d in [test_dir, code_dir]:
     sys.path.append( d )
-from cheby_checker import nbody
+
+import nbody
+from cheby_checker import Base
 
 
 
@@ -116,9 +118,11 @@ class MSC_Loader(Base):
         # (ii) From nbody.NbodySim
         elif self.NbodySim is not None :
             if "primary_unpacked_provisional_designations" not in self.NbodySim.__dict__:
-                self.NbodySim.primary_unpacked_provisional_designations = [ str(_) for _ in range(self.NbodySim.output_n_particles)]
+                self.NbodySim.primary_unpacked_provisional_designations = [ str(_) for _ in range(self.NbodySim.input_n_particles)]
                 print(f'Populating from NbodySim : ***NO*** designation information : Using {self.NbodySim.primary_unpacked_provisional_designations}')
-            self._populate_from_nbody_array(self.NbodySim.primary_unpacked_provisional_designations , self.NbodySim.output_times, self.NbodySim.output_vectors)
+            self._populate_from_nbody_array(self.NbodySim.primary_unpacked_provisional_designations ,
+                                            self.NbodySim.output_times,
+                                            self.NbodySim.output_states)
 
         # (iii) From numpy array (from nbody: Mainly for development?)
         elif    self.primary_unpacked_provisional_designations is not None and \
@@ -203,42 +207,32 @@ class MSC_Loader(Base):
 
 
         # Check that the dimensionality of the coordinates is consistent with the number of names
-        # - N.B. We expect states.shape = (Nt, Nc, Np) or (Nt,Nc), where
+        # - N.B. We expect states.shape = (Nt, Np, Nc), e.g. = (41, 1, 6)
         #        Nt = Number of times
-        #        Nc = Number of coords/components being fitted
-        #        Np = Number of particles
+        #        Nc = Number of particles
+        #        Np = Number of coords/components being fitted
         #
         self.primary_unpacked_provisional_designations = np.atleast_1d(primary_unpacked_provisional_designations)
-        #   (i) Single Object
-        if len(self.primary_unpacked_provisional_designations) == 1 and states.ndim == 2 :
+        
+        # Check for consistent designations & number of particles
+        if len(self.primary_unpacked_provisional_designations) == 1 and states.shape[1] == 1 :
             pass
-        #  (ii) Multiple Objects (Nt, Nc, Np) [2 flavors to try and cope with the inevitable fuck-ups in coordinate organization]:
-        elif len(self.primary_unpacked_provisional_designations) >= 1 and states.ndim == 3 and (len(self.primary_unpacked_provisional_designations) == states.shape[2]) :
-            pass
-        # (iii) Multiple Objects (Nt, Np, Nc) [2 flavors to try and cope with the inevitable fuck-ups in coordinate organization]
-        #  **** NEED TO GET RID OF (ii) or (iii) : IT WILL GO WRONG EVENTUALLY IF/WHEN Nc==Np ...
-        elif len(self.primary_unpacked_provisional_designations) >= 1 and states.ndim == 3 and (len(self.primary_unpacked_provisional_designations) == states.shape[1]) :
-            pass
-        #  (iv) Problem
+        # Problem
         else:
             sys.exit('Inconsistent dimensionality : len(self.unpacked_provisional_designations) = %r and states.ndim = %r and states.shape = %r' % \
                      (len(self.primary_unpacked_provisional_designations) , states.ndim ,  states.shape) )
 
 
-
-
+        # MJP : 2022-02-06 : Seems like I have not done the covariance components ???
 
 
         # Loop over each of the objects and create an MSC-object for each ...
         for i, unpacked in enumerate(self.primary_unpacked_provisional_designations):
-            
-            # Get the slice of states corresponding to the particular named object
-            #  **** NEED TO GET RID OF (ii) or (iii) : IT WILL GO WRONG EVENTUALLY IF/WHEN Nc==Np ...
-            state_slice = states if states.ndim == 2 else states[:,:,i] if len(self.primary_unpacked_provisional_designations) == states.shape[2] else states[:,i,:]
-            
+                        
             # Create the MSC (using the appropriate *from_coord_arrays()* function )
+            # NB: We need to extract the appropriate slice of states corresponding to the particular named object
             M = MSC()
-            M.from_coord_arrays(unpacked , times_TDB , state_slice )
+            M.from_coord_arrays(unpacked , times_TDB , states[:,i,:] )
             self.MSCs.append( M )
 
         return self.MSCs
@@ -309,7 +303,7 @@ class MSC(Base):
         Base.__init__(self)
 
         # Initialization of default standard PARAMETERS / OPTIONS we use for chebyshevs, etc
-        self.minorder       = 7                                     # : Fitting Chebys
+        self.minorder       = 5                                     # : Fitting Chebys
         self.maxorder       = 25                                    # : Fitting Chebys
         self.maxerr         = 1e-8                                  # : Fitting Chebys
         
@@ -331,6 +325,21 @@ class MSC(Base):
             --------
             True
              - Doesn't directly return, just populates the MSC object
+             
+            populates:
+            ----------
+            self.primary_unpacked_provisional_designation : string
+            
+            self.sector_coeffs : dict
+            
+            self.sector_init : int
+            
+            self.sector_final : int
+            
+            self.TDB_init : float
+            
+            self.TDB_final : float
+            
 
         '''
         # unpacked primary provID of the object (e.g. 2020 AA)
@@ -356,7 +365,7 @@ class MSC(Base):
     def from_coord_arrays(self, primary_unpacked_provisional_designation, times_TDB , states ):
         '''
            Populate the MSC starting from supplied numpy-arrays
-           Expected to be used when passing in the data from an NBody integration (REBOUND)
+           Expected to be used when passing in the data from an NBody integration (REBOUNDX)
             
             inputs:
             -------
@@ -385,6 +394,7 @@ class MSC(Base):
         self.primary_unpacked_provisional_designation = primary_unpacked_provisional_designation
         
         # Sanity-check on dimensionality of input states
+        # NBody.output_states.shape == ( N_times , N_particles , N_coords )
         assert states.ndim == 2, 'states.ndim = %d' % states.ndim
 
         # Generate relative times within sectors (each sector starts from t=0)
@@ -396,7 +406,7 @@ class MSC(Base):
             
             # Identify the indicees of the nbody times for this sector
             indicees = np.where( sector_numbers == sector_number )[0]
-            
+
             # Order used for cheby fitting
             self.maxorder   = min(self.maxorder,len(indicees))
             
@@ -416,7 +426,7 @@ class MSC(Base):
             # N.B. I have not yet investigated/justified these values
             #      But I have verified that things can go terribly wrong unless *some* constraint is put in place
             # N.B. This check creates the possibility of patchy / non-contiguous sectors
-            elif    states[indicees].shape[0] >= cheb_coeffs.shape[0] \
+            elif    states[indicees].shape[0]               >= cheb_coeffs.shape[0] \
                     and sector_relative_times[indicees][0]  < self.sector_gap \
                     and sector_relative_times[indicees][-1] > self.sector_length_days - self.sector_gap :
             
@@ -425,10 +435,16 @@ class MSC(Base):
                     
             else:
                 if sector_number not in [sector_numbers[0], sector_numbers[-1]]:
-                    print(f'Warning : sector_number {sector_number} is not well covered')
-                    print(f'This is *not* an  "end" sector so this *will* cause coverage gaps')
-                    print(f'states[indicees].shape[0] , cheb_coeffs.shape[0], sector_relative_times[indicees][0], sector_relative_times[indicees][-1]')
-                    print(  states[indicees].shape[0] , cheb_coeffs.shape[0], sector_relative_times[indicees][0], sector_relative_times[indicees][-1] )
+                    print(f'*** Warning : sector_number {sector_number} is not well covered')
+                    print(f'*** This is *not* an  "end" sector so this *will* cause coverage gaps')
+                    print(f'*** I.e. NO COEFFICIENTS have been produced for sector_number {sector_number}')
+                    print(f'*** states[indicees].shape[0]          = {states[indicees].shape[0]}')
+                    print(f'*** cheb_coeffs.shape[0]               = {cheb_coeffs.shape[0]}')
+                    print(f'*** sector_relative_times[indicees][0] = {sector_relative_times[indicees][0]}')
+                    print(f'*** sector_relative_times[indicees][-1]= {sector_relative_times[indicees][-1]} ' )
+                    print(f'*** times_TDB[indicees][0] = {times_TDB[indicees][0]}')
+                    print(f'*** times_TDB[indicees][-1]= {times_TDB[indicees][-1]} ' )
+
                     print()
     
         # May be useful to extract start & end sectors / dates
@@ -470,7 +486,7 @@ class MSC(Base):
         """
         # EXPECT THAT 0 < t < Base.sector_length_days (keep times <~32 days)
         assert np.all( t < self.sector_length_days )
-        
+        #print('generate_cheb_for_sector: N_t = ',len(t))
         order           = self.minorder if order is None else order
         chebCandidate   = np.polynomial.chebyshev.chebfit(t, y, int(np.ceil(order)) )
         quickEval       = np.polynomial.chebyshev.chebval(t, chebCandidate).T

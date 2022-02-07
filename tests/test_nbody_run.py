@@ -35,7 +35,7 @@ from filecmp import cmp
 import getpass
 import json
 import time
-
+import glob
 
 
 # Import neighbouring packages
@@ -53,6 +53,7 @@ this_dir = os.path.abspath(os.path.dirname( __file__ ))
 repo_dir = os.path.abspath(os.path.dirname( this_dir ))
 data_dir = os.path.join(repo_dir, 'dev_data')
 json_dir = os.path.join(data_dir, 'mpc_orb_jsons')
+std_json_dir = os.path.join(json_dir, 'standard_mp') # Standard grav-only fits
 test_dir = os.path.join(repo_dir, 'tests')
 code_dir = os.path.join(repo_dir, 'cheby_checker')
 for d in [test_dir, code_dir]:
@@ -154,11 +155,10 @@ def test_nbody_A():
         N.bary_eq_cov_EXISTS     == False  and \
         N.bary_eq_cov            == None  and \
         N.non_grav_EXISTS        == False  and \
-        N.non_grav_array         == []  and \
+        N.non_grav_dict_list     == []  and \
         N.output_times       == None  and \
-        N.output_vectors     == None  and \
-        N.output_n_times     == None  and \
-        N.output_n_particles == None
+        N.output_states      == None  and \
+        N.output_covar       == None
             
     
 
@@ -313,7 +313,7 @@ def test_production_integration_function_wrapper_B():
     Doing a timing test of the production_integration_function_wrapper
     
     When running directly from a file in ephem_forcs, this test takes
-    ~1.6 secs to run (20,000 day integration)
+    ~1 secs to run (20,000 day integration)
     
     During development there were issues in which the same query run from a
     different directory would take ~3mins (i.e. 100 times longer)
@@ -325,29 +325,60 @@ def test_production_integration_function_wrapper_B():
     
     # Define the inputs
     instates = np.array([[3.338875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.550408687780768E-03, 2.980028206579994E-03]])
-    n_particles = 1
-    tstart, trange = 2458849.5, 2000
+    tstart, trange = 2458849.5, 20000
     epoch = tstart
     tend = tstart + trange
-    #print('tstart,tend,epoch,instates',tstart,tend,epoch,instates)
     
     # Run the integration
     times, states, var, var_ng, status = ephem_forces.production_integration_function_wrapper(tstart, tend, epoch, instates)
-    #print(times.shape , states.shape, var.shape)
-    #print(times[:4],'\n',times[-4:])
 
-    # Checks ...
+    # Check that the execution time is less than 2 seconds (when it gets bad it ballons to 3 minutes)
     end_time = time.time()
-    allowed_time = 10 #seconds
-    print('end_time-start_time = ',end_time-start_time )
+    allowed_time = 2 #seconds
+    print('end_time-start_time',end_time-start_time)
     assert end_time-start_time < allowed_time
-
 
 
 def test_production_integration_function_wrapper_C():
     '''
+    Another test of timing...
+    In practice 10 particles seemed to take ~2.5 secs (end-start below)
+    '''
+    start_time = time.time()
+    #print(__file__, ':test_production_integration_function_wrapper_B')
     
-    Testing the numerical accuracy of the results returned from a
+    # Define the inputs
+    instates = np.array([
+        [3.338875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.550408687780768E-03, 2.980028206579994E-03],
+        [3.388875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.540408687780768E-03, 2.980028206579994E-03],
+        [3.438875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.530408687780768E-03, 2.980028206579994E-03],
+        [3.488875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.520408687780768E-03, 2.980028206579994E-03],
+        [3.538875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.510408687780768E-03, 2.980028206579994E-03],
+        [3.588875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.550408687780768E-03, 2.980028206579994E-03],
+        [3.638875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.540408687780768E-03, 2.980028206579994E-03],
+        [3.688875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.530408687780768E-03, 2.980028206579994E-03],
+        [3.738875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.520408687780768E-03, 2.980028206579994E-03],
+        [3.788875349745594E+00, -9.176518281675284E-01, -5.038590682977396E-01, 2.805663319000732E-03, 7.510408687780768E-03, 2.980028206579994E-03],
+    ])
+    tstart, trange = 2458849.5, 20000
+    epoch = tstart
+    tend = tstart + trange
+    
+    # Run the integration
+    times, states, var, var_ng, status = ephem_forces.production_integration_function_wrapper(tstart, tend, epoch, instates)
+
+    # Check that the execution time is less than 2 seconds (when it gets bad it ballons to 3 minutes)
+    end_time = time.time()
+    allowed_time = 5 #seconds
+    print('end_time-start_time',end_time-start_time)
+    assert end_time-start_time < allowed_time
+
+
+
+def test_production_integration_function_wrapper_D():
+    '''
+    
+    Testing the numerical ACCURACY of the results returned from a
     single run of the *ephem_forces.production_integration_function_wrapper*
     function.
     
@@ -394,14 +425,17 @@ def test_production_integration_function_wrapper_C():
         assert similar_bool
     
  
+
     
-    
-def test_run_integration():
+def test_run_integration_A():
     '''
     Test the NbodySim.__run_integration() function
-    This calls *production_integration_function_wrapper*
-    And then performs various functions to reshape the partial derivs,
-    and then calculates the cov-matrix at each timestep
+    This
+        calls *production_integration_function_wrapper*
+        then performs various functions to reshape the partial derivs,
+        then calculates the cov-matrix at each timestep
+        
+    We want to check that the output has the expected type & shape
     '''
     
     # Instantiate
@@ -410,8 +444,8 @@ def test_run_integration():
     # Declare inputs
     tstart = 2459200
     tstop  = 2459300
-    data_file = '545808fel_num.json'
-    mpcorb_list = [ os.path.join(json_dir , data_file) ]
+    data_file = '2000SR210.json'
+    mpcorb_list = [ os.path.join(std_json_dir , data_file) ]
 
     # Parse the inputs
     N._parse_inputs_run_mpcorb(tstart = tstart , tstop = tstop , mpcorb_list = mpcorb_list)
@@ -425,219 +459,94 @@ def test_run_integration():
     assert N.output_states  == None
     assert N.output_covar   == None
 
-    #
+    # ## ### #### ##### ######
     # Run the *__run_integration* function we want to test
-    #
+    # ## ### #### ##### ######
     N.verbose = True
     print("running integration ... ")
     N._run_integration()
     
-    # Check the output is as expected
+    # Check the output has the expected type & shape
     assert isinstance(N.output_times, np.ndarray)
     assert isinstance(N.output_states, np.ndarray)
     assert isinstance(N.output_covar, np.ndarray)
-    print(N.output_times.shape )
-    print(N.output_states.shape )
-    print(N.output_covar.shape )
 
-    
-"""
+    # output_times.shape   ~ (161,)
+    # output_states.shape  ~ (161, 1, 6)
+    # output_covar.shape   ~ (161, 1, 6, 6)
+    n_particles = 1
+    assert  N.output_times.shape[0] == N.output_states.shape[0] == N.output_covar.shape[0]
+    assert  N.output_states.ndim ==3 and \
+            N.output_states.shape[1] == n_particles and \
+            N.output_states.shape[2] == 6
+    assert  N.output_covar.ndim ==4 and \
+            N.output_covar.shape[1] == n_particles and \
+            N.output_covar.shape[2] == 6 and \
+            N.output_covar.shape[3] == 6
 
 
-names_of_variables     = ('data_file', 'file_type', 'tstart', 'tend')
-values_for_each_test   = [
-                        ('30101.eq0_postfit',  'eq', 2456000, 1000)#,
-                        #('30102.eq0_postfit',  'eq', 2456000, 1000),
-                        #('30101.eq0_horizons', 'eq', 2456000, 1000),
-                        #('30102.eq0_horizons', 'eq', 2456000, 1000),
- ]
-@pytest.mark.parametrize( names_of_variables, values_for_each_test )
-def test_run_nbody_A(data_file, file_type, tstart, tend):
+
+
+def test_run_mpcorb_A():
     '''
-    Test whether the run_nbody function works correctly.
-    This test for now only tests that the function doesn't crash and burn,
-    not the actual output.
+    Test the overall *run_mpcorb* function
     
-    *** NB These are all single particle inputs ***
-    ***    Should do multi-particle tests too   ***
-    
+    Note that here we are testing that
+    (a) the cartesian positions from the orbfit fit are "close enough" to the JPL fit (10's of km)
+    (b) the cartesian positions remain close to the JPL fit throughout the integration by reboundx
     '''
-    
-    # Get some test-data to use as input to the nbody function
-    # - to do this we will use some of the "Parse..." functionality tested above
-    P = nbody.ParseElements( input = os.path.join(DATA_DIR, data_file),
-                            filetype = file_type,
-                            save_parsed=False,
-                            CHECK_EPOCHS=False )
-    epoch       = P.time.tdb.jd
-    vectors     = P.bary_eq_vec
-    covariances = P.bary_eq_cov
- 
- 
-    # Now execute the run_nbody function ...
+
+    # Instantiate
     N = nbody.NbodySim()
     
-    (   epoch,
-        input_vectors,
-        input_covariances,
-        input_n_particles,
-        output_times,
-        output_vectors,
-        output_covariance
-     ) =N.run_nbody(epoch,
-                    vectors,
-                    covariances,
-                    tstart,
-                    tend,
-                    geocentric=False,
-                    verbose   =True)
-                    
-    # Now test the output ** NOT MUCH IN THE WAY OF TESTING AT THIS POINT ***
-    assert isinstance(input_vectors, np.ndarray)
-    assert isinstance(input_n_particles, int)
-    assert isinstance(output_times, np.ndarray)
-    assert isinstance(output_vectors, np.ndarray)
+    # Declare inputs
+    tstart = 2459200
+    tstop  = 2459300
+    data_file = '2000SR210.json'
+    mpcorb_list = [ os.path.join(std_json_dir , data_file) ]
+
+    # Run the *run_mpcorb* that we want to test
+    N.run_mpcorb( tstart = tstart , tstop = tstop , mpcorb_list = mpcorb_list )
 
 
+    # Define the variables that will be used in the query
+    target  = '56986' # 2000SR210 == Asteroid #56986
+    centre  = '500@0'  # <<-- Barycentric
+    id_type = 'smallbody'
+    refplane='earth' # <<--Equatorial
 
 
-
-
-# Splitting the parameters into two @pytest.mark.parametrize statements
-# essentially makes it a nested loop (so all combinations are tested).
-@pytest.mark.parametrize(
-    ('tstart', 'tstep', 'trange', 'geocentric', 'targets', 'id_type'),
-    [
-     #(2458850.0, 20.0, 600, 0, ['2020 CD3'], ['smallbody']), # Mini-moon, Jan 2020
-     (2456117.641933589, 20.0, 600, 0, ['30101'], ['smallbody']),
-     (2456184.7528431923, 20.0, 600, 0, ['30102'], ['smallbody']),
-     (2456142.5, 20.0, 60, 0, ['30101', '30102'],
-      ['smallbody', 'smallbody']),
-      ])
-@pytest.mark.parametrize(
-    ('threshold_xyz', 'threshold_v'),
-    [
-     (1e-10,  1e-11),   # 1e-10 au ~ 15m,  1e-11 au/day ~ 1.5 m/day     ## MJP : 2020-09-03 Artificially increased thresholds !!!
-     (2e-7,  2e-8),   # 5e-11 au ~ 7.5m, 2e-13 au/day ~ 30 mm/day
-      ])
-def test_nbody_vs_Horizons(tstart, tstep, trange, geocentric,
-                           targets, id_type, threshold_xyz, threshold_v):
-    '''
-    Test that putting input from Horizons in gives Horizons consistent output.
-    '''
-    centre = '500' if geocentric else '500@0'
+    # Now call horizons again at the output times at which the *production_integration_function_wrapper()* produced output
+    for n, t in enumerate(N.output_times):
     
-    # Make the single array with 6 elements for each particle.
-    vector_s = np.stack( [ nice_Horizons(targi, centre, tstart, id_type[i]) for i, targi in enumerate(targets) ] )
+        # Check horizons at the simulation-time output
+        h = Horizons.nice_Horizons(target, centre, t, id_type, refplane=refplane)
 
-    # Define the start-time for the run
-    epoch    = tstart
+        # Check similarity: threshold_xyz=1e-6, threshold_v=1e-8
+        # The expected differences are at the few-times 10^-7 level => few-times 10km
+        #  -- This seems entirely reasonable for the differences in the results of orbit fits
+        similar_bool , error = similar_xyzuvw(h, N.output_states[n][0], threshold_xyz=1e-6, threshold_v=1e-8)
+        assert similar_bool
+
+
+def test_run_mpcorb_B():
+    '''
+    Test the overall *run_mpcorb* function on MULTIPLE INPUT FILES
     
-    # Run nbody integrator
+    '''
+
+    # Instantiate
     N = nbody.NbodySim()
     
-    (   epoch,
-        input_vectors,
-        input_covariances,
-        input_n_particles,
-        output_times,
-        output_vectors,
-        output_covariance
-     ) = N.run_nbody(   epoch,
-                        vector_s,
-                        None,          # covariance matrix
-                        tstart,
-                        trange,
-                        geocentric=geocentric,
-                        verbose=False )
-    
-    
-    # Check ~5 time steps to see whether nbody output is good enough
-    is_nbody_output_good_enough(output_times, output_vectors, target=targets[0])
+    # Declare inputs
+    tstart = 2459200
+    tstop  = 2459300
+    mpc_orb_json_files = glob.glob(std_json_dir + '/*.json' )[:3]
+
+    # Run the *run_mpcorb* that we want to test
+    N.run_mpcorb( tstart = tstart , tstop = tstop , mpcorb_list = mpc_orb_json_files )
 
 
-
-
-
-
-"""
-
-"""
-
-@pytest.mark.parametrize(
-    ('data_file', 'filetype', 'holman_ic_test_file', 'nbody_test_file'),
-    [
-     pytest.param('30101.ele220', 'ele220', 'holman_ic_30101', 'nbody_30101',
-                    marks=pytest.mark.xfail(reason='Not implemented yet.')),
-     pytest.param('30102.ele220', 'ele220', 'holman_ic_30102', 'nbody_30102',
-                  marks=pytest.mark.xfail(reason='Not implemented yet.')),
-     ('30101.eq0_horizons', 'eq', 'holman_ic_30101_horizons', 'nbody_30101_horizons'),
-     ('30102.eq0_horizons', 'eq', 'holman_ic_30102_horizons', 'nbody_30102_horizons'),
-      ])
-def test_NbodySim(data_file, filetype, holman_ic_test_file, nbody_test_file):
-    '''
-    Test the nbody.NbodySim class.
-    '''
-    
-    # ------------ (1) TEST INPUT-PARSING ------------------
-    # Instantiate from file ...
-    Sim = nbody.NbodySim(   os.path.join(DATA_DIR, data_file),
-                            filetype    =  filetype,
-                            save_parsed =  True,
-                            CHECK_EPOCHS = False)
-                            
-    # Test parsed input
-    save_file = 'save_file.tmp' # This is the default file name in ParseElements
-    is_parsed_good_enough(  save_file,
-                            os.path.join(DATA_DIR, holman_ic_test_file))
-
-    # ------------ (2) TEST INTEGRATION --------------------
-    # Do integration ...
-    Sim(tstart=2456184.7528431923, tstep=20, trange=600, save_output=True)
-                            
-    # Test nbody output
-    is_nbody_output_good_enough(Sim.output_times,
-                                Sim.output_vectors,
-                                target=data_file[:5])
-
-
-# Non-test helper functions
-# -----------------------------------------------------------------------------
-
-def is_nbody_output_good_enough(times, data, target='30102'):
-    '''
-    Helper function for determining whether the saved output from an nbody
-    integration is good enough.
-    '''
-    # Check 20 timesteps (or less if there are many)
-    some_times = np.linspace(0, len(times) - 1, 20).astype(int)
-    for j in set(some_times):
-    
-        # Get Horizons "state"" for that time
-        horizons_xyzv = nice_Horizons(target, '500@0', times[j], 'smallbody')
-        
-        # The "state" from our integration
-        mpc_xyzv = data[j, 0, :]
-        
-        # Check whether our integration agrees with Horizons ( within threshold )
-        error, good_tf = compare_xyzv(horizons_xyzv,
-                                        mpc_xyzv,
-                                        1e-7, 1e-8) # MJP 2020-09-03 : Artificially increased thresholds to allow me to make progress while waiting for Holman to debug
-                                        #5e-11, 2e-13)  # 7.5m, 30 mm/day
-        if np.all(good_tf):
-            pass # print('Awesome!')
-        else:
-            print(f'\n Discrepancy in *is_nbody_output_good_enough()* ...')
-            print(f'Time, timestep: {times[j]:}, {j:}')
-            print(f'Horizons : {["%18.15e" % _ for _ in horizons_xyzv]}')
-            print(f'N-body   : {["%18.15e" % _ for _ in mpc_xyzv]}')
-            print(f'Position off by [au]: {error[:3]:}')
-            print(f'Velocity off by [au/day]: {error[3:6]:}')
-        assert np.all(good_tf)
-
-
-
-"""
 """
 
 
@@ -690,6 +599,11 @@ def test_text_file_creation(test_filepath):
 
 # End
 
+#test_nbody_A
+#test_integration_function_A()
 #test_integration_function_B()
-test_production_integration_function_wrapper_B()
-#test_run_integration()
+#test_production_integration_function_wrapper_C()
+#test_run_integration_B()
+#test_run_mpcorb()
+test_run_mpcorb_A()
+test_run_mpcorb_B()

@@ -50,6 +50,7 @@ this_dir = os.path.abspath(os.path.dirname( __file__ ))
 repo_dir = os.path.abspath(os.path.dirname( this_dir ))
 data_dir = os.path.join(repo_dir, 'dev_data')
 json_dir = os.path.join(data_dir, 'mpc_orb_jsons')
+std_json_dir = os.path.join(json_dir, 'standard_mp') # Standard grav-only fits
 test_dir = os.path.join(repo_dir, 'tests')
 code_dir = os.path.join(repo_dir, 'cheby_checker')
 for d in [test_dir, code_dir]:
@@ -116,21 +117,20 @@ def test_nbody_A():
         N.bary_eq_cov_EXISTS     == False  and \
         N.bary_eq_cov            == None  and \
         N.non_grav_EXISTS        == False  and \
-        N.non_grav_array         == []  and \
+        N.non_grav_dict_list     == []  and \
         N.output_times       == None  and \
-        N.output_vectors     == None  and \
-        N.output_n_times     == None  and \
-        N.output_n_particles == None
+        N.output_states      == None  and \
+        N.output_covar       == None
+
             
     
 
 
 @pytest.mark.parametrize(   ('data_file'),
-                         [  '10199fel_num.json',
-                            '1566fel_num.json',
-                            '2003AF23fel_num.json',
-                            '2017AP4fel_num.json',
-                            '545808fel_num.json'])
+                         [  '2000SR210.json',
+                            '2010LE128.json',
+                            '2010SV.json',
+                            '2012TC114.json'])
 def test_parse_orbfit_json_A(data_file):
 
     '''
@@ -151,7 +151,7 @@ def test_parse_orbfit_json_A(data_file):
     assert N.integration_epoch  == None
     
     # call _parse_orbfit_json [this is the function we are testing]
-    N._parse_orbfit_json( os.path.join(json_dir , data_file) )
+    N._parse_orbfit_json( os.path.join(std_json_dir , data_file) )
     
     # Check that the expected attributes have now been populated
     assert N.helio_ecl_vec_EXISTS   is True
@@ -165,7 +165,7 @@ def test_parse_orbfit_json_A(data_file):
     assert N.helio_ecl_cov.shape in [(1,6,6),(1,7,7),(1,8,8),(1,9,9)]
     
     # Check that some of the numerical values are as expeected...
-    with open(os.path.join(json_dir , data_file)) as f:
+    with open(os.path.join(std_json_dir , data_file)) as f:
         data_dict = json.load(f)
 
         # - We expect the helio_ecl_vec to be the same as the data_file -> data_dict["CAR"]["elements"].values()
@@ -191,8 +191,8 @@ def test_parse_inputs_run_mpcorb_A():
     # Declare inputs
     tstart = 50000
     tstop  = 55000
-    data_file = '545808fel_num.json'
-    mpcorb_list = [ os.path.join(json_dir , data_file) ]
+    data_file = '2012TC114.json'
+    mpcorb_list = [ os.path.join(std_json_dir , data_file) ]
 
     # Check that a few key attributes have the expected values before running the test
     # (these are the variables we expect to get populated by the function call below)
@@ -228,7 +228,7 @@ def test_parse_inputs_run_mpcorb_A():
 
     # Check that some of the numerical values are as expected...
     # - We expect the helio_ecl_vec to be the same as the data_file -> data_dict["CAR"]["elements"].values()
-    with open(os.path.join(json_dir , data_file)) as f:
+    with open(os.path.join(std_json_dir , data_file)) as f:
         data_dict = json.load(f)
         SIMILAR, error = similar_xyzuvw( N.helio_ecl_vec , list(data_dict["CAR"]["elements"].values()) )
         assert SIMILAR, f'helio_ecl_vec != data_dict["CAR"]["elements"].values(): Diff=={error}'
@@ -247,8 +247,8 @@ def test_make_bary_equatorial_A():
     # Declare inputs
     tstart = 50000
     tstop  = 55000
-    data_file = '545808fel_num.json'
-    mpcorb_list = [ os.path.join(json_dir , data_file) ]
+    data_file = '2012TC114.json'
+    mpcorb_list = [ os.path.join(std_json_dir , data_file) ]
 
     # Check that a few key attributes have the expected values before running the test
     # (these are the variables we expect to get populated by the function call below)

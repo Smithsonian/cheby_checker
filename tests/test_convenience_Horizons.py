@@ -358,7 +358,9 @@ Computations by ...
     result = Horizons.nice_Horizons(target, centre, epochs, id_type, refplane=refplane )
     
     # Check that the results are as expected
-    assert np.allclose(expected_array, result, rtol=1e-11, atol=1e-11)
+    # - Lowered the accuracy from 1e-11 to 1e-8 as the discrepany grows when JPL re-fits the orbit,
+    # and I don't want to keep hand-pasting different sets of results
+    assert np.allclose(expected_array, result, rtol=1e-8, atol=1e-8)
 
 
 
@@ -524,7 +526,7 @@ Computations by ...
     result = Horizons.nice_Horizons(target, centre, epochs, id_type, refplane=refplane)
     print('result=\n' , result)
     # Check that the results are as expected
-    assert np.allclose(expected_array, result, rtol=1e-11, atol=1e-11)
+    assert np.allclose(expected_array, result, rtol=1e-10, atol=1e-10)
 
 
 
