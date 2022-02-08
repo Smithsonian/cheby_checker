@@ -6,6 +6,10 @@
 
 ### test_orbit_cheby.py :
 - orbit_cheby.py has an INTERNAL dependance on the nbody.py module
+- sql.py has an INTERNAL dependance on the cheby_checker.py module 
+- a number of tests have been developed that establish working & accurate code for multiple functions around input STATES
+- few/no tests have yet been done to incorporate COVARIANCE MATRIX input / fitting / etc
+
 
 
 
@@ -49,3 +53,12 @@
 - nbody.py also depends on INTERNAL MPC_library.py: should shift away from this if/when possible
 - nbody.py also depends on the s REBOUNDX:EPHEM library
 - There are tests in place which get the same cartesian coords to ~10km when comparing an orbfit result to a JPL result. This seems good enough.
+
+### test_orbit_cheby_locations.py :
+- orbit_cheby.py has an INTERNAL dependance on the nbody.py module
+- sql.py has an INTERNAL dependance on the cheby_checker.py module 
+- The orbit_cheby module has a lot going on, so I am sub-dividing the tests: Here I am splitting out tests of the "_define_locations", "_take_triangular", & "_make_square" functions within orbit_cheby. 
+- pytest test_orbit_cheby_locations.py
+- passes within containerized environment
+
+

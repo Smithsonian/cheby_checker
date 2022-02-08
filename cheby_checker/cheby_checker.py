@@ -92,7 +92,7 @@ class Base():
     # total length of the sector.
     #  - I have no good justification for this number at present:
     #  - It should be viewed as a free parameter whose value should be experimentally determined.
-    sector_gap = 4.0
+    sector_gap = 5.0
 
     # We will assume that the earliest standard epoch to be used will be JD:2440000
     # - This will set the enumeration of the sectors

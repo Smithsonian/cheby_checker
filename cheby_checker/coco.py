@@ -44,8 +44,8 @@ def ecliptic_to_equatorial(input, backwards=False):
     inputs:
     -------
     input : 2-D or 3-D arrays
-     - If 2-D, then input.shape[1] must be in [3,6]
-     - If 3-D, then input.shape[1,2] must be  (6,6)
+     - If 2-D, then input.shape must be in (N_times,3) or (N_times,6)
+     - If 3-D, then input.shape must be  (N_times,6,6)
      
     NB: The inputs are 2D & 3D (rather than 1 or 2) so
     that we can "stack" lots of 1D vectors, or 2D Covariance-matricees
@@ -89,12 +89,16 @@ def equatorial_helio2bary(input_xyz, jd_tdb, backwards=False):
     '''
     Convert from heliocentric to barycentic cartesian coordinates.
     backwards=True converts backwards, from bary to helio.
+    
     input:
-        input_xyz - np.ndarray of shape (X,3) or (X,6)
+        input_xyz - np.ndarray of shape (N_times,3) or (N_times,6)
+        jd_tdb    - np.ndarray of shape (N_times)
         backwards - boolean
+        
     output:
         output_xyz  - np.ndarray
-                    - same shape as input_xyz
+                    - same shape as input_xyz:
+                      (N_times , 3) or (N_times , 6)
 
     input_xyz MUST BE EQUATORIAL!!!
     '''
@@ -103,13 +107,15 @@ def equatorial_helio2bary(input_xyz, jd_tdb, backwards=False):
     # Ensure we have an array of the correct shape to work with
     assert input_xyz.ndim == 2, f" input_xyz={input_xyz}\n input_xyz.shape={input_xyz.shape}\n input_xyz.ndim={input_xyz.ndim}"
     assert input_xyz.shape[1] in [3,6]
-    
+
     # Position & Motion of the barycenter w.r.t. the heliocenter (and vice-versa)
+    # NB: delta.shape == (3,N_times)  ==>>  delta.T.shape == (N_times, 3)
     delta, delta_vel = mpc.jpl_kernel[0, 10].compute_and_differentiate(jd_tdb)
     
     # Work out whether we need xyz or xyzuvw
-    delta = delta.reshape((1,3)) if input_xyz.shape[1] == 3 else np.block([delta,delta_vel]).reshape((1,6))
+    delta = delta.T if input_xyz.shape[1] == 3 else np.block([delta.T,delta_vel.T])
 
-    # Shift vectors & return
-    return input_xyz + delta * direction / Base().au_km
+    # Shift vectors & return: result.shape == (N_times , 3) or (N_times , 6)
+    result = input_xyz + delta * direction / Base().au_km
+    return result
 

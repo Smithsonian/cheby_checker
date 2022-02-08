@@ -588,8 +588,8 @@ class NbodySim():
     def reshape_partial_deriv_arrays( self,  partial_derivatives_wrt_state,  partial_derivatives_wrt_NG):
         '''
         (1) partial_derivatives_wrt_state
-        From: partial_derivatives_wrt_state.shape = (N_times, 6*n_particlea, 6)
-        To  : partial_derivatives_wrt_state.shape = (N_times, n_particlea, 6, 6)
+        From: partial_derivatives_wrt_state.shape = (N_times, 6*n_particles, 6)
+        To  : partial_derivatives_wrt_state.shape = (N_times, n_particles, 6, 6)
         
         (2) partial_derivatives_wrt_NG
         *** NOT YET IMPLEMENTED partial_derivatives_wrt_NG ***
@@ -617,7 +617,7 @@ class NbodySim():
 
         '''
         
-        if partial_derivatives_wrt_NG is not None:
+        if partial_derivatives_wrt_NG is not None :
             raise Error('Have not coded partial_derivatives_wrt_NG into _get_covariance_from_tangent_vectors ')
 
         # init_covariances.shape              =  (#particles, 6, 6)
@@ -625,6 +625,7 @@ class NbodySim():
         assert init_covariances.ndim == 3
         assert partial_derivatives_wrt_state.ndim == 4
         assert partial_derivatives_wrt_NG is None or partial_derivatives_wrt_NG.ndim  == 4
+        assert init_covariances.shape[-2:] == (6,6) # GRAVITY-ONLY ...
 
         # Take the inverse of the covariance matrix to get the normal matrix
         # NB1: We make a stack of identical matricees to use in the matrix multiplication below
