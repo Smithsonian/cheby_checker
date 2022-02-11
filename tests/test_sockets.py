@@ -11,8 +11,6 @@ import subprocess
 
 # Import neighboring packages
 # --------------------------------------------------------------
-sys.path.append(os.path.dirname(os.path.dirname(
-    os.path.realpath(__file__))))
 from cheby_checker import sockets
 
 # Some tests of general sockets methods

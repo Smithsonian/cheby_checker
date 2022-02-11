@@ -22,8 +22,7 @@ from astropy import units as u
 
 # Import local modules
 # --------------------------------------------------------------
-import MPC_library as mpc
-
+from . import MPC_library as mpc
 
 
 class ObsPos():

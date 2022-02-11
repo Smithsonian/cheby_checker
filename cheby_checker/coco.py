@@ -18,18 +18,9 @@ import numpy as np
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
-# cheby_checker/                 # <<-- repo
-# cheby_checker/cheby_checker    # <<-- python
-# cheby_checker/tests            # <<-- tests
-this_dir = os.path.abspath(os.path.dirname( __file__ ))
-repo_dir = os.path.abspath(os.path.dirname( this_dir ))
-test_dir = os.path.join(repo_dir, 'tests')
-code_dir = os.path.join(repo_dir, 'cheby_checker')
-
 # old conversion library
-import MPC_library as mpc
-
-from cheby_checker import Base
+from . import MPC_library as mpc
+from .cheby_checker import Base
 
 
 # Coordinate Conversion Functions

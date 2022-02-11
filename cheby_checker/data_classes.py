@@ -31,10 +31,7 @@ from astropy_healpix import healpy
 
 # Import neighboring packages
 # --------------------------------------------------------------
-try:
-    import orbit_cheby
-except:
-    from . import orbit_cheby
+from . import orbit_cheby
 
 # Simple dictionary-definitions of sets of variable names
 # --------------------------------------------------------------
