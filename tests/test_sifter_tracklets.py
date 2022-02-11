@@ -21,8 +21,6 @@ import pytest
 
 # Import neighboring packages
 # --------------------------------------------------------------
-sys.path.append(os.path.dirname(os.path.dirname(
-                os.path.realpath(__file__))))
 from cheby_checker import sifter_precalc as precalc, sifter_sql as sql
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'dev_data')
 

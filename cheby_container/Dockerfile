@@ -44,7 +44,6 @@ ENV JPL_SB_EPHEM=/reboundx/examples/ephem_forces/sb441-n16.bsp
 COPY sb441-n16.bsp /reboundx/examples/ephem_forces/sb441-n16.bsp
 
 
-
 # --- MPC_ORB INSTALL (from GitHub) --------
 # This is used to facilitate the reading of mpc_orb.json format orbits data
 WORKDIR /
@@ -53,17 +52,17 @@ WORKDIR mpc_orb
 RUN python3.6 -m pip install -e .
 
 
+# --- PYTHON INSTALLS -----------
+# Anaconda installing
+RUN python3.6 -m pip install numpy pytest astropy astropy_healpix astroquery scipy novas novas_de405 jplephem
+
+
 # --- CHEBY_CHECKER INSTALLS ----
 # While in development, will bind a local version (see build_container.py)
 #WORKDIR /
 #RUN git clone https://github.com/matthewjohnpayne/cheby_checker.git
-WORKDIR /cheby_checker/cheby_checker
-
-
-
-# --- PYTHON INSTALLS -----------
-# Anaconda installing 
-RUN python3.6 -m pip install numpy pytest astropy astropy_healpix astroquery scipy novas novas_de405 jplephem
+WORKDIR /cheby_checker
+#RUN python3.6 -m pip install -e .
 
 
 # --- Run deployment code on entry :

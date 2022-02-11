@@ -36,25 +36,13 @@ from mpc_orb.parse import MPCORB
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
-try:  # Import ephem_forces from whereever REBX_DIR is set to live
-    sys.path.append(os.environ['REBX_DIR'])
-    from examples.ephem_forces.ephem_forces import production_integration_function_wrapper
-except (KeyError, ModuleNotFoundError):
-    from reboundx.examples.ephem_forces.ephem_forces import production_integration_function_wrapper
-
-# cheby_checker/                 # <<-- repo
-# cheby_checker/cheby_checker    # <<-- python
-# cheby_checker/tests            # <<-- tests
-this_dir = os.path.abspath(os.path.dirname( __file__ ))
-repo_dir = os.path.abspath(os.path.dirname( this_dir ))
-test_dir = os.path.join(repo_dir, 'tests')
-code_dir = os.path.join(repo_dir, 'cheby_checker')
+from examples.ephem_forces.ephem_forces import production_integration_function_wrapper
 
 # old conversion library
-import MPC_library as mpc
+from . import MPC_library as mpc
 
-import coco
-from decorators import timer
+from . import coco
+from .decorators import timer
 
 
 # Constants and stuff

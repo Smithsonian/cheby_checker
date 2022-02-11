@@ -29,7 +29,7 @@ from astropy_healpix import HEALPix
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
-import MPC_library as mpc
+from . import MPC_library as mpc
 
 # Different machines set up differently ...
 # ... adding paths to force stuff to work while developing

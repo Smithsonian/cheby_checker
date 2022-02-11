@@ -21,17 +21,10 @@ from astroquery.jplhorizons import Horizons
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
-try:  # Import ephem_forces from whereever REBX_DIR is set to live
-    sys.path.append(os.environ['REBX_DIR'])
-    from examples.ephem_forces import ephem_forces
-except (KeyError, ModuleNotFoundError):
-    from reboundx.examples.ephem_forces import ephem_forces
-
-sys.path.append(os.path.dirname(os.path.dirname(
-                os.path.realpath(__file__))))
+sys.path.append(os.environ['REBX_DIR'])
+from examples.ephem_forces import ephem_forcess
 from tests.test_parse_input import is_parsed_good_enough, compare_xyzv
-from cheby_checker import mpc_nbody
-from cheby_checker.parse_input import ParseElements
+from cheby_checker import nbody
 
 
 # Constants & Test Data

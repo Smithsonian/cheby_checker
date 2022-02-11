@@ -38,9 +38,9 @@ from astropy_healpix import healpy
 
 # Import neighboring packages
 # --------------------------------------------------------------
-import precalc
-from orbit_cheby import Base
-import data_classes
+from . import precalc
+from .orbit_cheby import Base
+from . import data_classes
 
 
 

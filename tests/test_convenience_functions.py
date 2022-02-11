@@ -21,11 +21,8 @@ import pytest
 
 # Import neighboring packages
 # --------------------------------------------------------------
-sys.path.append(os.path.dirname(os.path.dirname(
-                                                os.path.realpath(__file__))))
 from cheby_checker import orbit_cheby
-from cheby_checker import nbody_reader
-from cheby_checker import mpc_nbody
+from cheby_checker import nbody
 
 
 

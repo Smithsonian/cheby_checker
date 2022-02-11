@@ -32,19 +32,9 @@ import json
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
-try:  # Import ephem_forces from whereever REBX_DIR is set to live
-    sys.path.append(os.environ['REBX_DIR'])
-    from examples.ephem_forces import ephem_forces
-except (KeyError, ModuleNotFoundError):
-    from reboundx.examples.ephem_forces import ephem_forces
-
-sys.path.append(os.path.dirname(os.path.dirname(
-                os.path.realpath(__file__))))
+from reboundx.examples.ephem_forces import ephem_forces
 from cheby_checker import nbody
-
-if getpass.getuser() in ['matthewjohnpayne']:  # Payne's dev laptop set up differently ...:
-    sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/')
-import mpcpp.MPC_library as mpc
+from cheby_checker import MPC_library as mpc
 
 # Constants & Test Data
 # -----------------------------------------------------------------------------

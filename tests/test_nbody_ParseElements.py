@@ -36,37 +36,18 @@ import json
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
-try:  # Import ephem_forces from whereever REBX_DIR is set to live
-    sys.path.append(os.environ['REBX_DIR'])
-    from examples.ephem_forces import ephem_forces
-except (KeyError, ModuleNotFoundError):
-    from reboundx.examples.ephem_forces import ephem_forces
-
-# cheby_checker/                 # <<-- repo
-# cheby_checker/cheby_checker    # <<-- python
-# cheby_checker/tests            # <<-- tests
-this_dir = os.path.abspath(os.path.dirname( __file__ ))
-repo_dir = os.path.abspath(os.path.dirname( this_dir ))
-test_dir = os.path.join(repo_dir, 'tests')
-code_dir = os.path.join(repo_dir, 'cheby_checker')
-for d in [test_dir, code_dir]:
-    sys.path.append( d )
+from reboundx.examples.ephem_forces import ephem_forces
 
 # import the main mnbody code that we want to test ...
-#from cheby_checker
-import nbody
+from cheby_checker import nbody
 
 # old conversion library that may be useful for cross-comparison of various tests ...
-from code_dir import MPC_library as mpc
-
-
-
+from cheby_checker import MPC_library as mpc
 
 # Constants & Test Data
 # -----------------------------------------------------------------------------
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(
                         os.path.realpath(__file__))), 'dev_data')
-
 
 
 # Utility functions to help with testing

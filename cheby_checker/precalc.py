@@ -35,20 +35,10 @@ import json
 
 # Import neighboring packages
 # --------------------------------------------------------------
-try:
-    from orbit_cheby import orbit_cheby
-    from orbit_cheby import sql
-    from orbit_cheby import obs_pos
-    from orbit_cheby import nbody
-except ImportError:
-    from . import orbit_cheby
-    from . import sql
-    from . import obs_pos
-    from . import nbody
-
-assert orbit_cheby.Base(), \
-    'Seeing this text at evaluation indicates FAILURE to import orbit_cheby (as Base() should be available)'
-
+from . import orbit_cheby
+from . import sql
+from . import obs_pos
+from . import nbody
 
 
 # --------------------------------------------------------

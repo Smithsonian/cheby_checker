@@ -20,18 +20,8 @@ import sqlite3
 import pickle
 
 # Import neighboring packages
-# --------------------------------------------------------------
-# cheby_checker/                 # <<-- repo
-# cheby_checker/cheby_checker    # <<-- python
-# cheby_checker/tests            # <<-- tests
-this_dir = os.path.abspath(os.path.dirname( __file__ ))
-repo_dir = os.path.abspath(os.path.dirname( this_dir ))
-test_dir = os.path.join(repo_dir, 'tests')
-code_dir = os.path.join(repo_dir, 'cheby_checker')
-for d in [test_dir, code_dir]:
-    sys.path.append( d )
-import sql
-from cheby_checker import Base
+from cheby_checker import sql
+from cheby_checker.cheby_checker import Base
 
 
 # Files / Directories
