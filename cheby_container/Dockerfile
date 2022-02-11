@@ -22,7 +22,8 @@ RUN apt-get -y update && apt-get install -y 	gcc  		\
 
  
 # --- REBOUND INSTALLS ----------
-RUN git clone https://github.com/hannorein/rebound.git
+#RUN git clone https://github.com/hannorein/rebound.git
+RUN git clone https://github.com/Smithsonian/rebound.git
 WORKDIR /rebound
 RUN make
 ENV REB_DIR=/rebound
