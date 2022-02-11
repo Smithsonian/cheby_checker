@@ -4,6 +4,13 @@
 
 
 
+### test_orbit_cheby_horizons.py :
+- orbit_cheby.py has an INTERNAL dependance on the nbody.py module
+- sql.py has an INTERNAL dependance on the cheby_checker.py module 
+- Here I am starting to develo`p tests that explicitly do integrations, from the EXACT same starting coords as Horizons
+- This allows me to double-check the accuracy of the rebound-to-cheby conversions, the XYZ-to-RADEC conversions, ..
+- I have *NOT* yet been able to run these in a container, due to compilation problems with rebound/reboundx ... 
+
 ### test_orbit_cheby.py :
 - orbit_cheby.py has an INTERNAL dependance on the nbody.py module
 - sql.py has an INTERNAL dependance on the cheby_checker.py module 
@@ -13,7 +20,7 @@
 
 
 
-## 2022 : MJP: The following have been checked to pass tests within a containerized environment initialized/built using the code in "che by_container"
+## 2022 : MJP: The following have been checked to pass tests within a containerized environment initialized/built using the code in "cheby_container"
 
 ### test_convenience_Horizons.py
  - convenience_Horizons.py only depends on EXTERNAL packages
@@ -59,6 +66,14 @@
 - sql.py has an INTERNAL dependance on the cheby_checker.py module 
 - The orbit_cheby module has a lot going on, so I am sub-dividing the tests: Here I am splitting out tests of the "_define_locations", "_take_triangular", & "_make_square" functions within orbit_cheby. 
 - pytest test_orbit_cheby_locations.py
+- passes within containerized environment
+
+### test_orbit_cheby_creation.py :
+- orbit_cheby.py has an INTERNAL dependance on the nbody.py module
+- sql.py has an INTERNAL dependance on the cheby_checker.py module 
+- The orbit_cheby module has a lot going on, so I am sub-dividing the tests: Here I am splitting out tests of the instantiation of MSC & MCS_Loader objects within orbit_cheby, as well as the *from_coord_arrays* function(s) used to populate the objects with data at start up.
+ - Detailed tests of the *accuracy* of the chebyshevs that get created as a by-product of calling *from_coord_arrays* will promarily be performed elsewhere
+- pytest test_orbit_cheby_creation.py
 - passes within containerized environment
 
 

@@ -65,13 +65,7 @@ def test_equatorial_helio2bary(target, jd_tdb, id_type):
     assert np.all(error[:3] < 1e-13), f'XYZ:{error[:3]}'   # XYZ accurate to 15 milli-metres
     assert np.all(error[3:6] < 1e-14),f'UVW:{error[3:6]}'   # V accurate to 1.5 milli-metres/day
 
-    #print('hor_helio', hor_helio, type(hor_helio), hor_helio.shape )
-    #print('hor_bary', hor_bary, type(hor_bary), hor_bary.shape )
-    #print('expected_output_xyz = ', expected_output_xyz)
-    #print('output_xyz', output_xyz)
-    #print(f'XYZ:{error[:3]}')
-    #print(f'UVW:{error[3:6]}')
-    #assert False
+
 
 
 # -- (2) -------------------------------------------------------------------

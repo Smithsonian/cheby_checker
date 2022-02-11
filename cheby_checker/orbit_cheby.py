@@ -373,7 +373,7 @@ class MSC(Base):
     
         # create the entries in the sector_coeffs dict (N.B. have to transform the keys)
         self.sector_coeffs = { int(k.split("_")[1]) : v for k,v in coeff_dict.items() }
-    
+        
         # set the min & max supported times / sectors
         self.sector_init, self.sector_final = np.min(list(self.sector_coeffs.keys())) , np.max(list(self.sector_coeffs.keys()))
         self.TDB_init  = Base.map_sector_number_to_sector_start_JD( self.sector_init  , self.standard_MJDmin)
@@ -457,7 +457,7 @@ class MSC(Base):
             #          6 -> 6/7/8/9,     36 -> 36/49/64/81 ,     21->21/36/45
             array_to_be_fit = states[indicees] if covariances is None else np.hstack( (states[indicees],triangular[indicees]) )
             cheb_coeffs, maxFitErr = self.generate_cheb_for_sector( sector_relative_times[indicees], array_to_be_fit )
-
+            
             # Check that the maxFitErr is within acceptable bounds
             if maxFitErr > self.maxerr:
                 sys.exit(f'MSC.from_coord_arrays: maxFitErr = {maxFitErr} (i.e. > self.maxerr = {self.maxerr})')
@@ -493,7 +493,10 @@ class MSC(Base):
         self.TDB_init   = self.map_sector_number_to_sector_start_JD( self.sector_init,  self.standard_MJDmin )
         self.TDB_final  = self.map_sector_number_to_sector_start_JD( self.sector_final, self.standard_MJDmin ) + self.sector_length_days - self.epsilon
         
-        
+        #print( 'supported_sector_numbers = ', supported_sector_numbers)
+        #print( 'self.sector_init, self.sector_final  = ', self.sector_init, self.sector_final )
+        #print( 'self.TDB_init, self.TDB_final  = ', self.TDB_init, self.TDB_final )
+
         
             
 
@@ -536,8 +539,11 @@ class MSC(Base):
 
         # Convenient to know location of components for covXYZ
         # E.g. When n_coordinates=6 , component_slice_spec=np.array([6,7,8,12,13,17])
-        self.XYZ_slice_spec    = np.array( [0,1,2] )
-        self.covXYZ_slice_spec = np.array( [self.combi_map[k] for k in ['x_x', 'x_y', 'x_z','y_y', 'y_z', 'z_z' ] ] )
+        # - See link for specifying slices & ellipsis  : https://docs.scipy.org/doc/numpy/user/basics.indexing.html
+        self.XYZ_slice_spec       = np.arange( 0,3 )   # 0,1,2
+        self.XYZUVW_slice_spec   = np.arange( 0,6 )    # 0 1 2 3 4 5
+        self.covXYZ_slice_spec    = np.array( [self.combi_map[k] for k in ['x_x', 'x_y', 'x_z','y_y', 'y_z', 'z_z' ] ] )
+        self.covXYZUVW_slice_spec = np.array( [self.combi_map[k] for k in ['x_x', 'x_y', 'x_z', 'x_vx', 'x_vy', 'x_vz', 'y_y', 'y_z', 'y_vx', 'y_vy', 'y_vz', 'z_z', 'z_vx', 'z_vy', 'z_vz', 'vx_vx', 'vx_vy', 'vx_vz', 'vy_vy', 'vy_vz', 'vz_vz'] ] )
 
 
     def _take_triangular(self, covariances ):
@@ -596,7 +602,7 @@ class MSC(Base):
             M[n,i,j] = _
             M[n,j,i] = _
             print(M[n,:,:])
-        # Return array of dimension (covariances_tri.shape[0] , sq_dim, sq_dim)
+        # Return array of dimension (covariances_tri.shape[0] , sfq_dim, sq_dim)
         return M
 
 
@@ -710,7 +716,10 @@ class MSC(Base):
         return healpy.vec2pix(self.HP_nside, UV[0], UV[1], UV[2], nest=True if self.HP_order=='nested' else False )
 
 
-    def generate_UnitVector( self, times_tdb , observatoryXYZ, APPROX = False , DELTASWITCH = False, delta=np.array([0,0,0]) ):
+    def generate_UnitVector( self, times_tdb , observatoryXYZ,  APPROX = False ,
+                                                                DELTASWITCH_XYZ = False,
+                                                                DELTASWITCH_UVW = False,
+                                                                delta=np.array([0,0,0]) ):
         '''
             Calculate apparent UnitVector from specified observatory-posn(s) at given time(s)
             
@@ -726,6 +735,9 @@ class MSC(Base):
             observatoryXYZ: np.array
             - Observatory positions at times_tdb
             - shape = (len(times_tdb) , )
+            
+            delta: np.array
+             - Assume
             
             return:
             -------
@@ -747,13 +759,15 @@ class MSC(Base):
 
             # Calculate delayed time (of emission)
             # N.B. delayedTimes.shape = (len(times_tdb) )
-            delayedTimes    = times_tdb - lightDelay
+            delayedTimes    = times_tdb if i == 0 else times_tdb - lightDelay
             
             # Extract posn of objects at each delayed-time
-            # N.B. objectXYZ.shape    = (3, len(times_tdb) )
+            # N.B. objectXYZ.shape    = (len(times_tdb) , 3)
             objectXYZ       = self.generate_XYZ( delayedTimes )
-            if DELTASWITCH :
-                objectXYZ += np.stack([delta for i in range(objectXYZ.shape[-1])], axis=1)
+
+            #if DELTASWITCH_XYZ :
+            #    '''XYZ: Assume simple translation: shift@delayedTimes == shift@times_tdb'''
+            #    objectXYZ += np.stack([delta for i in range(objectXYZ.shape[0])], axis=1)
             
             # Calculate relative sepn-vector from observatory-to-object
             sepn_vectors    = objectXYZ - observatoryXYZ
@@ -763,13 +777,24 @@ class MSC(Base):
             # NB2 d.shape            == (len(times_tdb),)
             d               = np.linalg.norm(sepn_vectors, axis=1)
 
-            # Calculate light-travel-time
+            # Calculate light-travel-time:
+            # lightDelay.shape == (len(times_tdb),)
             lightDelay      = d / (astropy.constants.c * self.secsPerDay / astropy.constants.au ).value
-    
+
+
+            #if DELTASWITCH_UVW :
+            #    '''UVW: Seems more complex than XYZ: need lightDelay?? => Extra Iteration??'''
+            #    deltaDelay = (lightDelay*delta[:,None]).T
+            #    #objectXYZ += deltaDelay
+            #    #sepn_vectors = objectXYZ - observatoryXYZ
+            #    sepn_vectors += deltaDelay
+            #    d             = np.linalg.norm(sepn_vectors, axis=1)
+            #    lightDelay    = d / (astropy.constants.c * self.secsPerDay / astropy.constants.au ).value
+
         # Return unit-vectors: of shape = (N_times , 3)
         return sepn_vectors / d[:,None]
 
-    def dUVdXYZ( self, times_tdb , observatoryXYZ ):
+    def dUVdXYZUVW( self, times_tdb , observatoryXYZ , d = 1e-8):
         '''
             Gradient of the UnitVector w.r.t. the Cartesian X,Y,Z positions
             
@@ -779,16 +804,21 @@ class MSC(Base):
             returns:
             --------
         '''
-        d = 1e-6
         # Generating displacement vectors ... Are of shape = (len(times_tdb) , 3)
-        _dX = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([d, 0, 0]) ) \
-               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([-d,0, 0]) ) )
-        _dY = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, d, 0]) ) \
-               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0,-d, 0]) ) )
-        _dZ = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, 0, d]) ) \
-               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, 0,-d]) ) )
-    
-        return np.stack(np.array( (_dX, _dY, _dZ) ), axis=1).T / (2*d)
+        _dX = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([d, 0, 0]) ) \
+               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([-d,0, 0]) ) )
+        _dY = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([0, d, 0]) ) \
+               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([0,-d, 0]) ) )
+        _dZ = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([0, 0, d]) ) \
+               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([0, 0,-d]) ) )
+        _dU = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([d, 0, 0]) ) \
+               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([-d,0, 0]) ) )
+        _dV = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([0, d, 0]) ) \
+               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([0,-d, 0]) ) )
+        _dW = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([0, 0, d]) ) \
+               -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([0, 0,-d]) ) )
+
+        return np.stack(np.array( (_dX, _dY, _dZ, _dU, _dV, _dW) ), axis=1).T / (2*d)
     
     def covUV(self, times_tdb , observatoryXYZ ):
         '''
@@ -799,7 +829,10 @@ class MSC(Base):
         cov_XYZ = self.covXYZ( times_tdb  )
         return np.array( [ np.linalg.multi_dot([dUV[i].T , cov_XYZ[i], dUV[i]]) for i in range(len(dUV)) ] )
 
-    def generate_RaDec(self,  times_tdb  , observatoryXYZ=None, APPROX = False , DELTASWITCH = False, delta=np.array([0,0,0])):
+    def generate_RaDec(self,  times_tdb  , observatoryXYZ,  APPROX = False ,
+                                                            DELTASWITCH_XYZ = False,
+                                                            DELTASWITCH_UVW = False,
+                                                            delta=np.array([0,0,0])):
         '''
             Calculate apparent RA,DEC (Radians???) from specified observatory-posn(s) at given time(s)
             
@@ -814,7 +847,7 @@ class MSC(Base):
             
             observatoryXYZ: np.array
             - Observatory positions at times_tdb
-            - shape = (3,len(times_tdb))
+            - shape = (len(times_tdb), 3)
             
             return:
             -------
@@ -826,18 +859,21 @@ class MSC(Base):
         UV = self.generate_UnitVector(times_tdb ,
                                       observatoryXYZ,
                                       APPROX = APPROX,
-                                      DELTASWITCH=DELTASWITCH,
+                                      DELTASWITCH_XYZ=DELTASWITCH_XYZ,
+                                      DELTASWITCH_UVW=DELTASWITCH_UVW,
                                       delta = delta)
-                                                  
+        
         # Convert from unit-vector to RA, Dec and then return
         # NB: Taking transpose, T, makes retuurned shape ==  ( len(times_tdb) , 2)
         return np.array(healpy.vec2ang( UV , lonlat = True )).T
 
-    def dRaDecdXYZ( self, times_tdb , observatoryXYZ ,         d = 1e-6):
+    def dRaDecdXYZUVW( self, times_tdb , observatoryXYZ ,         d = 1e-8):
         '''
             Gradient of Ra & Dec w.r.t. the Cartesian X,Y,Z positions
             
-            Assumed d = 1e-8 => 1e-8 AU => 1e3m
+            Assume:
+                d = 1e-8    => 1e-8 AU      => 1.5e3m   == 1.5km for XYZ
+                            => 1e-8 AU/day  => 0.017m/s          for UVW
             
             inputs:
             -------
@@ -845,27 +881,34 @@ class MSC(Base):
             returns:
             --------
             '''
-        _dX = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([d, 0, 0]) ) \
-               -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([-d,0, 0]) ) )
-        _dY = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, d, 0]) ) \
-               -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0,-d, 0]) ) )
-        _dZ = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, 0, d]) ) \
-               -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH = True, delta=np.array([0, 0,-0]) ) )
+        _dX = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([d, 0, 0]) ) \
+               -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([-d,0, 0]) ) )
+        _dY = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([0, d, 0]) ) \
+               -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([0,-d, 0]) ) )
+        _dZ = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([0, 0, d]) ) \
+               -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([0, 0,-d]) ) )
+        _dU = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([d, 0, 0]) ) \
+               -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([-d,0, 0]) ) )
+        _dV = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([0, d, 0]) ) \
+               -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([0,-d, 0]) ) )
+        _dW = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([0, 0, d]) ) \
+               -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([0, 0,-d]) ) )
+
+        return np.stack(np.array( (_dX, _dY, _dZ, _dU, _dV, _dW) ), axis=1).T / (2*d)
     
-        return np.stack(np.array( (_dX, _dY, _dZ) ), axis=1).T / (2*d)
     
     def covRaDec(self, times_tdb , observatoryXYZ ):
         '''
             Evaluate the covariance in RA, Dec 
             This is calculated using the covariance in XYZ & the gradient of RA,Dec w.r.t. XYZ
         '''
-        dRD     = self.dRaDecdXYZ( times_tdb , observatoryXYZ )
-        cov_XYZ = self.covXYZ( times_tdb  )
+        dRaDecdXYZUVW   = self.dRaDecdXYZUVW( times_tdb , observatoryXYZ )
+        covXYZUVW       = self.covXYZUVW( times_tdb  )
         
         # Is there a way to make this more efficient?
         # - Similar to the nbody code ...
         # - CoV_t = np.linalg.inv( GammaStack_t )
-        return np.array( [ np.linalg.multi_dot([dRD[i].T , cov_XYZ[i], dRD[i]]) for i in range(len(dRD)) ] )
+        return np.array( [ np.linalg.multi_dot([dRaDecdXYZUVW[i].T , covXYZUVW[i], dRaDecdXYZUVW[i]]) for i in range(len(dRaDecdXYZUVW)) ] )
 
     
 
@@ -887,57 +930,43 @@ class MSC(Base):
                     This ensures consistency with NbodySim & coco.equatorial_helio2bary
              - NB2: no need for N_particle dimension, as MSC is only for single object
         '''
+        return self.evaluate_components( times_tdb  , component_slice_spec=self.XYZ_slice_spec )
         
         
-        # Just select/evaluate the first 3-sets of components (X,Y,Z)
-        # - See link for specifying slices & ellipsis  : https://docs.scipy.org/doc/numpy/user/basics.indexing.html
-        if self.sector_coeffs[ self.sector_init ].ndim == 2  :
-            slice_spec = slice(0,3)
-        else:
-            sys.exit('self.sector_coeffs[ 0 ].ndim = %d : unable  to proceed if ndim != 2 ' % self.sector_coeffs[ 0 ].ndim  )
-
-        # Evaluate only the XYZ coefficients
-        # NB returned result is of shape (len(times_tdb) , 3)
-        return self.evaluate_components( times_tdb  , component_slice_spec=slice_spec )
-         
-
-    def covXYZ( self, times_tdb  ):
+    def generate_XYZUVW( self, times_tdb  ):
         '''
-            Evaluate the covariance in XYZ positions at the supplied times
+            Evaluate the XYZUVW components at the supplied times
+
+            Not used
+        '''
+        return self.evaluate_components( times_tdb  , component_slice_spec=self.XYZUVW_slice_spec )
+
+
+
+    def covXYZUVW( self, times_tdb  ):
+        '''
+            Evaluate the covariance in XYZUVW coord-components at the supplied times
             
             Convenience wrapper around *evaluate_components()* func
-            Follows the approach in *generate_XYZ()* used to select required coefficients
+            Uses "self.covXYZUVW_slice_spec" to select required coefficients
             
             returns 
             -------
             np.ndarray
-             - shape = ( len(times_tdb) ,3, 3 )
+             - shape = ( len(times_tdb) , 6, 6 )
         '''
-        # Select/evaluate the appropriate covariance components (...)
-        # ['x_x', 'x_y', 'x_z', 'x_vx', 'x_vy', 'x_vz', 'y_y', 'y_z', 'y_vx', 'y_vy', 'y_vz', 'z_z', 'z_vx', 'z_vy', 'z_vz', 'vx_vx', 'vx_vy', 'vx_vz', 'vy_vy', 'vy_vz', 'vz_vz']
-        #    6      7      8      9      10      11      12     13     14      15      16      17     18      19      20      21       22       23       24       25       26
-        #    *      *      *                             *      *                              *
-        cov = self.evaluate_components( times_tdb , component_slice_spec=np.array([6,7,8,12,13,17])  )
+        # Select/evaluate the appropriate covariance components*                              *
+        cov = self.evaluate_components( times_tdb , component_slice_spec = self.covXYZUVW_slice_spec  )
         
-        # Reproduce & reshape to get 3x3 matrix for each time
-        # 'x_x', 'x_y', 'x_z',  'y_y', 'y_z',  'z_z' -->> 'x_x', 'x_y', 'x_z',  'x_y', 'y_y', 'y_z',  'x_z', 'y_z','z_z'
-        #  0      1       2      3      4       5          0      1      2       1      3      4       2      4     5
-        #                                                  0      1      2       3      4      5       6      7     8
-        #
-        # Transpose to make it come out as shape = (Nt,3,3), so that its comparable to dRaDecdXYZ & dUVdXYZ
-        return np.array( [cov[0:3,:], np.vstack( (cov[1], cov[3:5,:]) ), np.vstack( (cov[2], cov[4:6,:]) ) ] ).T
+        # Reshape to get square matrix for each time
+        return self._make_square(cov)
 
 
     def dXYZdt(self,  times_tdb  , dt=1e-5):
         ''' 
-            Use calculate the gradient in XYZ at supplied times
+            Calculate the gradient in XYZ at supplied times
             
-            *** DO I EVER NEED dX/dt ??? ***
-            
-            returns:
-            --------
-
-            
+            Not Used
         '''
         # numdifftools ~10x slower than direct method below ...
         # return nd.Gradient( self.generate_XYZ )(times_tdb)
