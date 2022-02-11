@@ -753,9 +753,9 @@ class MSC(Base):
             # N.B. objectXYZ.shape    = (len(times_tdb) , 3)
             objectXYZ       = self.generate_XYZ( delayedTimes )
 
-            #if DELTASWITCH_XYZ :
-            #    '''XYZ: Assume simple translation: shift@delayedTimes == shift@times_tdb'''
-            #    objectXYZ += np.stack([delta for i in range(objectXYZ.shape[0])], axis=1)
+            if DELTASWITCH_XYZ :
+                '''XYZ: Assume simple translation: shift@delayedTimes == shift@times_tdb'''
+                objectXYZ += np.stack([delta for i in range(objectXYZ.shape[0])], axis=1)
             
             # Calculate relative sepn-vector from observatory-to-object
             sepn_vectors    = objectXYZ - observatoryXYZ
@@ -770,14 +770,12 @@ class MSC(Base):
             lightDelay      = d / (astropy.constants.c * self.secsPerDay / astropy.constants.au ).value
 
 
-            #if DELTASWITCH_UVW :
-            #    '''UVW: Seems more complex than XYZ: need lightDelay?? => Extra Iteration??'''
-            #    deltaDelay = (lightDelay*delta[:,None]).T
-            #    #objectXYZ += deltaDelay
-            #    #sepn_vectors = objectXYZ - observatoryXYZ
-            #    sepn_vectors += deltaDelay
-            #    d             = np.linalg.norm(sepn_vectors, axis=1)
-            #    lightDelay    = d / (astropy.constants.c * self.secsPerDay / astropy.constants.au ).value
+            if DELTASWITCH_UVW :
+                '''UVW: Seems more complex than XYZ: need lightDelay?? => Extra Iteration??'''
+                deltaDelay = (lightDelay*delta[:,None]).T
+                sepn_vectors += deltaDelay
+                d             = np.linalg.norm(sepn_vectors, axis=1)
+                lightDelay    = d / (astropy.constants.c * self.secsPerDay / astropy.constants.au ).value
 
         # Return unit-vectors: of shape = (N_times , 3)
         return sepn_vectors / d[:,None]

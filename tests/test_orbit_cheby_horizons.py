@@ -38,12 +38,13 @@ from mpc_orb.parse import MPCORB
 sys.path.append(os.environ['REBX_DIR'])
 from examples.ephem_forces import ephem_forces
 
-from checby_checker import nbody
-from checby_checker import orbit_cheby
-from checby_checker import cheby_checker
-from checby_checker import obs_pos
-from checby_checker import coco
-from checby_checker import convenience_Horizons as Horizons
+from cheby_checker import nbody
+from cheby_checker import orbit_cheby
+from cheby_checker import cheby_checker
+from cheby_checker import obs_pos
+from cheby_checker import coco
+
+import convenience_Horizons as Horizons
 
 this_dir = os.path.abspath(os.path.dirname( __file__ ))
 repo_dir = os.path.abspath(os.path.dirname( this_dir ))
@@ -470,7 +471,7 @@ def test_accuracy_RADEC_A(  ):
     '''
 
     # Define the variables that will be used in the query
-    target  = '519104' # Asteroid #123456
+    target  = '519104' # Asteroid #519104
     centre  = '500@0'  # <<-- Barycentric
     epochs  = ['2458850.0','2458880.0']
     id_type = 'smallbody'
@@ -555,12 +556,10 @@ def test_accuracy_RADEC_A(  ):
     bary_eq_observatoryXYZ  = coco.equatorial_helio2bary( helio_eq_observatoryXYZ ,outtimes[:-1])
     
     # -------------------------------------------------------------------
-    # *** TESTING THE ACCURACY OF THE *generate_RaDec* FUNCTION ***
+    # *** TESTING THE ACCURACY OF THE *generate_XYZ* & *generate_RaDec* FUNCTIONS ***
     chebyEval_XYZ   = M.generate_XYZ(outtimes[:-1])  # Not evaluating the last one as the sector is not supported
-    chebyEval_Unit  = M.generate_UnitVector(outtimes[:-1], bary_eq_observatoryXYZ)
     chebyEval_RADEC = M.generate_RaDec(outtimes[:-1], bary_eq_observatoryXYZ )  # Not evaluating the last one as the sector is not supported
     assert chebyEval_XYZ.shape == ( len(outtimes[:-1]), 3 )
-    assert chebyEval_Unit.shape == ( len(outtimes[:-1]), 3 )
     assert chebyEval_RADEC.shape == ( len(outtimes[:-1]), 2 )
     # -------------------------------------------------------------------
 
@@ -632,20 +631,21 @@ def test_accuracy_RADEC_A(  ):
 
 
 
-"""
-def test_accuracy_RADEC_A(  ):
+
+
+def test_accuracy_RADEC_B(  ):
     '''
-        Test the ACCURACY of the RA,Dec calculated from cheby coefficients
+        Test the ACCURACY of the RADEC coefficients
         
         Use a similar approach to that taken in the
         test_nbody_run.test_production_integration_function_wrapper_D function
          - Start from exactly the same position as Horizons.
         
-        Here we focus on 519104 == 2010 LE128
+        HERE WE FOCUS ON 719 == Albert
     '''
 
     # Define the variables that will be used in the query
-    target  = '519104' # Asteroid #123456
+    target  = '719' # Asteroid #719==Albert
     centre  = '500@0'  # <<-- Barycentric
     epochs  = ['2458850.0','2458880.0']
     id_type = 'smallbody'
@@ -654,7 +654,6 @@ def test_accuracy_RADEC_A(  ):
     # Call the *nice_Horizons* function to get the cartesian states at the first time
     # This is returning EQUATORIAL BERYCENTRIC coordinates
     horizons_zero = Horizons.nice_Horizons(target, centre, epochs[0], id_type, refplane=refplane)
-    print('horizons_zero=',horizons_zero)
     
     # Call the production_integration_function_wrapper
     # - We already tested this in (e.g.) test_nbody_run.test_production_integration_function_wrapper_D
@@ -671,7 +670,7 @@ def test_accuracy_RADEC_A(  ):
                                                                 geocentric = 0 ,
                                                                 epsilon = 1e-10,
                                                                 tstep_min = 0.02,
-                                                                tstep_max = 1.)
+                                                                tstep_max = 32.)
                                                                 
     # Now call horizons again at some of the output times at which the *production_integration_function_wrapper()* produced output
     for n, t in enumerate(outtimes):
@@ -680,13 +679,13 @@ def test_accuracy_RADEC_A(  ):
         h = Horizons.nice_Horizons(target, centre, t, id_type, refplane=refplane)
 
         # Check similarity: threshold_xyz=1e-12, threshold_v=1e-13 : # 15 cm, 1.5 cm/day
-        similar_bool , error = similar_xyzuvw(h, states[n][0], threshold_xyz=1e-12, threshold_v=1e-13)
+        similar_bool , error = similar_xyzuvw(h, states[n][0], threshold_xyz=1e-11, threshold_v=1e-12)
         assert similar_bool
+
          
 
     # ----------------------------------------------------------------
-    # Now transition to testing the accuracy of the RA,Dec components
-    # calculated using chebys
+    # Now transition to testing the accuracy of the RADEC coefficients
     # - The first dozen-or-so lines are required to do set-up
     # - In practice these will all be handled by convenience functions
     # ----------------------------------------------------------------
@@ -699,25 +698,15 @@ def test_accuracy_RADEC_A(  ):
     # NB1: This attempts to load from arrays ...
     # NB2: Need to do array slicing that will be taken care of within MSC_Loader in practical operation
     # ## ### #### #####
-    M.from_coord_arrays(primary_unpacked_provisional_designation, outtimes , states )
+    primary_unpacked_provisional_designation = target
+    M.from_coord_arrays(primary_unpacked_provisional_designation, outtimes , states[:,0,:] )
 
     # check that the expected attributes have been set
     for attr in ["TDB_init", "TDB_final", "sector_init", "sector_final", "sector_coeffs"]:
         assert attr in M.__dict__
 
-    # check that the "supported_sector_numbers" are as expected
-    # NB: convenience_call_to_nbody_run_mpcorb uses
-    #     tstart = 2459200 = First date in Sector # 600 (check using B.map_JD_to_sector_number_and_sector_start_JD(2459200, B.standard_MJDmin )
-    #     tstop = 2459295 = :Last day in Sector # 602   (check using B.map_JD_to_sector_number_and_sector_start_JD(2459295, B.standard_MJDmin )
-    # Hence expected_supported_sector_numbers = [600,601,602]
-    B = cheby_checker.Base()
-    assert M.sector_init  == B.map_JD_to_sector_number_and_sector_start_JD(N.tstart, B.standard_MJDmin )[0]
-    assert M.sector_final == B.map_JD_to_sector_number_and_sector_start_JD(N.tstop, B.standard_MJDmin )[0]
-    assert M.TDB_init     == B.map_JD_to_sector_number_and_sector_start_JD(N.tstart, B.standard_MJDmin )[1]
-    assert M.TDB_final    == B.map_JD_to_sector_number_and_sector_start_JD(N.tstop, B.standard_MJDmin )[1] + B.sector_length_days - B.epsilon
 
     # Check the settings used for the cheby-fitting
-    #print('B.standard_MJDmin =', B.standard_MJDmin )
     assert M.minorder == 5 , 'The default is expected to be *5*, albeit there is little reasoning for why ...'
 
     # Check that the sector_coeff dict is of the correct shape
@@ -730,12 +719,100 @@ def test_accuracy_RADEC_A(  ):
         assert cheb_coeffs.shape[1] , N.output_states[:,0,:].shape[1]
             
             
-    # Check the accuracy of the RA,DEC coordinates ...
-    for n, t in enumerate(outtimes): # Loop over the times from the NBody integration output ...
+
+    # We will need some observatory positions to provide as inputs to the RA,Dec function ...
+    # I know from test_obs_pos.test_get_barycentric_A() that the observatory positions are consistent with JPL at the ~15m (1e-10) level
+    # But remember that the obs_pos code takes UTC not TDB
+    obsCode = 'F51'
+    t = Time( outtimes[:-1] , format='jd', scale='tdb' )
+    t = t.utc  # <<-- This converts to utc (from tdb, above)
+    helio_eq_observatoryXYZ = np.array( [obs_pos.ObsPos().get_heliocentric_equatorial_xyz(jd , obsCode=obsCode) for jd in t.jd ] )
+    bary_eq_observatoryXYZ  = coco.equatorial_helio2bary( helio_eq_observatoryXYZ ,outtimes[:-1])
+    
+    # -------------------------------------------------------------------
+    # *** TESTING THE ACCURACY OF THE *chebyEval_XYZ* & *generate_RaDec* FUNCTIONS ***
+    chebyEval_XYZ   = M.generate_XYZ(outtimes[:-1])  # Not evaluating the last one as the sector is not supported
+    chebyEval_RADEC = M.generate_RaDec(outtimes[:-1], bary_eq_observatoryXYZ )  # Not evaluating the last one as the sector is not supported
+    assert chebyEval_XYZ.shape == ( len(outtimes[:-1]), 3 )
+    assert chebyEval_RADEC.shape == ( len(outtimes[:-1]), 2 )
+    # -------------------------------------------------------------------
+
+
+
+    # At each time, test that the cheby-evaluation is "close-enough" to the input state
+    for n, tdb in enumerate(outtimes[:-1]):             # Not evaluating the last one as the sector is not supported
+        #print(n,tdb)
         
-        # Query Horizons for their RA,Dec
-"""
+        # ---- 1 : --------------------------------
+        # Repeating the check from *test_obs_pos.test_get_barycentric_A* that the observatory positions agree with horizons ...
+        # OBSERVATORY POSITIONS AGREE AT THE 1e-10 => 15 m LEVEL
+        # Query Horizons for barycentric posn of F51
+        # Won't work directly, so have to put these hacks in place ...
+        # (a) get posn of heliocentre w.r.t. barycenter, and then add to posn of F51 w.r.t. heliocenter
+        # (b) setting the target as the Sun, and the center as the observatory)
+        # - as such, we need to multiply the values by -1
+        target = '10' ; cent = 'F51' ; id_type = 'majorbody' ; refplane = 'earth'
+        refplane='earth'
+        horizons_helio_eq = Horizons.nice_Horizons(target, cent, str(tdb), id_type, refplane=refplane )
+        horizons_helio_eq = -1*horizons_helio_eq
+        b2h = Horizons.nice_Horizons(target, '@0', str(tdb), id_type, refplane=refplane )
+        horizons_bary_eq_obs = b2h + horizons_helio_eq
+        similarBool, err_arr = similar_xyzuvw(horizons_bary_eq_obs[:3] , bary_eq_observatoryXYZ[n] , threshold_xyz=1e-10, threshold_v=1e-10)
+        '''
+        print('---'*22, 1)
+        print('horizons_bary_eq_obs=', horizons_bary_eq_obs)
+        print('bary_eq_observatoryXYZ[n]=', bary_eq_observatoryXYZ[n])
+        print('err',err_arr)
+        '''
+        assert similarBool , f'horizons_bary_eq_obs[:3]={horizons_bary_eq_obs[:3]} , bary_eq_observatoryXYZ[n]={bary_eq_observatoryXYZ[n]} , err_arr={err_arr}'
+
+
+        # ---- 2 : --------------------------------
+        # Repeating the check from *test_accuracy_cartesians_B* that the cheby-eval of the XYZ agrees with horizons ...
+        # BARYCENTRIC EQUATORIAL POSITIONS OF THE OBJECT AGREE AT THE 1e-11 => 1.5m LEVEL
+        target = '719' ; cent = '500@0' ; id_type = 'smallbody' ; refplane = 'earth'
+        h_bary_eq = Horizons.nice_Horizons(target, cent, tdb, id_type, refplane=refplane)
+        similarBool, err_arr = similar_xyzuvw(h_bary_eq[:3] , chebyEval_XYZ[n] , threshold_xyz=1e-11, threshold_v=1e-12)
+        '''
+        print('---'*22, 2)
+        print('h_bary_eq=', h_bary_eq)
+        print('chebyEval_XYZ[n]=', chebyEval_XYZ[n])
+        print('err',err_arr)
+        '''
+        assert similarBool , f'h_bary_eq[:3]={h_bary_eq[:3]} , chebyEval_XYZ[n]={chebyEval_XYZ[n]} , err_arr={err_arr}'
+
+
+        # ---- 3 : --------------------------------
+        # Doing the RA-DEC comparison with horizons
+        target = '719' ; cent = 'F51' ; id_type = 'smallbody' ; refplane = 'earth'
         
+        # ARRGGHH: Fucking assumed time format changes between vectors & ephemerides calls !!!
+        tmp_t = Time( tdb , format='jd', scale='tdb' )
+        tmp_t = tmp_t.utc  # <<-- This converts to utc (from tdb, above)
+        utc = tmp_t.jd
+        h_RADEC = Horizons.nice_Horizons_radec(target, cent, utc, id_type, refplane=refplane)
+        similarBool, err_arr = similar_angles(  h_RADEC[0], chebyEval_RADEC[n], threshold_arcsec = 1.0)
+        '''
+        print('---'*22, 4)
+        print('h_RADEC=', h_RADEC)
+        print('chebyEval_RADEC[n]=', chebyEval_RADEC[n])
+        '''
+        print(similarBool, err_arr)
+        assert similarBool , f'h_RADEC[n]={h_RADEC[n]} , chebyEval_RADEC[0]={chebyEval_RADEC[0]} , err_arr={err_arr}'
+  
+
+     
+
+
+
+
+
+
+
+
+
+
+
 
 """
 def test_evaluate_components_A():
@@ -900,5 +977,8 @@ def test_generate_RaDec_B():
 """
 
 
+
+#test_accuracy_cartesians_A
 #test_accuracy_cartesians_B()
-test_accuracy_RADEC_A()
+#test_accuracy_RADEC_A()
+test_accuracy_RADEC_B()
