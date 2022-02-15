@@ -4,20 +4,20 @@
 
 
 
-### test_orbit_cheby_horizons.py :
-- orbit_cheby.py has an INTERNAL dependance on the nbody.py module
-- sql.py has an INTERNAL dependance on the cheby_checker.py module 
-- Here I am starting to develo`p tests that explicitly do integrations, from the EXACT same starting coords as Horizons
-- This allows me to double-check the accuracy of the rebound-to-cheby conversions, the XYZ-to-RADEC conversions, ..
-- I have *NOT* yet been able to run these in a container, due to compilation problems with rebound/reboundx ... 
-
 ### test_orbit_cheby.py :
 - orbit_cheby.py has an INTERNAL dependance on the nbody.py module
-- sql.py has an INTERNAL dependance on the cheby_checker.py module 
-- a number of tests have been developed that establish working & accurate code for multiple functions around input STATES
-- few/no tests have yet been done to incorporate COVARIANCE MATRIX input / fitting / etc
+- orbit_cheby.py has an INTERNAL dependance on the cheby_checker.py module 
+- Not sure whether any of the tests in here are still required. 
+- Many tests have been established in test_orbit_cheby_locations / test_orbit_cheby_creation / test_orbit_cheby_horizons / test_orbit_cheby_covariance
+- Definitely need to write tests of the propagation of RA, Dec covariances, buut they might best belong in test_orbit_cheby_covariance
 
 
+### test_precalc.py :
+- orbit_precalc.py has an INTERNAL dependance on the nbody.py module
+- orbit_precalc.py has an INTERNAL dependance on the sql.py module 
+- orbit_precalc.py has an INTERNAL dependance on the orbit_cheby.py module 
+- orbit_precalc.py has an INTERNAL dependance on the obs_pos.py module 
+- Have started developing the required tests ... 
 
 
 ## 2022 : MJP: The following have been checked to pass tests within a containerized environment initialized/built using the code in "cheby_container"
@@ -76,4 +76,19 @@
 - pytest test_orbit_cheby_creation.py
 - passes within containerized environment
 
+### test_orbit_cheby_horizons.py :
+- orbit_cheby.py has an INTERNAL dependance on the nbody.py module
+- sql.py has an INTERNAL dependance on the cheby_checker.py module 
+- Here I am starting to develo`p tests that explicitly do integrations, from the EXACT same starting coords as Horizons
+- This allows me to double-check the accuracy of the rebound-to-cheby conversions & the XYZ-to-RADEC conversions, ..
+- pytest test_orbit_cheby_horizons.py
+- passes within containerized environment
 
+
+### test_nbody_covariance.py :
+- nbody.py has an INTERNAL dependance on the coco.py module (above)
+- nbody.py also depends on INTERNAL MPC_library.py: should shift away from this if/when possible
+- nbody.py also depends on the s REBOUNDX:EPHEM library
+- Here I am focusing on tests of the propagation of the cartesian covariance matrix by the run_mpcorb routine (which uses *_get_covariance_from_tangent_vectors* under-the-hood)
+- pytest test_nbody_covariance.py
+- passes within containerized environment
