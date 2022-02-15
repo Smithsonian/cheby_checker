@@ -105,6 +105,7 @@ class NbodySim():
 
         self.CHECK_EPOCHS       = True
 
+        self.unpacked_primary_provisional_designation = None
 
         # class variables: variables that will be used to hold the elements
         # - They get populated by *parse_...* & *make_bary_equatorial*
@@ -241,7 +242,9 @@ class NbodySim():
         # NB(2): MPCORB Handles either FILE or DICTIONARY input
         M = MPCORB(mpcorb_file_or_dict)
         
-        
+        # ----------- DESIGNATION -------------------------
+        self.unpacked_primary_provisional_designation = M.designation_data["unpacked_primary_provisional_designation"]
+
         # ----------- TIME -------------------------
         # Using Astropy.time for time conversion,
         # because life's too short for timezones and time scales.

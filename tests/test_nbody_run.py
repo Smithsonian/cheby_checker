@@ -135,6 +135,7 @@ def test_nbody_A():
         N.save_output_file   == None  and \
         N.verbose            == False  and \
         N.CHECK_EPOCHS       == True  and \
+        N.unpacked_primary_provisional_designation == None and \
         N.helio_ecl_vec_EXISTS   == False  and \
         N.helio_ecl_vec          == None  and \
         N.helio_ecl_cov_EXISTS   == False  and \
