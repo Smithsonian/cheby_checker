@@ -395,6 +395,7 @@ class MSC(Base):
              - This should be ONLY the main fitted variables (e.g. 3-posn, 3-vel, + N-non-grav-coeffs)
              - Expect shape == ( Nt ,  Nc ), where Nc in [6,7,8,9]
              - IN early development, assume Nc == 6 (gravity-only)
+             
             covariances: np.array
              - This should be the covariances corresponding to the states, so dimension should be (Nt, Nc, Nc)
 
@@ -481,10 +482,6 @@ class MSC(Base):
         self.TDB_init   = self.map_sector_number_to_sector_start_JD( self.sector_init,  self.standard_MJDmin )
         self.TDB_final  = self.map_sector_number_to_sector_start_JD( self.sector_final, self.standard_MJDmin ) + self.sector_length_days - self.epsilon
         
-        #print( 'supported_sector_numbers = ', supported_sector_numbers)
-        #print( 'self.sector_init, self.sector_final  = ', self.sector_init, self.sector_final )
-        #print( 'self.TDB_init, self.TDB_final  = ', self.TDB_init, self.TDB_final )
-
         
             
 
@@ -578,18 +575,14 @@ class MSC(Base):
         # Set up indicees
         sq_dim = self.triangular_mapping[covariances_tri.shape[1]]
         i, j = np.triu_indices( sq_dim )
-        print(sq_dim)
-        print(i)
-        print(j)
+
         # Create empty array
         M = np.empty((covariances_tri.shape[0] , sq_dim, sq_dim))
         
         # Populate array
         for n,_ in enumerate(covariances_tri):
-            print('n=',n)
             M[n,i,j] = _
             M[n,j,i] = _
-            print(M[n,:,:])
         # Return array of dimension (covariances_tri.shape[0] , sfq_dim, sq_dim)
         return M
 
@@ -768,7 +761,6 @@ class MSC(Base):
             # Calculate light-travel-time:
             # lightDelay.shape == (len(times_tdb),)
             lightDelay      = d / (astropy.constants.c * self.secsPerDay / astropy.constants.au ).value
-
 
             if DELTASWITCH_UVW :
                 '''UVW: Seems more complex than XYZ: need lightDelay?? => Extra Iteration??'''

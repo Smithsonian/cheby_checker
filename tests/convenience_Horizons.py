@@ -32,21 +32,11 @@ def nice_Horizons_radec(target, centre, epochs, id_type, refplane='earth'):
      - Returned shape == (N_epochs, 2)
     '''
     horizons_table  = Horizons(target, centre, epochs=epochs, id_type=id_type)
-    horizons_eph    = horizons_table.ephemerides()
+    horizons_eph    = horizons_table.ephemerides(extra_precision = True)
     return np.array( [  list(horizons_eph['RA'].data),
                         list(horizons_eph['DEC'].data) ] ).T
     
-def nice_Horizons_LTT(target, centre, epochs, id_type, refplane='earth'):
-    '''
-    Mike Alexandersen
-    Convenience function to reformat data returned by Horizons
-    Only require the inputs I actually want to vary.
-    Return in the format I actually want, not an astropy table.
-    '''
-    horizons_table  = Horizons(target, centre, epochs=epochs, id_type=id_type)
-    horizons_vector = horizons_table.vectors(refplane=refplane)
-    horizons_xyzv   = horizons_vector['lt']
-    return np.array(list(horizons_xyzv.as_array()[0]))
+
 
 def read_Horizons_state_from_text( two_lines):
     '''

@@ -535,66 +535,7 @@ def test_run_mpcorb_B():
     # Run the *run_mpcorb* that we want to test
     N.run_mpcorb( tstart = tstart , tstop = tstop , mpcorb_list = mpc_orb_json_files )
 
-
-"""
-
-
-# Tests of NBody Reader
-# -----------------------------------------------------------------------------
-
-# Set up a filepath (file will be created during testing)
-test_filepath = os.path.join(os.path.dirname(os.getcwd() ), 'dev_data', '2022AA_demo.txt')
-
-
-# Actual tests ...
-# --------------------------------------------------------------
-
-@pytest.mark.parametrize(('test_filepath'), [test_filepath])
-def test_text_file_creation(test_filepath):
+    # Add some tests !!!
+        
     
-    # Remove test file if it exists
-    if os.path.isfile(test_filepath):
-        os.remove(test_filepath)
 
-    # Use convenience func in nbody_reader to create a text file
-    nbody_reader.create_nbody_txt(test_filepath)
-
-    # Check that the test file has been created
-    assert os.path.isfile(text_filepath)
-
-
-
-@pytest.mark.parametrize(('test_filepath'), [test_filepath])
-def test_text_file_creation(test_filepath):
-    
-    # Use convenience func in nbody_reader to create a text file
-    nbody_reader.create_nbody_txt(test_filepath)
-    
-    # Parse the text file
-    result = nbody_reader.parse_nbody_txt(test_filepath)
-
-    # Check that the parsed result is as expected
-    assert len(result) == 2
-    name, a = result
-    assert isinstance(name, str), isinstance(a, np.ndarray)
-    assert a.shape == (20000,28)
-
-
-
-"""
-
-
-
-
-# End
-
-#test_nbody_A()
-#test_integration_function_A()
-#test_integration_function_B()
-test_production_integration_function_wrapper_A()
-test_production_integration_function_wrapper_B()
-test_production_integration_function_wrapper_C()
-test_production_integration_function_wrapper_D()
-test_run_integration_A
-test_run_mpcorb_A()
-test_run_mpcorb_B()

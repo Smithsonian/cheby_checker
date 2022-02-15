@@ -5,7 +5,7 @@
     --------------------------------------------------------------
     Precalculation module for checker
     
-    May 2020
+    2020-2022
     Matt Payne
     
     This module provides functionalities to
@@ -67,7 +67,6 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
 
         # connect to db
         self.db = sql.SQLChecker()
-        self.conn = sql.create_connection(sql.fetch_db_filepath())
         
 
     # ------------------------------------------------------------------
@@ -80,27 +79,21 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
         (i) calling nbody on 1-or-many ORBFIT files
         (ii) calling MSCLoader on the results of (i)
         (iii) calling PreCalc.upsert() on the results of (ii)
+        
+        # NB, In general we will *NOT* be passing observatory coords
+
         '''
-        # Initiate NbodySim class with input files:
-        Sim = nbody.NbodySim(   input       = filenames,
-                                    filetype    = 'eq',
-                                    save_parsed =   False,
-                                    CHECK_EPOCHS=   True)
-                                    )
+        # Initiate NbodySim class
+        N = nbody.NbodySim()
                                     
         # Run the integrator, by calling the object.
-        # *** No justification for choice of 20 days, but not sure it matters (integrator using variable timesteps...)***
-        Sim(tstart=self.standard_MJDmin , tstep=20, trange=standard_MJDmax)
+        N.run_mpcorb(tstart=self.standard_MJDmin , tstop=self.standard_MJDmax, mpcorb_list = filenames )
         
         # Use the MSC_Loader to do all of the work to declare and populate a list of MSC objects
-        # NEEDS TO BE UPDATED TO USE Sim.output_times & Sim.output_vectors
-        MSCs = orbit_cheby.MSC_Loader(FROM_ARRAY = True ,
-                                        primary_unpacked_provisional_designations = name,
-                                        times_TDB = times,
-                                        statearray = states).MSCs
+        MSCs = orbit_cheby.MSC_Loader(NbodySim = N).MSCs
                                         
         # Do the precalculations and upsert
-        # NB, In general we will *not* be passing observatory coords
+        # NB, In general we will *NOT* be passing observatory coords
         self.upsert( MSCs , observatoryXYZ=observatoryXYZ )
 
 
@@ -151,11 +144,11 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
             
             # update list of coefficients for individual MSC
             # NB This is required for "phase-1" (Ephemeris Service)
-            upsert_MSC_coefficients(M)
+            self.upsert_MSC_coefficients(M)
             
             # update healpix locations for individual MSC for valid integer-JD in JDlist
             # NB This is required for "phase-2" (Pointer Service)
-            upsert_MSC_HP(M, observatoryXYZ)
+            self.upsert_MSC_HP(M, observatoryXYZ)
             
 
     def _rectify_inputs(self,  MSCs ):

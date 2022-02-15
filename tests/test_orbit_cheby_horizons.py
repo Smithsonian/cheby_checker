@@ -617,7 +617,7 @@ def test_accuracy_RADEC_A(  ):
         tmp_t = tmp_t.utc  # <<-- This converts to utc (from tdb, above)
         utc = tmp_t.jd
         h_RADEC = Horizons.nice_Horizons_radec(target, cent, utc, id_type, refplane=refplane)
-        similarBool, err_arr = similar_angles(  h_RADEC[0], chebyEval_RADEC[n], threshold_arcsec = 1.0)
+        similarBool, err_arr = similar_angles(  h_RADEC[0], chebyEval_RADEC[n], threshold_arcsec = 1e-4)
         '''
         print('---'*22, 4)
         print('h_RADEC=', h_RADEC)
@@ -641,7 +641,8 @@ def test_accuracy_RADEC_B(  ):
         test_nbody_run.test_production_integration_function_wrapper_D function
          - Start from exactly the same position as Horizons.
         
-        HERE WE FOCUS ON 719 == Albert
+        Identical type of test as test_accuracy_RADEC_A above, but
+        here we focus on 719 == Albert
     '''
 
     # Define the variables that will be used in the query
@@ -741,7 +742,6 @@ def test_accuracy_RADEC_B(  ):
 
     # At each time, test that the cheby-evaluation is "close-enough" to the input state
     for n, tdb in enumerate(outtimes[:-1]):             # Not evaluating the last one as the sector is not supported
-        #print(n,tdb)
         
         # ---- 1 : --------------------------------
         # Repeating the check from *test_obs_pos.test_get_barycentric_A* that the observatory positions agree with horizons ...
@@ -758,8 +758,8 @@ def test_accuracy_RADEC_B(  ):
         b2h = Horizons.nice_Horizons(target, '@0', str(tdb), id_type, refplane=refplane )
         horizons_bary_eq_obs = b2h + horizons_helio_eq
         similarBool, err_arr = similar_xyzuvw(horizons_bary_eq_obs[:3] , bary_eq_observatoryXYZ[n] , threshold_xyz=1e-10, threshold_v=1e-10)
-        '''
-        print('---'*22, 1)
+        
+        '''print('---'*22, 1)
         print('horizons_bary_eq_obs=', horizons_bary_eq_obs)
         print('bary_eq_observatoryXYZ[n]=', bary_eq_observatoryXYZ[n])
         print('err',err_arr)
@@ -773,8 +773,8 @@ def test_accuracy_RADEC_B(  ):
         target = '719' ; cent = '500@0' ; id_type = 'smallbody' ; refplane = 'earth'
         h_bary_eq = Horizons.nice_Horizons(target, cent, tdb, id_type, refplane=refplane)
         similarBool, err_arr = similar_xyzuvw(h_bary_eq[:3] , chebyEval_XYZ[n] , threshold_xyz=1e-11, threshold_v=1e-12)
-        '''
-        print('---'*22, 2)
+        
+        '''print('---'*22, 2)
         print('h_bary_eq=', h_bary_eq)
         print('chebyEval_XYZ[n]=', chebyEval_XYZ[n])
         print('err',err_arr)
@@ -791,194 +791,19 @@ def test_accuracy_RADEC_B(  ):
         tmp_t = tmp_t.utc  # <<-- This converts to utc (from tdb, above)
         utc = tmp_t.jd
         h_RADEC = Horizons.nice_Horizons_radec(target, cent, utc, id_type, refplane=refplane)
-        similarBool, err_arr = similar_angles(  h_RADEC[0], chebyEval_RADEC[n], threshold_arcsec = 1.0)
-        '''
-        print('---'*22, 4)
-        print('h_RADEC=', h_RADEC)
+        similarBool, err_arr = similar_angles(  h_RADEC[0], chebyEval_RADEC[n], threshold_arcsec =1e-4)
+        
+        '''print('---'*22, 4)
+        print('utc=', utc)
+        print('h_RADEC=')
+        print( [ "%.10f"%float(_) for _ in h_RADEC[0]] )
         print('chebyEval_RADEC[n]=', chebyEval_RADEC[n])
         '''
         print(similarBool, err_arr)
         assert similarBool , f'h_RADEC[n]={h_RADEC[n]} , chebyEval_RADEC[0]={chebyEval_RADEC[0]} , err_arr={err_arr}'
   
-
      
 
 
 
 
-
-
-
-
-
-
-
-
-"""
-def test_evaluate_components_A():
-    '''
-        Use MSC function to evaluate cheby components at set of supplied times
-        
-        Here I am checking that the *evaluate_components* function
-        returns coordinate values similar to those from rebounx:
-         - So in essence I am testing the round-trip of calling "generate_cheb_for_sector" + "evaluate_components"
-        
-        ***Need to test the hell out of this by doing more tests below, as it underlies everything***
-    '''
-
-    # The file that we will use as the source of the data
-    mpc_orb_json_filepath = mpc_orb_json_files[0]
-    
-    # Do a local read of the json (using MPCORB) as it's useful to be able to read the name of the object
-    MO = MPCORB(mpc_orb_json_filepath)
-    primary_unpacked_provisional_designation = MO.designation_data["unpacked_primary_provisional_designation"]
-    
-    # Instantiate Nbody Object, Run NBody Simulation, and return populated Object
-    N = convenience_call_to_nbody_run_mpcorb(mpc_orb_json_filepath)
-    
-    # Instantiate MSC object & populate using data from Nbody Object ...
-    M=orbit_cheby.MSC()
-    M.from_coord_arrays(primary_unpacked_provisional_designation, N.output_times , N.output_states[:,0,:] )
-
-    # Indicees for data supported by this MSC:
-    init, final = M.get_valid_range_of_dates()
-    ind = np.where( (N.output_times >= init) & (N.output_times <= final ) )
-
-    # Make the call to the low-level function, *evaluate_components*
-    # NB: returns array of shape (N_times, N_components)
-    evaluatedComponents      = M.evaluate_components( N.output_times[ind] )
-    evaluatedComponentsSlice = M.evaluate_components( N.output_times[ind] , component_slice_spec=slice(0,3))
-
-    # Make a call to the higher level function, *generate_XYZ*
-    # NB returned result is of shape (len(times_tdb) , 3)
-    XYZs = M.generate_XYZ( N.output_times[ind] )
-
-    # Check that the shape of the returned components is as expected ...
-    assert N.output_states[:,0,:].shape   == evaluatedComponents.shape
-    assert evaluatedComponentsSlice.shape == XYZs.shape
-
-    # Check that the values in evaluatedComponentsSlice == those in XYZs
-    assert np.all( evaluatedComponentsSlice == XYZs )
-
-    # Check that the values in evaluatedComponentsSlice are all close to the input state
-    for n, comp in enumerate( N.output_states[:,0,:] ):
-    
-        # Input xyz is the first 3 components of N.output_states[:,0,:]
-        input_xyz = comp[:3]
-        output_xyz = evaluatedComponentsSlice[n]
-        similarBool, err_arr = similar_xyzuvw(input_xyz, output_xyz , threshold_xyz=1e-11, threshold_v=1e-11)
-        assert similarBool , f'input_xyz={input_xyz} , output_xyz={output_xyz} , err_arr={err_arr}'
-
-
-
-def test_generate_RaDec_A():
-    '''
-    
-    Test the generate of RaDec coordinates from an MSC (Cheby) Object
-    
-    Note (1) that under the hood this calls *generate_UnitVector*, so in
-    order to compare to the RAs & DECs used in the orbit fitting, so have
-    to call generate_RaDec which relies on generate_UnitVector
-    
-    Note (2) that at this point I am switching to using MSCs generated using the
-    convenience function *convenience_call_to_get_MSCs_from_file_via_nbody_run( json_filepath_or_list)*
-     - This uses MSC_Loader under the hood
-     - MSC_Loader is tested below ... see, e.g., *test_create_loader*  &  *test_loader_from_nbodysim*
-    
-    '''
-
-    # The file that we will use as the source of the data
-    mpc_orb_json_filepath = mpc_orb_json_files[0]
-    print(mpc_orb_json_filepath)
-    
-    # Getting MSCs via convenience call to MSC_Loader, NBodySim, etc
-    B = cheby_checker.Base()
-    MSCs = convenience_call_to_get_MSCs_from_file_via_nbody_run( mpc_orb_json_filepath , tstart=B.standard_MJDmin , tstop=B.standard_MJDmax )
-    MSC = MSCs[0]
-    
-    # Read in orbfit RWO file of positions and residuals for the orbit in question
-    times_tdb_jd , ra_deg , dec_deg , ra_resid_arcsec , dec_resid_arcsec , obscode =  read_rwo_for_mpcorb_json( mpc_orb_json_filepath )
-    
-    # We will need some observatory positions to provide as inputs ...
-    n_samples = 300
-    helio_eq_observatoryXYZ = np.array( [obs_pos.ObsPos().get_heliocentric_equatorial_xyz(jd , obsCode=obsCode) for jd,obsCode in zip(times_tdb_jd[-n_samples:],obscode[-n_samples:])] )
-
-    # conversion to barycentric equatorial coordinates
-    bary_eq_observatoryXYZ = coco.equatorial_helio2bary( helio_eq_observatoryXYZ ,times_tdb_jd[-n_samples:])
-
-    # Simulate RA,Dec observations at the times of the actual observations from the rwo file
-    # *** This is the function we are testing ***
-    RaDEC = MSC.generate_RaDec( times_tdb_jd[-n_samples:] , observatoryXYZ=bary_eq_observatoryXYZ )
-    
-    def get_orbfit_calculated( ra_observed_deg, dec_observed_deg , ra_resid_arcsec , dec_resid_arcsec  ):
-        return  ra_observed_deg - (ra_resid_arcsec/3600.)/np.cos(np.radians(dec_observed_deg)) , dec_observed_deg - dec_resid_arcsec/3600.
-        
-    # Check whether the simulated RA,Dec positions are close to the observed RA,Dec
-    for n, t in enumerate(times_tdb_jd[-n_samples:]):
-        # Back-calculate where orbfit must have calculaetd the object to be ...
-        orbfit_calc_ra, orbfit_calc_dec  = get_orbfit_calculated(   ra_deg[-n_samples:][n],
-                                                                    dec_deg[-n_samples:][n],
-                                                                    ra_resid_arcsec[-n_samples:][n],
-                                                                    dec_resid_arcsec[-n_samples:][n])
-        # Check whether the cheby-calc is similar to the orbfit calc ...
-        good, err_arcsec = similar_angles( np.array( [orbfit_calc_ra, orbfit_calc_dec] ), RaDEC[n], threshold_arcsec = 2.0)
-        assert good, f'Calc RA,Dec disagreed by >2": err_arcsec:{err_arcsec} , orbfit:{orbfit_calc_ra, orbfit_calc_dec  } , cheby:{RaDEC[n]} '
-        print(n, t , good , err_arcsec)
-    
-def test_generate_RaDec_B():
-    '''
-    
-    Test the generate of RaDec coordinates from an MSC (Cheby) Object
-    
-    Structured as per test_generate_RaDec_A, but now testing MULTIPLE input json files
-    
-    '''
-
-    # Loop over different input json files ...
-    for mpc_orb_json_filepath in mpc_orb_json_files:
-        print(mpc_orb_json_filepath)
-        
-        # Getting MSCs via convenience call to MSC_Loader, NBodySim, etc
-        B = cheby_checker.Base()
-        MSCs = convenience_call_to_get_MSCs_from_file_via_nbody_run( mpc_orb_json_filepath , tstart=B.standard_MJDmin , tstop=B.standard_MJDmax )
-        MSC = MSCs[0]
-        
-        # Read in orbfit RWO file of positions and residuals for the orbit in question
-        times_tdb_jd , ra_deg , dec_deg , ra_resid_arcsec , dec_resid_arcsec , obscode =  read_rwo_for_mpcorb_json( mpc_orb_json_filepath )
-        
-        # We will need some observatory positions to provide as inputs ...
-        n_samples = 10
-        helio_eq_observatoryXYZ = np.array( [obs_pos.ObsPos().get_heliocentric_equatorial_xyz(jd , obsCode=obsCode) for jd,obsCode in zip(times_tdb_jd[-n_samples:],obscode[-n_samples:])] )
-
-        # conversion to barycentric equatorial coordinates
-        bary_eq_observatoryXYZ = coco.equatorial_helio2bary( helio_eq_observatoryXYZ ,times_tdb_jd[-n_samples:])
-
-        # Simulate RA,Dec observations at the times of the actual observations from the rwo file
-        # *** This is the function we are testing ***
-        RaDEC = MSC.generate_RaDec( times_tdb_jd[-n_samples:] , observatoryXYZ=bary_eq_observatoryXYZ )
-        
-        def get_orbfit_calculated( ra_observed_deg, dec_observed_deg , ra_resid_arcsec , dec_resid_arcsec  ):
-            return  ra_observed_deg - (ra_resid_arcsec/3600.)/np.cos(np.radians(dec_observed_deg)) , dec_observed_deg - dec_resid_arcsec/3600.
-            
-        # Check whether the simulated RA,Dec positions are close to the observed RA,Dec
-        for n, t in enumerate(times_tdb_jd[-n_samples:]):
-            # Back-calculate where orbfit must have calculaetd the object to be ...
-            orbfit_calc_ra, orbfit_calc_dec  = get_orbfit_calculated(   ra_deg[-n_samples:][n],
-                                                                        dec_deg[-n_samples:][n],
-                                                                        ra_resid_arcsec[-n_samples:][n],
-                                                                        dec_resid_arcsec[-n_samples:][n])
-                                                                        
-            # Check whether the cheby-calc is similar to the orbfit calc ...
-            # Note that at least one of the test points differs by ~2" in RA
-            good, err_arcsec = similar_angles( np.array( [orbfit_calc_ra, orbfit_calc_dec] ), RaDEC[n], threshold_arcsec = 2.0)
-            assert good, f'Calc RA,Dec disagreed by >2": err_arcsec:{err_arcsec} , orbfit:{orbfit_calc_ra, orbfit_calc_dec  } , cheby:{RaDEC[n]} '
-            
-        
-"""
-
-
-
-#test_accuracy_cartesians_A
-#test_accuracy_cartesians_B()
-#test_accuracy_RADEC_A()
-test_accuracy_RADEC_B()

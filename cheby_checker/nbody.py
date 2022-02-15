@@ -558,7 +558,7 @@ class NbodySim():
         # Reshape the partial derivative arrays
         partial_derivatives_wrt_state, partial_derivatives_wrt_NG = self.reshape_partial_deriv_arrays(  partial_derivatives_wrt_state,
                                                                                                         partial_derivatives_wrt_NG)
-        
+        self.partial_derivatives_wrt_state = partial_derivatives_wrt_state
         
         
         # Calculate the covariance matrix (at each timestep) from the \partial X / \partial X_0 data
@@ -582,9 +582,11 @@ class NbodySim():
         (2) partial_derivatives_wrt_NG
         *** NOT YET IMPLEMENTED partial_derivatives_wrt_NG ***
         '''
-        
         # (1) (N_times, 6*n_particlea, 6) -> (N_times, n_particlea, 6, 6)
+        #print('partial_derivatives_wrt_state: input shape = ', partial_derivatives_wrt_state.shape)
         partial_derivatives_wrt_state = partial_derivatives_wrt_state.reshape(partial_derivatives_wrt_state.shape[0],-1,6,6)
+        #print('partial_derivatives_wrt_state: final shape = ', partial_derivatives_wrt_state.shape)
+        #print(partial_derivatives_wrt_state[-1])
         
         # (2)
         if partial_derivatives_wrt_NG is not None:
@@ -621,30 +623,26 @@ class NbodySim():
         #     => GammaStack0.shape == partial_derivatives_wrt_state.shape == (#times, #particles, 6, 6)
         Gamma0      = np.linalg.inv(init_covariances)
         GammaStack0 = np.tile( Gamma0, (partial_derivatives_wrt_state.shape[0],1,1,1) )
-        #print('GammaStack0.shape = ' , GammaStack0.shape )
 
         # We need each of the individual pd arrays to be individually transposed
         # NB, The "(0,1,3,2)" tuple fixes dimensions 0 & 1 , but indicates that dimensions 2 & 3 will be swapped/transposed
         #     Because this just swaps the 6x6 dimensions, the shape remains == (#times, #particles, 6, 6)
         pds_transposed  = partial_derivatives_wrt_state.transpose( (0,1,3,2) )
-        #print('pds_transposed.shape = ' , pds_transposed.shape )
-
+        
         # Do matrix multiplication: using the pd's to get the CoV as a func of time
         # NB matmul/@ automagically knows how to work on a stack of matricees
         # - https://stackoverflow.com/questions/34142485/difference-between-numpy-dot-and-python-3-5-matrix-multiplication
         # GammaStack_t.shape = (#times, #particles, 6, 6)
         GammaStack_t    = pds_transposed @ GammaStack0 @ partial_derivatives_wrt_state
-        #print('GammaStack_t.shape = ' , GammaStack_t.shape )
-                
+
         # Magically, np.linalg.inv also knows how to deal with a stack of arrays/matrices
         # - https://stackoverflow.com/questions/11972102/is-there-a-way-to-efficiently-invert-an-array-of-matrices-with-numpy
         # CoV_t.shape = (#times, #particles, 6, 6)
-        # The try-ecxept loop is required to catch occasional problems with ...LinAlgError("Singular matrix")... due to singular input matrix
+        # The try-except loop is required to catch occasional problems with ...LinAlgError("Singular matrix")... due to singular input matrix
         try:
             CoV_t           = np.linalg.inv( GammaStack_t )
         except:
             CoV_t           = np.linalg.pinv( GammaStack_t )
-
 
         return CoV_t
             
