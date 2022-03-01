@@ -12,6 +12,8 @@
 - It's not at all efficient, but I want to have the function outside of any of the other modules
 - Initially written to be dependent on naval obs code (), but later could be shifted to wis.py
 
+[//]: # (TODO: Check efficiency)
+
  ### nbody
 
  - Wrapper around REBOUND 
@@ -41,10 +43,14 @@
 - Functions sketched-out but not tested / implemented in any way
 - A notebook with stub sections in it exists, notebooks/http://localhost:8867/notebooks/Demonstrate_EndToEnd_Orbit_Checking.ipynb, but with little content
 
+[//]: # (TODO: check this out)
+
 ### data_classes
 
 - Classes to hold ad-hoc data (detections, pointing, etc) used by various check functions
 - Some tests written in tests/towards_tests_of_data_classes.py
+
+[//]: # (TODO: tests may be under a different module now.)
 
  ### sifter, sifter_precalc, sifter_sql, sifter_query:
 
@@ -56,7 +62,7 @@
 
 # To Do 
 
-- Edit sifter to use the stand-along obs_pos for figuring out where observaties are, and remove the duplicated code from sifter_precalc.py [MA]
+- Edit sifter to use the stand-alone obs_pos for figuring out where observatories are, and remove the duplicated code from sifter_precalc.py [MA]
 
 - Develop tests for the many many functionalities within orbit_cheby [MA/MJP]
 
@@ -68,3 +74,8 @@
 
 - Develop tests of functionalities in mpchecker. Start with pCheck (There are many more lower-level functionalities that need to have proper tests written for them, but I suspect that getting the pcheck & ephem codes working and tested will prompt me to get a whole lot of lower-level code sorted too) . [MJP]
 
+[//]: # (Todo: Check status of these.)
+
+- Modularize cheby_checker and propagate these modules to unit tests, too.
+- Run tests as they are (on a Docker container) before making them unit testable.
+- Determine SQLite vs. Postgres
