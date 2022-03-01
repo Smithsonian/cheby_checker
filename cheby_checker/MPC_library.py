@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
+# TODO: Optimize imports, modularize this file (500 lns.)
 import math
 import numpy as np
-import scipy
 from scipy.interpolate import interp1d
 
 class Constants:
@@ -21,6 +21,7 @@ def rotate_matrix(ecl):
                   [0.0, -se,  ce]])
     return rotmat
 
+# Note: novas is not available on Windows.
 from novas import compat as novas
 from novas.compat import eph_manager
 from novas.compat import solsys
@@ -197,16 +198,16 @@ class Observatory:
         return v
 
 class EarthAndTime:
-    # Dealing with leap seconds and polar motion
-    # ### Relating this to MPC data
-    # 
-    # I believe that the MPC observations have dates in UTC, which is the conventional thing to do.   
-    # According to Gareth Williams, prior to 1972 Jan 1 the times are probably UT1.
-    # 
-    # So we take a time from an MPC observation.  If it's prior to 1972 Jan 1 we assume it's UT1 and 
-    # we get delta_t (TT-UT1) from the historical table.  If it's on or after 1972 Jan 1 we determine 
-    # the number of leap seconds from function below and then calculate delta_t.  
-    # 
+    """
+    Dealing with leap seconds and polar motion
+    # Relating this to MPC data
+    I believe that the MPC observations have dates in UTC, which is the conventional thing to do.
+    According to Gareth Williams, prior to 1972 Jan 1 the times are probably UT1.
+
+    So we take a time from an MPC observation.  If it's prior to 1972 Jan 1 we assume it's UT1 and
+    we get delta_t (TT-UT1) from the historical table.  If it's on or after 1972 Jan 1 we determine
+    the number of leap seconds from function below and then calculate delta_t.
+    """
     def __init__(self, filename1=os.path.join(DATA_PATH, 'finals2000A.all'),
                  filename2=os.path.join(DATA_PATH, 'tai-utc.dat')):
         _xydeltat = {}
@@ -299,11 +300,14 @@ class EarthAndTime:
         DUT1  = self.ut1_utc(jd_utc)
         delta_t = 32.184 + leaps - DUT1
         return delta_t
-        
+
+
 def getEarthPosition_old(jd_tdb):
     # Old version using Novas; stop using this!
     pos, _ = solsys.solarsystem(jd_tdb, 3, 1)
     return pos
+
+
 def getEarthPV_old(jd_tdb):
     # Old version using Novas; stop using this!
     pos, vel = solsys.solarsystem(jd_tdb, 3, 1)
@@ -351,6 +355,7 @@ def parseDate(dateObs):
     dy = dateObs[8:]
     return yr, mn, dy
 
+
 # Converts the date string to a JD floating point number, using the NOVAS routine
 # The time scale of the returned value will be same as that of the input date.
 def date2JD(dateObs):
@@ -361,6 +366,7 @@ def date2JD(dateObs):
     jd = novas.julian_date(int(yr), int(mn), int(dy), 24.*hr)
     return jd
 
+
 # These routines convert the RA and Dec strings to floats.
 def RA2degRA(RA):
     hr = float(RA[0:2])
@@ -368,6 +374,7 @@ def RA2degRA(RA):
     sc = float(RA[6:])
     degRA = 15.0*(hr + 1./60. * (mn + 1./60. * sc))
     return degRA
+
 
 def Dec2degDec(Dec):
     s = Dec[0]
@@ -378,6 +385,7 @@ def Dec2degDec(Dec):
     if s == '-':
         degDec = -degDec
     return degDec
+
 
 def convertEpoch(Epoch):
     yr0 = Epoch[0]
@@ -408,12 +416,14 @@ def convertEpoch(Epoch):
     if not dy.isdigit():
         dy = 10 + ord(dy) - ord('A')
     return yr, mn, int(dy)
-    
+
+
 def yrmndy2JD(yrmndy):
     yr, mn, dy = yrmndy
     hr, dy = math.modf(float(dy))
     jd = novas.julian_date(int(yr), int(mn), int(dy), 24.*hr)
     return jd
+
 
 def deg2dms(v):
     minus_flag = (v<0.0)
@@ -426,6 +436,7 @@ def deg2dms(v):
     else:
         v_sgn = "+"
     return v_sgn, v_deg, v_min, v_sec
+
 
 def convert2MPC1992(trackID, line, mpNum="     ", disc=False):
     comps = line.split()
@@ -463,6 +474,7 @@ def convert2MPC1992(trackID, line, mpNum="     ", disc=False):
     #print trackID, yr, mn, day, ra_hr, ra_min, ra_sec, dec_deg, dec_min, dec_sec, mag, filt_trunc, obsCode
     
     return result_string, int(vac), int(rej)
+
 
 def H_alpha(H, G, alpha):
     # H is the absolute magnitude 
