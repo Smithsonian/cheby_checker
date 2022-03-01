@@ -54,8 +54,9 @@ RUN python3.6 -m pip install -e .
 
 # --- PYTHON INSTALLS -----------
 # Anaconda installing
+# TODO: Use requirements.txt
 RUN python3.6 -m pip install numpy pytest astropy astropy_healpix astroquery scipy novas novas_de405 jplephem
-
+# TODO: Install mpcpp? https://bitbucket.org/mpcdev/mpcpp/src/master/
 
 # --- CHEBY_CHECKER INSTALLS ----
 # While in development, will bind a local version (see build_container.py)
