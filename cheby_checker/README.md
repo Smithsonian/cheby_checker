@@ -74,7 +74,7 @@
 
 - Develop tests of functionalities in mpchecker. Start with pCheck (There are many more lower-level functionalities that need to have proper tests written for them, but I suspect that getting the pcheck & ephem codes working and tested will prompt me to get a whole lot of lower-level code sorted too) . [MJP]
 
-[//]: # (Todo: Check status of these.)
+[//]: # (Todo: Check status of the above.)
 
 - Modularize cheby_checker and propagate these modules to unit tests, too.
 - Run tests as they are (on a Docker container) before making them unit testable.
