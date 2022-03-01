@@ -3,8 +3,8 @@ Python code related to orbital ephemeris calculations (for solar system objects)
 
 ## Installation / prerequisites
  - A containerized approach has been set up to take care of
- - (a) installing all of the REBOUND/REBOUNDx NBody stuff
- - (b) installing all other python dependacies 
+   - Installing all of the REBOUND/REBOUNDx NBody stuff
+   - Installing all other python dependencies 
  - See cheby_container for more details of how to use 
 
 ## Functionalities exist/will-exist to:
