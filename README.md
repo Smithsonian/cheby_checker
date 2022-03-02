@@ -7,7 +7,7 @@ Python code related to orbital ephemeris calculations (for solar system objects)
    - Installing all other python dependencies 
  - See cheby_container for more details of how to use 
  - Git LFS should be instantiated in your repo:
-   ```commandline
+   ```bash
    # sudo apt install git-lfs # if needed 
    git lfs install
    git lfs pull
@@ -33,3 +33,5 @@ Python code related to orbital ephemeris calculations (for solar system objects)
 ## to-do : 2021-11-08
  - See README in cheby_checker/cheby_checker code repo
  - See Google Doc in https://docs.google.com/document/d/1SsKRwc8nC_oxPtODlQOwGAzCq42Y4AvWFe-Fu6Fk9bI/edit# 
+
+[//]: # (TODO: Instructions for local install)

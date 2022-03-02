@@ -1,6 +1,7 @@
 # cheby_checker tests go in this directory
 
-[//]: # (TODO: Separate WIP tests to tests-WIP)
+[//]: # (TODO: Use Pytest skip/skipf decorators to skip WIP Tests. https://docs.pytest.org/en/latest/how-to/skipping.html#skipping-test-functions)
+[//]: # (TODO: Get tests running in Docker/Local: get dev data, dependent packages mounted/installed)
 
 ## 2022 : MJP: The following are WIP, attempting to get tests to pass...
 

@@ -38,7 +38,7 @@ ENV JPL_PLANET_EPHEM=/reboundx/examples/ephem_forces/linux_p1550p2650.440
 ENV JPL_SB_EPHEM=/reboundx/examples/ephem_forces/sb441-n16.bsp
 
 # Get the ephemeris file in to the container (goes into the ephem_forces sub-dir of reboundx). 
-# *** OBVIOUSLY THIS SHOULD BE PART OF REBOUUNDX REPO, BUT NO LFS ON PUBLIC FORKS!?!?!? ***
+# *** OBVIOUSLY THIS SHOULD BE PART OF REBOUNDX REPO, BUT NO LFS ON PUBLIC FORKS!?!?!? ***
 #RUN wget ftp://ssd.jpl.nasa.gov/pub/eph/small_bodies/asteroids_de441/sb441-n16.bsp
 COPY sb441-n16.bsp /reboundx/examples/ephem_forces/sb441-n16.bsp
 
