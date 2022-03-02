@@ -6,6 +6,15 @@ Python code related to orbital ephemeris calculations (for solar system objects)
    - Installing all of the REBOUND/REBOUNDx NBody stuff
    - Installing all other python dependencies 
  - See cheby_container for more details of how to use 
+ - Git LFS should be instantiated in your repo:
+   ```commandline
+   # sudo apt install git-lfs # if needed 
+   git lfs install
+   git lfs pull
+   # sanity check
+   head -n 1 ./dev_data/de440.bsp
+   ```
+   As long as this output doesn't start with "version", you have the file and not the pointer from Git LFS.
 
 ## Functionalities exist/will-exist to:
  - Perform n-body integrations (using a custom REBOUND wrapper) based on inital orbital states provided from an ORBFIT orbital fit to observations;   
