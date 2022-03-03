@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 # cheby_checker/tests/test_sqlite
 
-'''
-    --------------------------------------------------------------
-    tests of sifter's sqlite functions
+"""
+--------------------------------------------------------------
+tests of sifter's sqlite functions
 
-    Jan 2020
-    Matt Payne & Mike Alexandersen
+Jan 2020
+Matt Payne & Mike Alexandersen
 
-    --------------------------------------------------------------
-    '''
-
+--------------------------------------------------------------
+"""
 
 # Import third-party packages
 # --------------------------------------------------------------
@@ -18,10 +17,9 @@ import sys
 import os
 import pytest
 
-
 # Import neighboring packages
 # --------------------------------------------------------------
-from cheby_checker import sifter_sql as sql
+from cheby_checker import sql
 
 
 # Convenience data / functions to aid testing
@@ -40,7 +38,7 @@ for i in range(4):
 # Actual tests ...
 # --------------------------------------------------------------
 def test_db_creation():
-    '''Test that an empty database can be created.'''
+    """Test that an empty database can be created."""
 
     # Where do we want the db to live
     assert 'sifter' in sql.fetch_db_filepath()
@@ -54,7 +52,7 @@ def test_db_creation():
 
 
 def test_table_creation():
-    '''Test table creation.'''
+    """Test table creation."""
     expected_table_name = 'tracklets'
 
     # set up db & table
@@ -78,7 +76,7 @@ def test_table_creation():
 
 @pytest.mark.parametrize('tracklet_dict_list', [test_tracklet_dict_list])
 def test_tracklet_upsert(tracklet_dict_list):
-    '''Test tracklet upsertion into the database.'''
+    """Test tracklet upsertion into the database."""
     # set up db & table
     if os.path.isfile(sql.fetch_db_filepath()):
         os.remove(sql.fetch_db_filepath())
@@ -133,7 +131,7 @@ def test_tracklets_upsert(tracklet_dict_list):
 
 @pytest.mark.parametrize(('tracklet_dict_list'), [test_tracklet_dict_list])
 def test_tracklet_query(tracklet_dict_list):
-    '''Test querying a tracklet.'''
+    """Test querying a tracklet."""
     # set up db & table
     if os.path.isfile(sql.fetch_db_filepath()):
         os.remove(sql.fetch_db_filepath())
@@ -158,7 +156,7 @@ def test_tracklet_query(tracklet_dict_list):
 
 @pytest.mark.parametrize(('tracklet_dict_list'), [test_tracklet_dict_list])
 def test_tracklet_query_mutiple_HP(tracklet_dict_list):
-    '''Test querying multiple Heal Pix.'''
+    """Test querying multiple Heal Pix."""
     # set up db & table
     if os.path.isfile(sql.fetch_db_filepath()):
         os.remove(sql.fetch_db_filepath())
@@ -183,7 +181,7 @@ def test_tracklet_query_mutiple_HP(tracklet_dict_list):
 
 @pytest.mark.parametrize(('tracklet_dict_list'), [test_tracklet_dict_list])
 def test_delete_tracklet(tracklet_dict_list):
-    '''Test deletion of a tracklet.'''
+    """Test deletion of a tracklet."""
     # set up db & table
     if os.path.isfile(sql.fetch_db_filepath()):
         os.remove(sql.fetch_db_filepath())
@@ -213,7 +211,7 @@ def test_delete_tracklet(tracklet_dict_list):
 
 @pytest.mark.parametrize(('tracklet_dict_list'), [test_tracklet_dict_list])
 def test_delete_tracklets(tracklet_dict_list):
-    '''Test deleting multiple tracklets.'''
+    """Test deleting multiple tracklets."""
     # set up db & table
     if os.path.isfile(sql.fetch_db_filepath()):
         os.remove(sql.fetch_db_filepath())

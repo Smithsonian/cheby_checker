@@ -45,7 +45,7 @@ from mpcpp.obs80.obs80 import parse80
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from . import sifter_sql as sql  # New and improved Python3 relative import
+from . import sql
 from .obs_pos import ObsPos
 
 # Default for caching stuff using lru_cache

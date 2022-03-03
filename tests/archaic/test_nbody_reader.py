@@ -23,7 +23,8 @@ import pytest
 # --------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(
 os.path.realpath(__file__))))
-from cheby_checker import nbody_reader
+# Module no longer exists
+# from cheby_checker import nbody_reader
 
 
 

@@ -23,14 +23,13 @@ from astroquery.jplhorizons import Horizons
 import getpass
 if getpass.getuser() in ['matthewjohnpayne']:  # Payne's dev laptop set up differently ...:
     sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/')
-import mpcpp.MPC_library as mpc
+from cheby_checker import MPC_library as mpc
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
-sys.path.append(
-                os.path.dirname(os.path.dirname(
-                                                os.path.realpath(__file__))))
-from cheby_checker import parse_input
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+# Module not installed
+# from cheby_checker import parse_input
 
 
 # Constants & Test Data

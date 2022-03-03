@@ -1,7 +1,7 @@
 # cheby_checker tests go in this directory
 
-[//]: # (TODO: Use Pytest skip/skipf decorators to skip WIP Tests. https://docs.pytest.org/en/latest/how-to/skipping.html#skipping-test-functions)
-[//]: # (TODO: Get tests running in Docker/Local: get dev data, dependent packages mounted/installed)
+[//]: # (TODO: Use Pytest skip/skipf decorators to skip WIP Tests. Mostly done here. https://docs.pytest.org/en/latest/how-to/skipping.html#skipping-test-functions)
+[//]: # (TODO: Get tests running in Docker/Local: get dev data, dependent packages mounted/installed. Made some progress but facing further issues.)
 
 ## 2022 : MJP: The following are WIP, attempting to get tests to pass...
 
@@ -24,6 +24,8 @@
 ### `pytest test_convenience_Horizons.py`
  - `convenience_Horizons.py` only depends on EXTERNAL packages
  - passes within and without containerized environment 
+
+[//]: # (TODO: Make note of test_convenience_functions.py, .._data_classes, _ephem, ..malloc_reboundx, nbody_NbodySim, nbody_ParseElements, orbit_cheby, sifter_*, _sockets, tmp.py. Or just a general note on them?)
 
 ### `pytest test_obs_pos.py`
  - `obs_pos.py` depends on INTERNAL `MPC_library.py`: eventually want to change dependency to `wis.py`
@@ -68,7 +70,7 @@
 - Detailed tests of the *accuracy* of the chebyshevs that get created as a by-product of calling *from_coord_arrays* will primarily be performed elsewhere
 - passes within containerized environment (not yet local)
 
-[//]: # (TODO: 4 tests failing.. cf. TODOs in orbit_cheby.py. Likewise with test_orbit_cheby_horizons.py)
+[//]: # (TODO: 4 tests failing.. cf. TODOs in orbit_cheby.py. Likewise with test_orbit_cheby_horizons.py. These are passing on the container now.)
 
 ### `pytest test_orbit_cheby_horizons.py`
 - orbit_cheby.py has an INTERNAL dependence on the nbody.py module

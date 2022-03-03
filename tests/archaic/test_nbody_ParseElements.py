@@ -1,23 +1,23 @@
-    # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # /tests/test_nbody.py
 
-    """
-    ----------------------------------------------------------------------------
-    tests for mpc_nbody
-    
-    Dec 2021
-    Matthew Payne
-    
-    Prev Work:
-    Mike Alexandersen, Matthew Payne & Matthew Holman
-    
-    This code simplified as of Dec 2021
-    Removing many tests of non-json input
-     - The non-json input methods *may* still work, but for now I just want to ensure that the json inputs work
-     
-     
-    ----------------------------------------------------------------------------
-    """
+"""
+----------------------------------------------------------------------------
+tests for mpc_nbody
+
+Dec 2021
+Matthew Payne
+
+Prev Work:
+Mike Alexandersen, Matthew Payne & Matthew Holman
+
+This code simplified as of Dec 2021
+Removing many tests of non-json input
+ - The non-json input methods *may* still work, but for now I just want to ensure that the json inputs work
+ 
+ 
+----------------------------------------------------------------------------
+"""
 
 # import third-party packages
 # -----------------------------------------------------------------------------
@@ -53,20 +53,16 @@ for d in [test_dir, code_dir]:
     sys.path.append( d )
 
 # import the main mnbody code that we want to test ...
-#from cheby_checker
-import nbody
+#from cheby_checker import nbody
 
 # old conversion library that may be useful for cross-comparison of various tests ...
-from code_dir import MPC_library as mpc
-
-
+# from code_dir import MPC_library as mpc
 
 
 # Constants & Test Data
 # -----------------------------------------------------------------------------
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(
                         os.path.realpath(__file__))), 'dev_data')
-
 
 
 # Utility functions to help with testing
@@ -145,8 +141,6 @@ def compare_xyzv(xyzv0, xyzv1, threshold_xyz, threshold_v):
     error = xyzv0 - xyzv1
     good_tf = np.abs(error) < np.array([threshold_xyz] * 3 + [threshold_v] * 3)
     return error, good_tf
-
-
 
 
 # Tests of ParseElements
@@ -252,7 +246,6 @@ def test_parse_orbfit_json_A(data_file):
     assert P.helio_ecl_cov.shape in [(1,6,6),(1,7,7),(1,8,8),(1,9,9)]
     
 
-
 """
 def test_save_elements():
     '''Test that saving input-elements to an outpuut-file works correctly.'''
@@ -317,5 +310,3 @@ def test_instantiation_from_data_files(data_file, file_type, test_result_file):
     if os.path.isfile(save_file) : os.remove(save_file)
 
 """
-
-# End 

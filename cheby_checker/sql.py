@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
 # cheby_checker/cheby_checker/sql.py
 
-'''
+"""
     --------------------------------------------------------------
     cheby_checker's sqlite module.
-    
+
     Aug 2020
     Matt Payne
-    
+
     This module provides functionalities to interact with
     (i) The tables related to storing ephemeris representations
         - I.e. chebyshev representations
     (ii) The table(s) related to storing the ITF data for
         - SIFTER
-    
+
     --------------------------------------------------------------
-'''
+"""
 
 
 # Import third-party packages
@@ -44,11 +44,11 @@ from .cheby_checker import Base
 # -------------------------------------------------------------
 
 class DB():
-    '''
+    """
     Class to handle basic database connections & locations
-    
+
     Currently uses sqlite3 db
-    '''
+    """
 
     def __init__(self,):
         self.db_file = self.fetch_db_filepath()
@@ -57,23 +57,21 @@ class DB():
 
     @staticmethod
     def fetch_db_filepath():
-        '''
-        '''
         B = Base()
         db_dir = B._fetch_data_directory()
         return os.path.join(db_dir , B.db_filename)
 
-    def create_connection(self,):
-        """ Create a database connection to the SQLite database
-            specified by db_file
-            
-            inputs:
-            -------
-            db_file: database file
-            
-            return:
-            -------
-            Connection object or None
+    def create_connection(self):
+        """
+        Create a database connection to the SQLite database specified by db_file
+
+        inputs:
+        -------
+        db_file: database file
+
+        return:
+        -------
+        Connection object or None
         """
         conn = None
         try:
@@ -85,7 +83,7 @@ class DB():
         return conn
 
 
-    def create_table(self, create_table_sql ):
+    def create_table(self, create_table_sql):
         """ Create a table from the create_table_sql statement
             
             inputs:
@@ -105,7 +103,7 @@ class DB():
 
 
 class SQLChecker(DB):
-    '''
+    """
     Class to handle all database interactions required by cheby_checker
 
     This includes table creation, data inserts/upserts/removals, and
@@ -113,7 +111,7 @@ class SQLChecker(DB):
 
     Currently uses sqlite3 db
 
-    '''
+    """
 
     def __init__(self,):
         super().__init__()
@@ -124,11 +122,11 @@ class SQLChecker(DB):
     # ---------------------------------------------
 
     def generate_sector_field_names(self,  sector_dict = Base().get_required_sector_dict() ):
-        '''  Dynamically generate the field-specs that will be required for the coeffs-by-sector  '''
+        """  Dynamically generate the field-specs that will be required for the coeffs-by-sector  """
         return [ 'sector_%d_%d' % (i, jd) for i, jd in sector_dict.items() ]
 
     def generate_blank_coefficient_dict(self,  sector_dict = Base().get_required_sector_dict() ):
-        '''  Generate a blank default dictionary for upsert to coeffs table ...  '''
+        """  Generate a blank default dictionary for upsert to coeffs table ...  """
         return { _ : None for _ in self.generate_sector_field_names() }
 
     # ---------------------------------------------
@@ -407,25 +405,25 @@ class SQLChecker(DB):
 
 
     def query_coefficients_by_jd_hp(self, JD, HPlist , sector_numbers = None):
-        '''
+        """
             For a given (single) JD and list of Healpix,
             the query returns the relevant coefficients from the object_coefficients table
-            
+
             inputs
             ------
             JD: float or int
              - julian date of the night. If <float> will be silently converted to <int>
-             
+
             HPlist: list-of-integers
              - healpix to be queried
              - if integer (single healpix) supplied, is silently converted to list
-             
+
             returns
             -------
             dictionary-of-dictionaries
             - keys   = primary_unpacked_provisional_designation
             - values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
-        '''
+        """
         
         # What sector numbers are we searching for ?
         # - Default is to get data for all of them
@@ -456,13 +454,13 @@ class SQLChecker(DB):
 
 
     def query_jd_hp(self, JD, HPlist):
-        '''
+        """
             For a given (single) JD and list of Healpix,
             the query returns the relevant object_coeff_ids
-            
+
             May be of little use in practice, but helpful for development
-            
-        '''
+
+        """
         # Connection cursor
         cur = self.conn.cursor()
 
@@ -479,7 +477,7 @@ class SQLChecker(DB):
 
 
 class SQLSifter(DB):
-    '''
+    """
     Class to handle all database interactions required by sifter
 
     This includes table creation, data inserts/upserts/removals, and
@@ -489,7 +487,7 @@ class SQLSifter(DB):
 
     *** PROBABLY HAS NOT BEEN PROPERLY TESTED WITHIN test_sql.py AS YET (Nov 2021) ***
 
-    '''
+    """
 
     def __init__(self,):
         super().__init__()

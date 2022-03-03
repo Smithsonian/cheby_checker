@@ -44,7 +44,7 @@ jpl_kernel = SPK.open(kernel_path)
 class Observatory:
 
     # TODO: Make getEarthPosition(.) and getEarthPV(.) class functions, write an init() that handles the kernel for I/O.
-    #   But also make it init(kernel=False) for external instantiaions of Observatory(.), as in obs_pos.py
+    #   But also make it init(kernel=False) for external instantiations of Observatory(.), as in obs_pos.py
     #   May be causing file handle issues with pytest.
     # Parses a line from the MPC's ObsCode.txt file
     def parseObsCode(self, line):

@@ -44,7 +44,8 @@ from cheby_checker import nbody
 
 if getpass.getuser() in ['matthewjohnpayne']:  # Payne's dev laptop set up differently ...:
     sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/')
-import mpcpp.MPC_library as mpc
+# module not installed
+# import mpcpp.MPC_library as mpc
 
 # Constants & Test Data
 # -----------------------------------------------------------------------------

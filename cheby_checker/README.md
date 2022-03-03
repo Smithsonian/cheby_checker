@@ -52,7 +52,7 @@
 
 [//]: # (TODO: tests may be under a different module now.)
 
- ### sifter, sifter_precalc, sifter_sql, sifter_query:
+ ### sifter, sifter_precalc, sifter_sql (now `sql`), sifter_query:
 
 - files from the formerly independent `sifter` repository, now fully merged into here. 
 - sifter_precalc parses observations, identifies tracklets and splits observations into seperate tracklets, figures out where the observer is, deals with coordinate frame conversion, calculates the important info about a tracklet (integer night, HealPix, etc) and saves it to a dictionary. 

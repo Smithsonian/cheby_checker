@@ -329,7 +329,7 @@ class MSC(Base):
         self.primary_unpacked_provisional_designation = primary_unpacked_provisional_designation
         
         # query the database for the required sector coefficients
-        coeff_dict = precalc.get_specific_object(primary_unpacked_provisional_designation ,
+        coeff_dict = precalc.get_specific_object(primary_unpacked_provisional_designation,
                                                  sector_numbers = sector_numbers)
     
         # create the entries in the sector_coeffs dict (N.B. have to transform the keys)

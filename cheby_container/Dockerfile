@@ -56,7 +56,10 @@ RUN python3.6 -m pip install numpy pytest astropy astropy_healpix astroquery sci
 #COPY ./requirements.txt .
 #RUN python3.6 -m pip install -r requirements.txt
 
-# TODO: Install mpcpp? https://bitbucket.org/mpcdev/mpcpp/src/master/
+# Install mpcpp
+# TODO: repo is not public and can't be installed w/o credentials
+#RUN git clone https://fiftyfeltcapfanscantbewrong@bitbucket.org/mpcdev/mpcpp.git
+#RUN python3.6 -m pip install mpcpp/.
 
 # --- CHEBY_CHECKER INSTALLS ----
 # While in development, will bind a local version (see build_container.py)

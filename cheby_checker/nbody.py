@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # /cheby_checker/cheby_checker/nbody.py
-
-'''
+"""
 ----------------------------------------------------------------------------
 nbody is a wrapper around a REBOUNDX integrator:
 reboundx/examples/ephem_forces
@@ -15,8 +14,7 @@ This module provides functionalities to
 (c) read the output from the nbody simulations
 
 ----------------------------------------------------------------------------
-'''
-
+"""
 
 # Import third-party packages
 # -----------------------------------------------------------------------------
@@ -80,11 +78,10 @@ nFields     = nComponents + 1
 # --------------------------------------------------------------
 
 
-
 class NbodySim():
-    '''
+    """
     Provides methods to call reboundx-ephemeris NBody integrator
-    '''
+    """
 
     def __init__( self,):
 
@@ -125,29 +122,28 @@ class NbodySim():
         self.output_states      = None
         self.output_covar     = None
 
-
     # --------------------------------------------
     # Top-Level Function(s): (expected to be called by user)
     # --------------------------------------------
     #@timer
     def run_mpcorb(self,**kwargs):
-        '''
+        """
         Run the nbody integrator with the parsed input.
          - Performs integration by calling *integration_function*
-         
+
         Inputs/Requires:
         -------
 
         Populates:
         --------
-        
+
         Example:
         --------
         NbodySim().run_mpcorb(  tstart = ... ,
                                 tstop  = ... ,
                                 mpcorb_list = [],
                                 )
-        '''
+        """
         
         # Parse the provided input and populate the appropriate internal variables.
         # Also checks that all necessary variables have been provided
@@ -164,7 +160,6 @@ class NbodySim():
         #    self.save_output()
             
         return True
-
 
     # --------------------------------------------
     # Functions to parse user-inputs
@@ -208,11 +203,9 @@ class NbodySim():
         # Don't need to return anything ...
         return True
 
-  
-            
     #@timer
     def _parse_orbfit_json(self, mpcorb_file_or_dict ):
-        '''
+        """
         Parse a file containing OrbFit elements for a single object & epoch.
         Assumes input is in standard mpcorb-json format
 
@@ -225,17 +218,17 @@ class NbodySim():
         Populates:
         --------
         self.integration_epoch
-        
+
         self.helio_ecl_vec
         self.helio_ecl_vec_EXISTS
-        
+
         self.helio_ecl_cov
         self.helio_ecl_cov_EXISTS
-        
+
         self.non_grav_dict_list
         self.non_grav_EXISTS
-        
-        '''
+
+        """
         
         # Call -----------  MPCORB -----------------
         # NB(1): This parses & validates ...
@@ -310,14 +303,13 @@ class NbodySim():
         
         # ----------- return -----------------------
         return True
-        
-                
+
     #@timer
     def make_bary_equatorial(self):
-        '''
+        """
         Transform heliocentric-ecliptic coordinates into
         barycentric equatorial coordinates
-        
+
         requires:
         ----------
         self.helio_ecl_vec_EXISTS   : Boolean
@@ -331,7 +323,7 @@ class NbodySim():
         self.bary_eq_vec            = 1D np.ndarray
         self.bary_eq_cov_EXISTS     = Boolean
         self.bary_eq_cov            = 2D np.ndarray
-        '''
+        """
         if self.helio_ecl_vec_EXISTS :
             # Transform the helio-ecl-coords to bary-eq-coords
             # NB 2-step transformation for the vector (posn,vel)
@@ -355,8 +347,6 @@ class NbodySim():
             
         return True
         
-    
-
     """
     def _parse_input_type(self,input):
         '''
@@ -403,8 +393,6 @@ class NbodySim():
         return contents
     """
 
-
-                      
     """
     def parse_orbfit_felfile_txt(self, felfile_contents, CHECK_EPOCHS=True):
         '''
@@ -483,16 +471,15 @@ class NbodySim():
                     f"e = {e}\n")
     """
     
-
     # --------------------------------------------
     # Functions to run NBody integration & parse results
     # --------------------------------------------
 
     #@timer
     def _run_integration( self,):
-        '''
+        """
         Run the nbody integrator with the parsed input.
-        
+
         Designed as INTERNAL function: NOT expected to be called directly by the user
         NB: Separating *_run_integration* from (e.g.) run_mpcorb to allow for multiple top level run_* types (e.g. run_array)
 
@@ -500,7 +487,7 @@ class NbodySim():
         ------
         Assumes all required class variables have been populated at preceeding steps
         Requires:
-        
+
         self.tstart : float
          -
         self.tstop  : float
@@ -509,13 +496,13 @@ class NbodySim():
          -
         self.geocentric = boolean,
          - use geo- (True) or heliocentric (False)
-         
+
         self.n_particles : int
          -
         self.bary_eq_vec : np.ndarray
          - 2D, shape = (N_particles, 6)
          - barycentric equatorial elements (xyzuvw) for N_particles to be integrated
-         
+
         self.non_grav_dict_list = list
          -
         self.epsilon = 1e-8
@@ -539,7 +526,7 @@ class NbodySim():
          - number of time outputs
         n_particles_out     = integer,
          - number of output particles (different why?)
-        '''
+        """
         
         
         # Now run the nbody integrator:
@@ -574,17 +561,16 @@ class NbodySim():
         
         return True
                 
-
     #@timer
     def reshape_partial_deriv_arrays( self,  partial_derivatives_wrt_state,  partial_derivatives_wrt_NG):
-        '''
+        """
         (1) partial_derivatives_wrt_state
         From: partial_derivatives_wrt_state.shape = (N_times, 6*n_particles, 6)
         To  : partial_derivatives_wrt_state.shape = (N_times, n_particles, 6, 6)
-        
+
         (2) partial_derivatives_wrt_NG
         *** NOT YET IMPLEMENTED partial_derivatives_wrt_NG ***
-        '''
+        """
         # (1) (N_times, 6*n_particlea, 6) -> (N_times, n_particlea, 6, 6)
         #print('partial_derivatives_wrt_state: input shape = ', partial_derivatives_wrt_state.shape)
         partial_derivatives_wrt_state = partial_derivatives_wrt_state.reshape(partial_derivatives_wrt_state.shape[0],-1,6,6)
@@ -596,19 +582,18 @@ class NbodySim():
             raise Error('Have not coded partial_derivatives_wrt_NG into _get_covariance_from_tangent_vectors ')
 
         return partial_derivatives_wrt_state , partial_derivatives_wrt_NG
-        
-        
+
     #@timer
     def _get_covariance_from_tangent_vectors(self, init_covariances, partial_derivatives_wrt_state ,  partial_derivatives_wrt_NG=None ):
-        '''
+        """
         Follow Milani et al 1999
         Gamma_t = [partial X / partial X_0] Gamma_0 [partial X / partial X_0]^T
-        
+
         NB
         init_covariances.shape              =  (#particles, 6, 6)
         partial_derivatives_wrt_state.shape =  (#times, #particles, 6, 6)
 
-        '''
+        """
         
         if partial_derivatives_wrt_NG is not None :
             raise Error('Have not coded partial_derivatives_wrt_NG into _get_covariance_from_tangent_vectors ')
@@ -648,7 +633,6 @@ class NbodySim():
             CoV_t           = np.linalg.pinv( GammaStack_t )
 
         return CoV_t
-            
 
     # -----------------------------------
     # Save Funcs ...
@@ -685,7 +669,6 @@ class NbodySim():
                     outfile.write(f'{self.output_vectors[i, j, k]:} ')
         outfile.write('\n#End')
 
-
     #@timer
     def save_elements(self, save_file='save_file.tmp'):
         """
@@ -712,18 +695,16 @@ class NbodySim():
                 suffix = '\n' if n in [2,5] else ''
                 outfile.write(f"{coeff: 18.15e} " + suffix)
 
-
-
     # -----------------------------------
     # Misc Funcs ...
     # -----------------------------------
     #@timer
     def _parse_Covariance_List(Els):
-        '''
+        """
         Convenience function for reading and splitting the covariance
         lines of an OrbFit file.
         Not intended for user usage.
-        '''
+        """
         # Set-up array of zeroes
         # NB: CoV.ndim ==3 , CoV.shape == (1,6,6)
         CoV        = np.zeros( (1,6,6) )
@@ -753,26 +734,21 @@ class NbodySim():
             CoV_EXISTS = True
         return CoV_EXISTS, CoV
 
-
-
-
-
-
     # -----------------------------------
     # Functions to read nbody results
     # -----------------------------------
     #@timer
     def parse_nbody_txt( text_filepath ):
-        '''
+        """
             Read a text file
-            
+
             returns:
             --------
             name: str
              - name of object being processed: hopefully is an UNPACKED DESIGNATION
             array:
              - time, state, triangular-cov
-        '''
+        """
         if os.path.isfile( text_filepath ):
             
             # Simple read of file -> array
@@ -786,20 +762,16 @@ class NbodySim():
         #      name  times,   states
         return name, array[:,0], array[:,1:]
 
-
-
-
-
     # -----------------------------------
     # Functions to create *FAKE DATA*
     # - Seems like this belongs in TEST DIRECTORY-FUNCTIONALITIES ...
     # -----------------------------------
     #@timer
     def create_nbody_txt( text_filepath ):
-        '''
+        """
             Convenience function to create a text-file of coordinates
             ****This is only for the purposes of data exploration****
-            
+
             #  I am constructing an array that is ~20,000 rows long
             # Each row stores 1-time, 6-posn&vel, and 21-CoVarCoeffs
             #
@@ -813,7 +785,7 @@ class NbodySim():
             #   V         ]
             #
 
-        '''
+        """
         
         # times
         times = np.arange(40000, 60000, 1)
@@ -839,9 +811,3 @@ class NbodySim():
 
         # Save to file
         np.savetxt(text_filepath , a , header='2022 AA' )
-
-
-
-
-
-# End

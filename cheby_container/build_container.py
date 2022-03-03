@@ -39,7 +39,10 @@ def build():
     os.system(command)
 
     # execute interactively (so you get into the command-line)
-    os.system(f"docker exec -it {container_name} bash")
+    # os.system(f"docker exec -it {container_name} bash")
+
+    # install cheby_checker here
+    os.system(f"docker exec -it {container_name} python3.6 -m pip install -e cheby_checker/.")
 
 if __name__ == '__main__':
     
