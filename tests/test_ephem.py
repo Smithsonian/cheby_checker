@@ -5,15 +5,13 @@
 
 # Import third-party packages
 # --------------------------------------------------------------
-import numpy as np
-import sys, os
-
-import pytest
-from astropy_healpix import healpy
+import os
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from cheby_checker import ephem
+import pytest
+
+from cheby_checker import ephem, nbody
 
 # Files / Directories
 # --------------------------------------------------------------
@@ -29,7 +27,10 @@ def convenience_data_generation():
     """ Get data into database : See Demonstrate_EndToEnd_Orbit_Precalc.ipynb """
 
     # Use the Sim-object approach to run a simulation
-    Sim = mpc_nbody.NbodySim(filenames[0], 'eq')
+    # TODO: Same fix as in test_convenience_functions.py
+    # Sim = mpc_nbody.NbodySim(filenames[0], 'eq')
+    Sim = nbody.NbodySim()
+    Sim._parse_orbfit_json(filenames[0])
     Sim(tstep=20, trange=1000)
 
     # Initialize an MSC object
@@ -37,18 +38,11 @@ def convenience_data_generation():
 
     # Declare a "PreCalc" object
     P = precalc.PreCalc()
-
     # Do the upsert
     P.upsert(MSCs , observatoryXYZ)
     
 
-@pytest.mark.skip(reason="E is not defined")
+@pytest.mark.skip(reason="designations, times not defined")
 def test_instantiation():
-    # Instantiate :
-    # NB(1) As written, need to instantiate with variables ...
-    # ... __init__(self, designations, times, observatoryXYZ = None , obsCode = None)
-    # NB(2) As written, queried designation needs to be in database
-    #E = ephem.Ephem()
-    assert isinstance(E,ephem.Ephem) , f'E is not of the expected type:{type(E)}'
-
-
+    E = ephem.Ephem(designations, times)
+    assert isinstance(E, ephem.Ephem), f'E is not of the expected type:{type(E)}'
