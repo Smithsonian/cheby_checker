@@ -1,8 +1,8 @@
 # cheby_checker tests go in this directory
 
-[//]: # (TODO: 5 tests failing.)
-[//]: # (    The first three are from reboundx and may be fixable via https://github.com/dtamayo/reboundx/issues/26, or more probably https://github.com/dtamayo/reboundx/issues/39)
-[//]: # (    The latter two are from mpcpp being unavailable. cf. Dockerfile:59)
+[//]: # (TODO: 2 tests failing. From `mpcpp` being unavailable. cf. Dockerfile:59)
+
+[//]: # (    MAY NOT BE ACTIVE BUGS ANY LONGER: The first three are from reboundx and may be fixable via https://github.com/dtamayo/reboundx/issues/26, or more probably https://github.com/dtamayo/reboundx/issues/39)
 
 ## 2022 : MJP: The following are WIP, attempting to get tests to pass...
 
