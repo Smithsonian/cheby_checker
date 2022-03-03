@@ -1,33 +1,31 @@
 # -*- coding: utf-8 -*-
 # cheby_checker/cheby_checker/ephem
+"""
+--------------------------------------------------------------
+cheby_checker's / ephemeris module.
 
-'''
-    --------------------------------------------------------------
-    cheby_checker's / ephemeris module.
-    
-    Jun 2020
-    Matt Payne
-    
-    This module/class is intended to be a fairly light wrapper
-    around the PreCalc & MSC classes.
-    
-    Given a designation (list?) and a set of desired 
-    observation-times and observatory-locations, the Ephem class
-    gets the data from the database (using PreCalc) and evaluates
-    the object positions, etc
-    
-    Various convenience functions should be developed to
-    provide the desired data in the required formats for (e.g.) 
-    the online ephemeris service, as well as other downstream 
-    functionality (pCheck, MPChecker, etc)
-    
-    ** As of Aug 2020, there doesn't seem to be a super-strong  **
-    ** justification for having this as a stand-alone class.    **
-    ** -->> Could just have as a function in some other class?  **
-    
-    --------------------------------------------------------------
-    '''
+Jun 2020
+Matt Payne
 
+This module/class is intended to be a fairly light wrapper
+around the PreCalc & MSC classes.
+
+Given a designation (list?) and a set of desired
+observation-times and observatory-locations, the Ephem class
+gets the data from the database (using PreCalc) and evaluates
+the object positions, etc
+
+Various convenience functions should be developed to
+provide the desired data in the required formats for (e.g.)
+the online ephemeris service, as well as other downstream
+functionality (pCheck, MPChecker, etc)
+
+** As of Aug 2020, there doesn't seem to be a super-strong  **
+** justification for having this as a stand-alone class.    **
+** -->> Could just have as a function in some other class?  **
+
+--------------------------------------------------------------
+"""
 
 # Import third-party packages
 # --------------------------------------------------------------
@@ -36,25 +34,25 @@ import numpy as np
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from .cheby_checker import orbit_cheby
-from .cheby_checker import data_classes
+from . import orbit_cheby
+from . import data_classes
 
 detn_var_names, Detections = data_classes.var_names['Detections'], data_classes.Detections
 
+
 # Ephemeris Object
 # --------------------------------------------------------------
-
 class Ephem():
-    '''
+    """
         ...
-    '''
+    """
     
 
     def __init__(self, designations, times, observatoryXYZ = None , obsCode = None):
-        '''
+        """
            Initializing ephemeris call
            Will get object data from database & instantiate MSC(s)
-        '''
+        """
     
         # Rectify designations to ensure in list-format
         self.designations = list(np.atleast_1d(designations))
@@ -94,12 +92,12 @@ class Ephem():
     # Convenience functions to generate various ephemeris quantities
     # --------------------------------------------------------------
     def generate_sky_predictions(self, ):
-        '''
+        """
            Get the on-sky RA,Dec & associated uncertainties
-           
+
            At some point should probably extend to Rates-of-Motion
-           
-        '''
+
+        """
         self.prediction_dict = {}
         for M in self.MSCs:
             

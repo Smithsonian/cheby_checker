@@ -1,28 +1,28 @@
 # -*- coding: utf-8 -*-
 # cheby_checker/cheby_checker/orbit_cheby.py
 
-'''
+"""
     --------------------------------------------------------------
     cheby_checker's orbit_cheby module.
-    
+
     Jan 2020
     Matt Payne & Margaret Pan & Mike Alexandersen
-    
+
     This module provides functionalities to evaluate
     dictionaries of chebyshev-coefficients
-    
+
     We are developing a standardized approach regarding
     orbit integration and subsequent interpolation using
     chebyshev-coefficients applied to 32-day sectors
-    
+
     To contain all core functionality required to predict the
     position (e.g. Heliocentric Cartesian) and apparent position
     (e.g. RA, Dec) of minor planets, comets, satellites, etc
     - See https://drive.google.com/open?id=1F86lnaHL01xPAACX2SYVdOgvvLLnxfYD
-    
+
     This does *NOT* do the underlying nbody integrations.
     This DOES fast interpolation using supplied chebyshev dictionaries
-    
+
     N.B. There is a strong assumption that coordinates are BARYCENTRIC EQUATORIAL
     - I.e. we are assuming that the nbody integration has supplied cartesian
     coordinates in a BARYCENTRIC EQUATORIAL frame.
@@ -32,9 +32,9 @@
     - MP_Checker
     - ID_Check
     - ...
-    
+
     --------------------------------------------------------------
-    '''
+    """
 
 
 # Import third-party packages
@@ -58,14 +58,14 @@ from .cheby_checker import Base
 
 
 class MSC_Loader(Base):
-    '''
+    """
         Multi-Sector Cheby -Loader Function
-        
+
         Will load/create/return instances of MSC : Multi-Sector Cheby objects
-        
+
         Will handle multi-particle instantiation: will return **LIST** of *MSC* objects
-        
-    '''
+
+    """
 
     # allow different init depending on source ...
     def __init__(self, **kwargs):
@@ -130,7 +130,8 @@ class MSC_Loader(Base):
 
 
     def _generate_empty(self,  ):
-        '''  '''
+        """  """
+        # TODO: Use logging here and elsewhere
         print('\n','*'*6,'Defaulting to the production of a list of empty MSCs','*'*6,'\n')
         print('\t','This occurs (a) on erroneous input, and (b) when no input supplied\n')
         self.MSCs.append(MSC())
@@ -173,10 +174,10 @@ class MSC_Loader(Base):
                                     times_TDB,
                                     states,
                                     covariances = None ):
-        '''
+        """
             Will initialize MSC(s) from supplied arrays
             This handles the partitioning of data into multiple MSCs as required
-            
+
             inputs:
             -------
             name: string
@@ -189,11 +190,11 @@ class MSC_Loader(Base):
              - In early stages of development, will assume grav-only, hence Nc == 6
             covariances: np.array
              - This should be the covariances corresponding to the states, so dimension should be (Nt, Np, Nc, Nc)
-            
+
             returns:
             --------
-            
-        '''
+
+        """
         
 
        
@@ -240,7 +241,7 @@ class MSC_Loader(Base):
 
 
     def _populate_from_database(self, dict_of_dicts ):
-        '''
+        """
             Method to construct MSCs from 1-or-many sectors stored in the sqlite db as coeffs
 
             inputs:
@@ -254,7 +255,7 @@ class MSC_Loader(Base):
             --------
             list of MSC objects
 
-        '''
+        """
         
         # Loop over objects and make list of MSCs
         MSCs = []
@@ -268,35 +269,12 @@ class MSC_Loader(Base):
         return MSCs
 
 
-
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-### ****
-
-
-
-
 class MSC(Base):
-    '''
-            Multi-Sector Cheby Class
-            
-            Will hold chebyshev coefficients for a **SINGLE** object
-            
-             
-    '''
+    """
+    Multi-Sector Cheby Class
+
+    Will hold chebyshev coefficients for a **SINGLE** object
+    """
     def __init__(self, **kwargs):
     
         # Give access to "Base" methods & attributes
@@ -313,45 +291,40 @@ class MSC(Base):
         self.covar_bool    = False
         
         # Fundamental identifiying data for MSC
-        self.primary_unpacked_provisional_designation   = None
-        self.sector_coeffs                      = {}        # the all-important cheby-coeffs
-
-
+        self.primary_unpacked_provisional_designation = None
+        self.sector_coeffs = {}        # the all-important cheby-coeffs
 
     # Function(s) to populate MSC  from various sources ...
     # --------------------------------------------------------------
-
     def from_database(self, primary_unpacked_provisional_designation , sector_numbers = None):
-        '''
-            Used to initialize (create) an MSC object from data in the sqlite database 
-            
+        """
+            Used to initialize (create) an MSC object from data in the sqlite database
+
             (as extracted using the *get_nightly_precalcs()* function in precalc.py )
-            
+
             inputs:
             -------
             primary_unpacked_provisional_designation : string
-            
+
             returns:
             --------
             True
              - Doesn't directly return, just populates the MSC object
-             
+
             populates:
             ----------
             self.primary_unpacked_provisional_designation : string
-            
-            self.sector_coeffs : dict
-            
-            self.sector_init : int
-            
-            self.sector_final : int
-            
-            self.TDB_init : float
-            
-            self.TDB_final : float
-            
 
-        '''
+            self.sector_coeffs : dict
+
+            self.sector_init : int
+
+            self.sector_final : int
+
+            self.TDB_init : float
+
+            self.TDB_final : float
+        """
         # unpacked primary provID of the object (e.g. 2020 AA)
         self.primary_unpacked_provisional_designation = primary_unpacked_provisional_designation
         
@@ -371,31 +344,30 @@ class MSC(Base):
         assert self.TDB_init >= self.standard_MJDmin and self.TDB_final <= self.standard_MJDmax, \
             'Problem with limits in from_database: self.TDB_init = [%f] , self.standard_MJDmin = [%f] self.TDB_final = [%f], self.standard_MJDmax = [%f]' % (self.TDB_init , self.standard_MJDmin , self.TDB_final , self.standard_MJDmax)
     
-
     def from_coord_arrays(self, primary_unpacked_provisional_designation, times_TDB , states , covariances = None ):
-        '''
+        """
            Populate the MSC starting from supplied numpy-arrays
            Expected to be used when passing in the data from an NBody integration (REBOUNDX)
-            
+
             inputs:
             -------
-            primary_unpacked_provisional_designation : 
-            - 
-            
+            primary_unpacked_provisional_designation :
+            -
+
             TDB_init :
             -
-            
+
             TDB_final :
             -
-            
+
             times_TDB :
             -
-            
+
             states: np.array
              - This should be ONLY the main fitted variables (e.g. 3-posn, 3-vel, + N-non-grav-coeffs)
              - Expect shape == ( Nt ,  Nc ), where Nc in [6,7,8,9]
              - IN early development, assume Nc == 6 (gravity-only)
-             
+
             covariances: np.array
              - This should be the covariances corresponding to the states, so dimension should be (Nt, Nc, Nc)
 
@@ -403,8 +375,8 @@ class MSC(Base):
             --------
             True
             - Doesn't directly return, just populates the MSC object
-            
-        '''
+
+        """
         # Store name
         self.primary_unpacked_provisional_designation = primary_unpacked_provisional_designation
         
@@ -461,7 +433,7 @@ class MSC(Base):
                     and sector_relative_times[indicees][-1] > self.sector_length_days - self.sector_gap :
             
                 # Save the fitted coefficients into the sector_coeff dict
-                self.sector_coeffs[sector_number] =  cheb_coeffs
+                self.sector_coeffs[sector_number] = cheb_coeffs
                     
             else:
                 if sector_number not in [sector_numbers[0], sector_numbers[-1]]:
@@ -472,18 +444,15 @@ class MSC(Base):
                     print(f'*** cheb_coeffs.shape[0]               = {cheb_coeffs.shape[0]}')
                     print(f'*** sector_relative_times[indicees] = {sector_relative_times[indicees]}')
                     print(f'*** times_TDB[indicees][0] = {times_TDB[indicees][0]}')
-                    print(f'*** times_TDB[indicees][-1]= {times_TDB[indicees][-1]} ' )
+                    print(f'*** times_TDB[indicees][-1]= {times_TDB[indicees][-1]}\n')
 
-                    print()
-    
         # May be useful to extract start & end sectors / dates
         supported_sector_numbers = sorted(self.sector_coeffs.keys())
+        # TODO: Getting list index out of range in `test_orbit_cheby_creation.py`.
         self.sector_init , self.sector_final = supported_sector_numbers[0], supported_sector_numbers[-1]
         self.TDB_init   = self.map_sector_number_to_sector_start_JD( self.sector_init,  self.standard_MJDmin )
         self.TDB_final  = self.map_sector_number_to_sector_start_JD( self.sector_final, self.standard_MJDmin ) + self.sector_length_days - self.epsilon
-        
-        
-            
+
 
     # Function(s) related to CoVariance Matrix Structure ...
     # --------------------------------------------------------------
@@ -499,8 +468,8 @@ class MSC(Base):
         *      *      *                             *      *                              *
     '''
     def _define_locations(self,):
-        '''
-        '''
+        """
+        """
         assert self.n_coordinates >=6 and self.n_coordinates <=9
         
         self.triangular_mapping = {21:6, 28:7, 36:8, 45:9}
@@ -532,7 +501,7 @@ class MSC(Base):
 
 
     def _take_triangular(self, covariances ):
-        '''
+        """
         Take a stack of square matricees and reduce to just the triangular components
         Does the opposite of _make_square
 
@@ -542,13 +511,13 @@ class MSC(Base):
             - assume shape == (Nt, Nd, Nd)
             - where Nt = Number of times evaluated & Nd = Number of covariance dimensions
             - We expect Nd == 6 at first, and later 6/7/8/9 when we allow non-gravs
-            
+
         returns:
         --------
             triangular: np.ndarray
             -Returned object is of shape (Nt, 21) [assuming input shape == (Nt,6,6)
                 6->21 , 7->28 , 8->36 , 9->45
-        '''
+        """
         
         # check the shape is correct
         assert covariances.ndim == 3
@@ -563,10 +532,10 @@ class MSC(Base):
         
         
     def _make_square( self, covariances_tri ):
-        '''
+        """
         Take a stack of triangular components and reconstruct a stack of square matricees
         Does the opposite of _take_triangular
-        '''
+        """
         
         # check the shape is correct
         assert covariances_tri.ndim == 2
@@ -650,9 +619,9 @@ class MSC(Base):
     # --------------------------------------------------------------
 
     def get_valid_range_of_dates( self,  ):
-        '''
+        """
             Return the minimum and maximum dates for which this MSC is valid
-        '''
+        """
         return self.TDB_init , self.TDB_final
 
 
@@ -661,31 +630,31 @@ class MSC(Base):
     # --------------------------------------------------------------
 
     def generate_HP( self, times_tdb , observatoryXYZ , APPROX = False, CHECK = False ):
-        '''
+        """
             Calculate apparent HP-locn from specified observatory-posn(s) at given time(s)
             N.B. observatory-posn(s) must be externally calculated/supplied
-            
+
             inputs:
             -------
             times_tdb : np.array
             - JD TDB of times at which positions are to be calculated
-            
+
             observatoryXYZ: np.array
             - Observatory positions at times.mjd [utc]
             - Dimension =3*len(times)
-            
+
             APPROX: boolean
             - Allow approximate calc ( *no* LTT-correction) of unit-vector
-            
+
             CHECK: boolean
             - Allow validity-checking to be turned on/off
-            
+
             return:
             -------
             np.array of integer healpix
             - length of returned array = len(times)
-            
-            '''
+
+            """
         
         
         # Get the unit vector from observatory to object: Is of shape = (len(times_tdb) , 3)
@@ -701,31 +670,31 @@ class MSC(Base):
                                                                 DELTASWITCH_XYZ = False,
                                                                 DELTASWITCH_UVW = False,
                                                                 delta=np.array([0,0,0]) ):
-        '''
+        """
             Calculate apparent UnitVector from specified observatory-posn(s) at given time(s)
-            
+
             N.B. observatory-posn(s) must be :
             (i) externally calculated/supplied
             (ii) equatorial frame (to match assumed frame of orbit)
-            
+
             inputs:
             -------
             times_tdb : np.array
              - JD TDB of times at which positions are to be calculated
-            
+
             observatoryXYZ: np.array
             - Observatory positions at times_tdb
             - shape = (len(times_tdb) , )
-            
+
             delta: np.array
              - Assume
-            
+
             return:
             -------
-            unit-vectors: np.array 
+            unit-vectors: np.array
              - apparent UnitVector from specified observatory-posn(s) at given time(s)
-            
-        '''
+
+        """
         # Ensure that the input shape is the same as will be returned by generate_XYZ ...
         assert observatoryXYZ.shape == ( len(times_tdb) , 3)
 
@@ -773,15 +742,15 @@ class MSC(Base):
         return sepn_vectors / d[:,None]
 
     def dUVdXYZUVW( self, times_tdb , observatoryXYZ , d = 1e-8):
-        '''
+        """
             Gradient of the UnitVector w.r.t. the Cartesian X,Y,Z positions
-            
+
             inputs:
             -------
-            
+
             returns:
             --------
-        '''
+        """
         # Generating displacement vectors ... Are of shape = (len(times_tdb) , 3)
         _dX = ( self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([d, 0, 0]) ) \
                -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([-d,0, 0]) ) )
@@ -799,10 +768,10 @@ class MSC(Base):
         return np.stack(np.array( (_dX, _dY, _dZ, _dU, _dV, _dW) ), axis=1).T / (2*d)
     
     def covUV(self, times_tdb , observatoryXYZ ):
-        '''
+        """
             Evaluate the covariance in unit vectors
             This is calculated using the covariance in XYZ & the gradient of the UV components w.r.t. XYZ
-            '''
+            """
         dUV     = self.dUVdXYZ( times_tdb , observatoryXYZ )
         cov_XYZ = self.covXYZ( times_tdb  )
         return np.array( [ np.linalg.multi_dot([dUV[i].T , cov_XYZ[i], dUV[i]]) for i in range(len(dUV)) ] )
@@ -811,28 +780,28 @@ class MSC(Base):
                                                             DELTASWITCH_XYZ = False,
                                                             DELTASWITCH_UVW = False,
                                                             delta=np.array([0,0,0])):
-        '''
+        """
             Calculate apparent RA,DEC (Radians???) from specified observatory-posn(s) at given time(s)
-            
+
             N.B. observatory-posn(s) must be :
             (i) externally calculated/supplied
             (ii) equatorial frame (to match assumed frame of orbit)
-            
+
             inputs:
             -------
             times_tdb : np.array
             - JD TDB of times at which positions are to be calculated
-            
+
             observatoryXYZ: np.array
             - Observatory positions at times_tdb
             - shape = (len(times_tdb), 3)
-            
+
             return:
             -------
             RA_Dec: np.array
             - *** degrees ***
-            
-        '''
+
+        """
         # Get the unit vector from observatory to object: Is of shape = ( len(times_tdb) , 3)
         UV = self.generate_UnitVector(times_tdb ,
                                       observatoryXYZ,
@@ -846,19 +815,19 @@ class MSC(Base):
         return np.array(healpy.vec2ang( UV , lonlat = True )).T
 
     def dRaDecdXYZUVW( self, times_tdb , observatoryXYZ ,         d = 1e-8):
-        '''
+        """
             Gradient of Ra & Dec w.r.t. the Cartesian X,Y,Z positions
-            
+
             Assume:
                 d = 1e-8    => 1e-8 AU      => 1.5e3m   == 1.5km for XYZ
                             => 1e-8 AU/day  => 0.017m/s          for UVW
-            
+
             inputs:
             -------
-            
+
             returns:
             --------
-            '''
+            """
         _dX = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([d, 0, 0]) ) \
                -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([-d,0, 0]) ) )
         _dY = ( self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_XYZ = True, delta=np.array([0, d, 0]) ) \
@@ -876,10 +845,10 @@ class MSC(Base):
     
     
     def covRaDec(self, times_tdb , observatoryXYZ ):
-        '''
-            Evaluate the covariance in RA, Dec 
+        """
+            Evaluate the covariance in RA, Dec
             This is calculated using the covariance in XYZ & the gradient of RA,Dec w.r.t. XYZ
-        '''
+        """
         dRaDecdXYZUVW   = self.dRaDecdXYZUVW( times_tdb , observatoryXYZ )
         covXYZUVW       = self.covXYZUVW( times_tdb  )
         
@@ -891,48 +860,48 @@ class MSC(Base):
     
 
     def generate_XYZ( self, times_tdb  ):
-        '''
+        """
             Evaluate the XYZ positions at the supplied times
             Convenience wrapper around *evaluate_components()* func
-            Ensures we only evaluate XYZ components of the coefficients 
-            
+            Ensures we only evaluate XYZ components of the coefficients
+
             inputs:
             -------
             times_tdb : np.array
             - JD TDB of times at which positions are to be calculated
-            
+
             return:
             -------
             XYZ_posns : np.ndarray
              - NB1: XYZ_posns.shape = (len(times_tdb) , 3)
                     This ensures consistency with NbodySim & coco.equatorial_helio2bary
              - NB2: no need for N_particle dimension, as MSC is only for single object
-        '''
+        """
         return self.evaluate_components( times_tdb  , component_slice_spec=self.XYZ_slice_spec )
         
         
     def generate_XYZUVW( self, times_tdb  ):
-        '''
+        """
             Evaluate the XYZUVW components at the supplied times
 
             Not used
-        '''
+        """
         return self.evaluate_components( times_tdb  , component_slice_spec=self.XYZUVW_slice_spec )
 
 
 
     def covXYZUVW( self, times_tdb  ):
-        '''
+        """
             Evaluate the covariance in XYZUVW coord-components at the supplied times
-            
+
             Convenience wrapper around *evaluate_components()* func
             Uses "self.covXYZUVW_slice_spec" to select required coefficients
-            
-            returns 
+
+            returns
             -------
             np.ndarray
              - shape = ( len(times_tdb) , 6, 6 )
-        '''
+        """
         # Select/evaluate the appropriate covariance components*                              *
         cov = self.evaluate_components( times_tdb , component_slice_spec = self.covXYZUVW_slice_spec  )
         
@@ -941,11 +910,11 @@ class MSC(Base):
 
 
     def dXYZdt(self,  times_tdb  , dt=1e-5):
-        ''' 
+        """
             Calculate the gradient in XYZ at supplied times
-            
+
             Not Used
-        '''
+        """
         # numdifftools ~10x slower than direct method below ...
         # return nd.Gradient( self.generate_XYZ )(times_tdb)
         #

@@ -43,6 +43,9 @@ jpl_kernel = SPK.open(kernel_path)
 
 class Observatory:
 
+    # TODO: Make getEarthPosition(.) and getEarthPV(.) class functions, write an init() that handles the kernel for I/O.
+    #   But also make it init(kernel=False) for external instantiaions of Observatory(.), as in obs_pos.py
+    #   May be causing file handle issues with pytest.
     # Parses a line from the MPC's ObsCode.txt file
     def parseObsCode(self, line):
         code, longitude, rhocos, rhosin, ObsName = line[0:3], line[4:13], line[13:21], line[21:30], line[30:79].rstrip('\n')
@@ -97,14 +100,14 @@ class Observatory:
 
     def getObservatoryPosition(self, obsCode, jd_utc, xyz=None,
                                velocity=False, old=False):
-        '''
+        """
         This routine calculates the heliocentric position of the observatory
         in equatorial cartesian coordinates.
         If obsCode==None, set the observatory to be the geocenter.
         This solution using jplephem implemented by M. Alexandersen 2020/02/18,
         intended to replace old version using novas in getObservatoryPosition.
         *** If old=True, the old Novas implementation is used. ***
-        '''
+        """
         if old:  # If old=True, use Novas; For backwards compatibility
             return self.getObservatoryPosition_old(obsCode, jd_utc, xyz)
         if not obsCode:
@@ -193,6 +196,7 @@ class Observatory:
         jd_tdb  = EOP.jdTDB(jd_utc)
         p,v = getEarthPV(jd_tdb)
         return p
+
     def getEarthV(self, jd_utc, xyz=None):
         jd_tdb  = EOP.jdTDB(jd_utc)
         p,v = getEarthPV(jd_tdb)
@@ -316,12 +320,12 @@ def getEarthPV_old(jd_tdb):
 
 
 def getEarthPV(jd_tdb, old=False):
-    '''
+    """
         Get Earth's position and velocity.
-        This is M. Alexandersen's implementation implementation using jplephem,
+        This is M. Alexandersen's implementation using jplephem,
         intended to replace getEarthPV_old.
         *** If old=True, the old Novas implementation is used. ***
-    '''
+    """
     if old:  # If old=True, use Novas; For backwards compatibility
         return getEarthPV_old(jd_tdb)
     (bary_Sun_pos, bary_Sun_vel
@@ -336,13 +340,14 @@ def getEarthPV(jd_tdb, old=False):
                      ) / Constants.au_km  # Convert km/day to AU/day
     return helio_500_pos, helio_500_vel
 
+
 def getEarthPosition(jd_tdb, old=False):
-    '''
+    """
         Get Earth's position.
         This is M. Alexandersen's implementation implementation using jplephem,
         intended to replace getEarthPosition_old.
         *** If old=True, the old Novas implementation is used. ***
-    '''
+    """
     if old:  # If old=True, use Novas; For backwards compatibility
         return getEarthPosition_old(jd_tdb)
     pos, _ = getEarthPV(jd_tdb)
