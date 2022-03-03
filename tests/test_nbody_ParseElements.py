@@ -1,7 +1,7 @@
     # -*- coding: utf-8 -*-
 # /tests/test_nbody.py
 
-'''
+"""
 ----------------------------------------------------------------------------
 tests for mpc_nbody
 
@@ -14,40 +14,37 @@ Mike Alexandersen, Matthew Payne & Matthew Holman
 This code simplified as of Dec 2021
 Removing many tests of non-json input
  - The non-json input methods *may* still work, but for now I just want to ensure that the json inputs work
- 
- 
+  
 ----------------------------------------------------------------------------
-'''
+"""
 
 # import third-party packages
 # -----------------------------------------------------------------------------
-import sys
 import os
+import sys
 import numpy as np
-import pytest
-from astroquery.jplhorizons import Horizons
 from astropy.time import Time
 import pytest
 from filecmp import cmp
-import getpass
 import json
-
-
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
-from reboundx.examples.ephem_forces import ephem_forces
+sys.path.append(os.environ['REBX_DIR'])
+from examples.ephem_forces import ephem_forces
 
 # import the main mnbody code that we want to test ...
 from cheby_checker import nbody
+from cheby_checker.archaic import parse_input
 
 # old conversion library that may be useful for cross-comparison of various tests ...
 from cheby_checker import MPC_library as mpc
 
 # Constants & Test Data
 # -----------------------------------------------------------------------------
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(
-                        os.path.realpath(__file__))), 'dev_data')
+DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    'dev_data')
 
 
 # Utility functions to help with testing
@@ -82,11 +79,10 @@ def _get_and_set_junk_data(P, BaryEqDirect=False ):
 
 
 def is_parsed_good_enough(new_results_file, expected_results_file):
-    '''
+    """
     Helper function to help test whether a just-created "new_results_file" file matches
     the "expected_results_file" in the "dev_data" directory
-    '''
-    
+    """
     if cmp(new_results_file, expected_results_file):
         assert True  # If files are identical, no further testing needed.
         
@@ -116,9 +112,9 @@ def is_parsed_good_enough(new_results_file, expected_results_file):
 
 
 def compare_xyzv(xyzv0, xyzv1, threshold_xyz, threshold_v):
-    '''
+    """
     Calculate the difference between two sets of cartesian coordinates.
-    '''
+    """
     if isinstance(xyzv0, list):
         xyzv0 = np.array(xyzv0)
     if isinstance(xyzv1, list):
@@ -126,8 +122,6 @@ def compare_xyzv(xyzv0, xyzv1, threshold_xyz, threshold_v):
     error = xyzv0 - xyzv1
     good_tf = np.abs(error) < np.array([threshold_xyz] * 3 + [threshold_v] * 3)
     return error, good_tf
-
-
 
 
 # Tests of ParseElements
@@ -181,8 +175,8 @@ def test_parse_orbfit_felfile_txt(data_file):
     assert P.helio_ecl_cov.ndim == 3
     assert P.helio_ecl_cov.shape == (1,6,6)
 """
-
-
+# TODO: These files appear to be missing
+@pytest.mark.skip(reason="see TODO above.")
 @pytest.mark.parametrize(   ('data_file'),
                          [  '10199fel_num.json',
                             '1566fel_num.json',
@@ -190,14 +184,13 @@ def test_parse_orbfit_felfile_txt(data_file):
                             '2017AP4fel_num.json',
                             '545808fel_num.json'])
 def test_parse_orbfit_json_A(data_file):
-
-    '''
+    """
     Test that OrbFit files get parsed correctly.
     NB(1): The ...json... files passed in (above) are
         the mpcorb format jsons derived from ORBFIT orbit-fitting
     NB(2): This test deliberately only works for 6-dimension stuff, i.e. gravity-only
-    '''
-    P = nbody.ParseElements()
+    """
+    P = parse_input.ParseElements()
     
     # Check that the expected attributes exist
     assert P.helio_ecl_vec_EXISTS   is False
@@ -210,7 +203,6 @@ def test_parse_orbfit_json_A(data_file):
     #    *parse_orbfit_json* function below
     with open(os.path.join(DATA_DIR, data_file),'r') as json_file:
         file_contents = json.load(json_file)
-
     
     # call parse_orbfit_json
     P.parse_orbfit_json(file_contents, CHECK_EPOCHS=False)
@@ -231,8 +223,6 @@ def test_parse_orbfit_json_A(data_file):
     assert P.helio_ecl_cov.ndim == 3
     assert P.helio_ecl_cov.shape in [(1,6,6),(1,7,7),(1,8,8),(1,9,9)]
     
-
-
 """
 def test_save_elements():
     '''Test that saving input-elements to an outpuut-file works correctly.'''
@@ -297,5 +287,3 @@ def test_instantiation_from_data_files(data_file, file_type, test_result_file):
     if os.path.isfile(save_file) : os.remove(save_file)
 
 """
-
-# End 
