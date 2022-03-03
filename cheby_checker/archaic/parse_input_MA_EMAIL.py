@@ -1,21 +1,21 @@
     # -*- coding: utf-8 -*-
 # mpc_nbody/mpc_nbody/parse_input.py
 
-'''
-----------------------------------------------------------------------------
-mpc_nbody's module for parsing OrbFit + ele220 elements
-
-Mar 2020
-Mike Alexandersen & Matthew Payne & Matthew Holman
-
-This module provides functionalities to
-(a) read an OrbFit .fel/.eq file with heliocentric ecliptic cartesian els
-(b) read ele220 element strings
-(c) convert the above to barycentric equatorial cartesian elements
-
-This is meant to prepare the elements for input into the n-body integrator
-----------------------------------------------------------------------------
-'''
+    """
+    ----------------------------------------------------------------------------
+    mpc_nbody's module for parsing OrbFit + ele220 elements
+    
+    Mar 2020
+    Mike Alexandersen & Matthew Payne & Matthew Holman
+    
+    This module provides functionalities to
+    (a) read an OrbFit .fel/.eq file with heliocentric ecliptic cartesian els
+    (b) read ele220 element strings
+    (c) convert the above to barycentric equatorial cartesian elements
+    
+    This is meant to prepare the elements for input into the n-body integrator
+    ----------------------------------------------------------------------------
+    """
 
 # Import third-party packages
 # -----------------------------------------------------------------------------
@@ -44,9 +44,9 @@ au_km = 149597870.700  # This is now a definition
 
 
 class ParseElements():
-    '''
+    """
     Class for parsing elements and returning them in the correct format.
-    '''
+    """
 
     def __init__(self, input_file=None, filetype=None, save_parsed=False ):
     
@@ -99,11 +99,11 @@ class ParseElements():
             outfile.write(f"{coeff: 18.15e} " + suffix)
 
     def parse_ele220(self, ele220file=None):
-        '''
+        """
         Parse a file containing a single ele220 line.
         Currently returns junk data.
         NOT ACTUALLY IMPLEMENTED YET!!!
-        '''
+        """
         if ele220file is None:
             raise TypeError("Required argument 'ele220file'"
                             " (pos 1) not found")
@@ -112,7 +112,7 @@ class ParseElements():
         self._get_and_set_junk_data()
 
     def parse_orbfit(self, felfile):
-        '''
+        """
         Parse a file containing OrbFit elements for a single object & epoch.
         Currently returns junk data.
 
@@ -127,7 +127,7 @@ class ParseElements():
         self.helio_ecl_cov_EXISTS   : Boolean
         self.helio_ecl_cov          : 1D np.ndarray
         self.time                   : astropy Time object
-        '''
+        """
 
         # Read the contents of the orbfit output "fel" file
         obj = {}
@@ -144,7 +144,7 @@ class ParseElements():
             # Form an array of the heliocentric ecliptic cartesian coefficients
             (_, car_x, car_y, car_z, car_dx, car_dy, car_dz
                        ) = carEls[1].split()
-            self.helio_ecl_vec = np.array([ float(car_x), float(car_y),  float(car_z), \
+            self.helio_ecl_vec = np.array([ float(car_x), float(car_y),  float(car_z),
                                             float(car_dx), float(car_dy), float(car_dz)]
                                             )
             self.helio_ecl_vec_EXISTS = True
@@ -163,10 +163,10 @@ class ParseElements():
                             f"in the input file {felfile:}")
 
     def make_bary_equatorial(self):
-        '''
+        """
         Transform heliocentric-ecliptic coordinates into
         barycentric equatorial coordinates
-        
+
         requires:
         ----------
         self.helio_ecl_vec_EXISTS   : Boolean
@@ -180,7 +180,7 @@ class ParseElements():
         self.bary_eq_vec            = 1D np.ndarray
         self.bary_eq_cov_EXISTS     = Boolean
         self.bary_eq_cov            = 2D np.ndarray
-        '''
+        """
         if self.helio_ecl_vec_EXISTS :
             # Transform the helio-ecl-coords to bary-eq-coords
             # NB 2-step transformation for the vector (posn,vel)
@@ -234,22 +234,22 @@ class ParseElements():
 # -----------------------------------------------------------------------------
     
 def ecliptic_to_equatorial(input, backwards=False):
-    '''
+    """
     Rotates a cartesian vector or Cov-Matrix from mean ecliptic to mean equatorial.
-    
+
     Backwards=True converts backwards, from equatorial to ecliptic.
-    
+
     inputs:
     -------
     input : 1-D or 2-D arrays
      - If 1-D, then len(input) must be 3 or 6
      - If 2-D, then input.shape must be (6,6)
-     
+
     output:
     -------
     output : np.ndarray
      - same shape as input
-    '''
+    """
 
     # Ensure we have an array
     input = np.atleast_1d(input)
@@ -278,7 +278,7 @@ def ecliptic_to_equatorial(input, backwards=False):
 
 
 def equatorial_helio2bary(input_xyz, jd_tdb, backwards=False):
-    '''
+    """
     Convert from heliocentric to barycentic cartesian coordinates.
     backwards=True converts backwards, from bary to helio.
     input:
@@ -289,7 +289,7 @@ def equatorial_helio2bary(input_xyz, jd_tdb, backwards=False):
                     - same shape as input_xyz
 
     input_xyz MUST BE EQUATORIAL!!!
-    '''
+    """
     direction = -1 if backwards else +1
 
     # Ensure we have an array of the correct shape to work with
@@ -311,11 +311,11 @@ def equatorial_helio2bary(input_xyz, jd_tdb, backwards=False):
 
 
 def _old_parse_Covariance_List(Els):
-    '''
+    """
     Convenience function for reading and splitting the covariance
     lines of an OrbFit file.
     Not intended for user usage.
-    '''
+    """
     ElCov  = []
     covErr = ""
     for El in Els:
@@ -338,12 +338,12 @@ def _old_parse_Covariance_List(Els):
             c33, c34, c35, c36, c44, c45, c46, c55, c56, c66)
     
 def _parse_Covariance_List(Els):
-    '''
+    """
     Convenience function for reading and splitting the covariance
     lines of an OrbFit file.
     Not intended for user usage.
     # MJP : 20200901 : Suggest to just make & return the required matrix
-    '''
+    """
     # Set-up array of zeroes
     CoV        = np.zeros( (6,6) )
     CoV_EXISTS = False
