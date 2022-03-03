@@ -36,6 +36,7 @@ test_filepath = os.path.join(os.path.dirname(os.getcwd() ), 'dev_data', '2022AA_
 # Actual tests ...
 # --------------------------------------------------------------
 
+@pytest.mark.skip(reason="archaic")
 @pytest.mark.parametrize(('test_filepath'), [test_filepath])
 def test_text_file_creation(test_filepath):
     
@@ -50,7 +51,7 @@ def test_text_file_creation(test_filepath):
     assert os.path.isfile(text_filepath)
 
 
-
+@pytest.mark.skip(reason="archaic")
 @pytest.mark.parametrize(('test_filepath'), [test_filepath])
 def test_text_file_creation(test_filepath):
     

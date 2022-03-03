@@ -1,23 +1,23 @@
     # -*- coding: utf-8 -*-
 # /tests/test_nbody.py
 
-'''
-----------------------------------------------------------------------------
-tests for mpc_nbody
-
-Dec 2021
-Matthew Payne
-
-Prev Work:
-Mike Alexandersen, Matthew Payne & Matthew Holman
-
-This code simplified as of Dec 2021
-Removing many tests of non-json input
- - The non-json input methods *may* still work, but for now I just want to ensure that the json inputs work
- 
- 
-----------------------------------------------------------------------------
-'''
+    """
+    ----------------------------------------------------------------------------
+    tests for mpc_nbody
+    
+    Dec 2021
+    Matthew Payne
+    
+    Prev Work:
+    Mike Alexandersen, Matthew Payne & Matthew Holman
+    
+    This code simplified as of Dec 2021
+    Removing many tests of non-json input
+     - The non-json input methods *may* still work, but for now I just want to ensure that the json inputs work
+     
+     
+    ----------------------------------------------------------------------------
+    """
 
 # import third-party packages
 # -----------------------------------------------------------------------------
@@ -101,10 +101,10 @@ def _get_and_set_junk_data(P, BaryEqDirect=False ):
 
 
 def is_parsed_good_enough(new_results_file, expected_results_file):
-    '''
+    """
     Helper function to help test whether a just-created "new_results_file" file matches
     the "expected_results_file" in the "dev_data" directory
-    '''
+    """
     
     if cmp(new_results_file, expected_results_file):
         assert True  # If files are identical, no further testing needed.
@@ -135,9 +135,9 @@ def is_parsed_good_enough(new_results_file, expected_results_file):
 
 
 def compare_xyzv(xyzv0, xyzv1, threshold_xyz, threshold_v):
-    '''
+    """
     Calculate the difference between two sets of cartesian coordinates.
-    '''
+    """
     if isinstance(xyzv0, list):
         xyzv0 = np.array(xyzv0)
     if isinstance(xyzv1, list):
@@ -202,6 +202,7 @@ def test_parse_orbfit_felfile_txt(data_file):
 """
 
 
+@pytest.mark.skip(reason="archaic")
 @pytest.mark.parametrize(   ('data_file'),
                          [  '10199fel_num.json',
                             '1566fel_num.json',
@@ -210,12 +211,12 @@ def test_parse_orbfit_felfile_txt(data_file):
                             '545808fel_num.json'])
 def test_parse_orbfit_json_A(data_file):
 
-    '''
+    """
     Test that OrbFit files get parsed correctly.
     NB(1): The ...json... files passed in (above) are
         the mpcorb format jsons derived from ORBFIT orbit-fitting
     NB(2): This test deliberately only works for 6-dimension stuff, i.e. gravity-only
-    '''
+    """
     P = nbody.ParseElements()
     
     # Check that the expected attributes exist

@@ -1,7 +1,7 @@
-'''
+"""
 Some convenience classes/functions for querying Horizons
 Helps with tests of accuracy in various functions
-'''
+"""
 
 # import standard packages
 # -----------------------------------------------------------------------------
@@ -13,38 +13,38 @@ from astroquery.jplhorizons import Horizons
 
 
 def nice_Horizons(target, centre, epochs, id_type, refplane='earth'):
-    '''
+    """
     Mike Alexandersen
     Convenience function to reformat data returned by Horizons
     Only require the inputs I actually want to vary.
     Return in the format I actually want, not an astropy table.
-    '''
+    """
     horizons_table  = Horizons(target, centre, epochs=epochs, id_type=id_type)
     horizons_vector = horizons_table.vectors(refplane=refplane)
     horizons_xyzv   = horizons_vector['x', 'y', 'z', 'vx', 'vy', 'vz']
     return np.array(list(horizons_xyzv.as_array()[0]))
 
+
 def nice_Horizons_radec(target, centre, epochs, id_type, refplane='earth'):
-    '''
+    """
     Convenience function to reformat data returned by Horizons
     Only require the inputs I actually want to vary.
     Return in the format I actually want, not an astropy table.
      - Returned shape == (N_epochs, 2)
-    '''
+    """
     horizons_table  = Horizons(target, centre, epochs=epochs, id_type=id_type)
     horizons_eph    = horizons_table.ephemerides(extra_precision = True)
     return np.array( [  list(horizons_eph['RA'].data),
                         list(horizons_eph['DEC'].data) ] ).T
     
 
-
 def read_Horizons_state_from_text( two_lines):
-    '''
+    """
     Extract these ...
      X =-2.590350154796811E+00 Y =-7.949342693459856E-02 Z = 1.245107691757731E-01
     VX=-1.454708370733871E-03 VY=-9.503445860627428E-03 VZ=-3.846514535533382E-03
 
-    '''
+    """
     xyz_line = two_lines[0]
     uvw_line = two_lines[1]
     
@@ -58,20 +58,21 @@ def read_Horizons_state_from_text( two_lines):
     
     return np.array( [x,y,z,u,v,w] )
 
+
 def extract_first_state_from_text( text_block ):
-    '''
+    """
     Extract lines that look like...
 X =-2.590350154796811E+00 Y =-7.949342693459856E-02 Z = 1.245107691757731E-01
 VX=-1.454708370733871E-03 VY=-9.503445860627428E-03 VZ=-3.846514535533382E-03
 
     from a big block that looks like ...
-    
+
         *******************************************************************************
 JPL/HORIZONS                  12345 (1993 FT8)             2022-Jan-28 14:39:42
 Rec #:   12345 (+COV) Soln.date: 2021-Nov-10_08:38:58   # obs: 1959 (1993-2021)
- 
+
 IAU76/J2000 helio. ecliptic osc. elements (au, days, deg., period=Julian yrs):
- 
+
   EPOCH=  2457108.5 ! 2015-Mar-27.00 (TDB)         Residual RMS= .2812
    EC= .1603033905689926   QR= 2.056207695854036   TP= 2457050.1973502915
    OM= 106.4549280993016   W=  314.1929318541605   IN= 3.350816780296945
@@ -79,12 +80,12 @@ IAU76/J2000 helio. ecliptic osc. elements (au, days, deg., period=Julian yrs):
    PER= 3.832              N= .25720961            ANGMOM= .02657056
    DAN= 2.14602            DDN= 2.68596            L= 60.6968709
    B= -2.401858            MOID= 1.06974006        TP= 2015-Jan-27.6973502915
- 
+
 Asteroid physical parameters (km, seconds, rotational period in hours):
    GM= n.a.                RAD= 1.506              ROTPER= n.a.
    H= 14.52                G= .150                 B-V= n.a.
                            ALBEDO= .407            STYP= n.a.
- 
+
 ASTEROID comments:
 1: soln ref.= JPL#32, OCC=0
 2: source=ORB
@@ -135,7 +136,7 @@ $$SOE
  LT= 1.498492268422344E-02 RG= 2.594558933811760E+00 RR= 1.558928955626413E-03
 $$EOE
 *******************************************************************************
- 
+
 TIME
 
   Barycentric Dynamical Time ("TDB" or T_eph) output was requested. This
@@ -196,7 +197,7 @@ Computations by ...
     Author      : Jon.D.Giorgini@jpl.nasa.gov
 *******************************************************************************
 
-    '''
+    """
     
     # find "$$SOE" in text_block
     SOE_index = [ n for n, line in enumerate(text_block) if "$$SOE" in line ][0]

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # mpc_nbody/tests/test_parse_input.py
 
-'''
+"""
 ----------------------------------------------------------------------------
 tests for mpc_nbody's pares_input module.
 
@@ -9,7 +9,7 @@ Mar 2020
 Mike Alexandersen & Matthew Payne
 
 ----------------------------------------------------------------------------
-'''
+"""
 
 # import third-party packages
 # -----------------------------------------------------------------------------
@@ -48,6 +48,7 @@ def test_instantiation():
 
 """
 
+@pytest.mark.skip(reason="archaic")
 @pytest.mark.parametrize(   ('data_file'),
                          [  '30101.eq0_postfit',
                             '30102.eq0_postfit',
@@ -55,7 +56,7 @@ def test_instantiation():
                             '30102.eq0_horizons'][:1])
 def test_parse_orbfit(data_file):
 
-    '''Test that OrbFit files get parsed correctly.'''
+    """Test that OrbFit files get parsed correctly."""
     P = parse_input.ParseElements()
     
     # Check that the expected attributes exist
@@ -90,9 +91,9 @@ def test_parse_orbfit(data_file):
     assert P.helio_ecl_cov.ndim == 3
     assert P.helio_ecl_cov.shape == (1,6,6)
     
-
+@pytest.mark.skip(reason="archaic")
 def test_save_elements():
-    '''Test that saving elements works correctly.'''
+    """Test that saving elements works correctly."""
     P = parse_input.ParseElements()
     P._get_and_set_junk_data(BaryEqDirect=True)
     P.save_elements()
@@ -100,6 +101,7 @@ def test_save_elements():
 
 
 
+@pytest.mark.skip(reason="archaic")
 @pytest.mark.parametrize(
     ('target', 'jd_tdb', 'id_type'),
     [
@@ -113,11 +115,11 @@ def test_save_elements():
       '30102', 2458937.000000000, 'smallbody'),
     ])
 def test_equatorial_helio2bary(target, jd_tdb, id_type):
-    '''
+    """
     Test that heliocentric cartesian coordinates taken from Horizons
     are converted to barycentric cartesian and still agree with Horizons.
-    
-    '''
+
+    """
     # Use horizons to get Helio & Bary versions of the coords
     hor_in_table = Horizons(target, '500@10', epochs=jd_tdb, id_type=id_type
                             ).vectors(refplane='earth'
@@ -142,6 +144,7 @@ def test_equatorial_helio2bary(target, jd_tdb, id_type):
 # I'm not really sure whether ecliptic_to_equatorial is supposed to have
 # barycentric or heliocentric inputs, hence all the tests below.
 # It seems to not make any difference, which I find a little peculiar.
+@pytest.mark.skip(reason="archaic")
 @pytest.mark.parametrize(
     ('target', 'jd_tdb', 'id_type', 'centre'),
     [
@@ -171,14 +174,14 @@ def test_equatorial_helio2bary(target, jd_tdb, id_type):
       'Jupiter Barycenter', 2458998.000000000, 'majorbody', '500@0'),
     ])
 def test_ecliptic_to_equatorial(target, jd_tdb, id_type, centre):
-    '''
+    """
     Test that heliocentric cartesian coordinates taken from Horizons
     are converted to barycentric cartesian and still agree with Horizons.
     jd_tdb isn't actually used for this, but it seemed useful to record it.
-    
+
     MJP : The ecliptic_to_equatorial will now transform CoV Matrix as well
             This is tested in *test_ecliptic_to_equatorial_covariance* below
-    '''
+    """
     # Query horizons
     hor_table       = Horizons(target, centre, epochs=jd_tdb, id_type=id_type)
     hor_in_table    = hor_table.vectors(refplane='ecliptic'
@@ -218,11 +221,12 @@ values_for_each_test = [(np.eye(6), np.eye(6), 'rotating identity does nothing')
                         ] 
 
 
+@pytest.mark.skip(reason="archaic")
 @pytest.mark.parametrize(names_of_variables, values_for_each_test[1:])
 def test_ecliptic_to_equatorial_covariance(input_helio_ecl_cov, expected_bary_eq_cov, comments):
-    '''
+    """
     Should do more testing on this to ensure that the CoV is being transformed as desired/expected
-    '''
+    """
 
     P = parse_input.ParseElements()
 
@@ -255,11 +259,12 @@ values_for_each_test   = [
     ('30101.eq0_horizons', 'eq', 'holman_ic_30101_horizons'),
     ('30102.eq0_horizons', 'eq', 'holman_ic_30102_horizons'),
  ]
+@pytest.mark.skip(reason="archaic")
 @pytest.mark.parametrize( names_of_variables, values_for_each_test )
 def test_instantiation_with_data(data_file, file_type, test_result_file):
-    '''
+    """
     Test that instantiation with data works (essentially test everything).
-    '''
+    """
     # Instantiate from file (which calls *make_bary_equatorial*)
     # and then save to 'holman_ic'
     parse_input.ParseElements(os.path.join(DATA_DIR, data_file),
@@ -277,10 +282,10 @@ def test_instantiation_with_data(data_file, file_type, test_result_file):
 # -----------------------------------------------------------------------------
 
 def is_parsed_good_enough(new_results_file, expected_results_file):
-    '''
+    """
     Helper function to help test whether a just-created holman_ic file matches
     the one in the dev_data well enough.
-    '''
+    """
     
     if cmp(new_results_file, expected_results_file):
         assert True  # If files are identical, no further testing needed.
@@ -309,9 +314,9 @@ def is_parsed_good_enough(new_results_file, expected_results_file):
 
 
 def compare_xyzv(xyzv0, xyzv1, threshold_xyz, threshold_v):
-    '''
+    """
     Calculate the difference between two sets of cartesian coordinates.
-    '''
+    """
     if isinstance(xyzv0, list):
         xyzv0 = np.array(xyzv0)
     if isinstance(xyzv1, list):

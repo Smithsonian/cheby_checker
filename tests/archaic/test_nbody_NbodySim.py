@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # /tests/test_nbody.py
 
-'''
+"""
 ----------------------------------------------------------------------------
 tests for mpc_nbody
 
@@ -13,7 +13,7 @@ The tests are organized as follows
 (ii) Tests of NbodySim
 (iii) Tests of output parser
 ----------------------------------------------------------------------------
-'''
+"""
 
 # import third-party packages
 # -----------------------------------------------------------------------------
@@ -57,10 +57,10 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(
 # -----------------------------------------------------------------------------
 
 def is_parsed_good_enough(new_results_file, expected_results_file):
-    '''
+    """
     Helper function to help test whether a just-created "new_results_file" file matches
     the "expected_results_file" in the "dev_data" directory
-    '''
+    """
     
     if cmp(new_results_file, expected_results_file):
         assert True  # If files are identical, no further testing needed.
@@ -91,9 +91,9 @@ def is_parsed_good_enough(new_results_file, expected_results_file):
 
 
 def compare_xyzv(xyzv0, xyzv1, threshold_xyz, threshold_v):
-    '''
+    """
     Calculate the difference between two sets of cartesian coordinates.
-    '''
+    """
     if isinstance(xyzv0, list):
         xyzv0 = np.array(xyzv0)
     if isinstance(xyzv1, list):
@@ -104,12 +104,12 @@ def compare_xyzv(xyzv0, xyzv1, threshold_xyz, threshold_v):
 
 
 def nice_Horizons(target, centre, epochs, id_type):
-    '''
+    """
     Mike Alexandersen
     Convenience function to reformat data returned by Horizons
     Only require the inputs I actually want to vary.
     Return in the format I actually want, not an astropy table.
-    '''
+    """
     horizons_table  = Horizons(target, centre, epochs=epochs, id_type=id_type)
     horizons_vector = horizons_table.vectors(refplane='earth')
     horizons_xyzv   = horizons_vector['x', 'y', 'z', 'vx', 'vy', 'vz']
@@ -117,11 +117,11 @@ def nice_Horizons(target, centre, epochs, id_type):
 
 
 def is_nbody_output_good_enough(times, data, target='30102'):
-    '''
+    """
     Mike Alexandersen & Matt Payne
     Helper function for determining whether the saved output from an nbody
     integration is good enough.
-    '''
+    """
     # Check 20 timesteps
     # NB If len(times)<20, indicees will initially contain repeats, but we subsequently force uniqueness using "set"
     indicees = np.linspace(0, len(times) - 1, 20).astype(int)
@@ -157,21 +157,22 @@ def is_nbody_output_good_enough(times, data, target='30102'):
 
 # Tests of NbodySim
 # -----------------------------------------------------------------------------
+@pytest.mark.skip(reason="archaic")
 def test_NbodySim_empty():
-    '''
+    """
     Test the nbody.NbodySim class. Test empty initialization.
-    '''
+    """
     assert isinstance(nbody.NbodySim(), nbody.NbodySim)
 
-
+@pytest.mark.skip(reason="archaic")
 def test_initialize_integration_function_A():
-    '''
+    """
     If we put ANYTHING into the ephem_forces.integration_function,
     will it work or crash and burn?
     Most likely if there is a problem, it'll cause pytest to crash entirely,
     so might as well start with this.
 
-    '''
+    """
     tstart, tend = 2456184.7,  600
     epoch = tstart
     instates = np.array([-3.1, 2.7, 3.6, -0.006, -0.004, -0.002])
