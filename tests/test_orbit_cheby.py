@@ -384,11 +384,9 @@ def test_generate_RaDec_A():
 
 def test_generate_RaDec_B():
     """
-
     Test the generate of RaDec coordinates from an MSC (Cheby) Object
 
     Structured as per test_generate_RaDec_A, but now testing MULTIPLE input json files
-
     """
     # Loop over different input json files ...
     for mpc_orb_json_filepath in mpc_orb_json_files:
@@ -426,5 +424,6 @@ def test_generate_RaDec_B():
 
             # Check whether the cheby-calc is similar to the orbfit calc ...
             # Note that at least one of the test points differs by ~2" in RA
+            # TODO: Does that mean that we _want_ to show that one case is failing?
             good, err_arcsec = similar_angles( np.array( [orbfit_calc_ra, orbfit_calc_dec] ), RaDEC[n], threshold_arcsec = 2.0)
             assert good, f'Calc RA,Dec disagreed by >2": err_arcsec:{err_arcsec} , orbfit:{orbfit_calc_ra, orbfit_calc_dec  } , cheby:{RaDEC[n]} '
