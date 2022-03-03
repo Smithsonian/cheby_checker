@@ -1,8 +1,7 @@
 # cheby_checker tests go in this directory
 
-[//]: # (TODO: Use Pytest skip/skipf decorators to skip WIP Tests. Mostly done here. https://docs.pytest.org/en/latest/how-to/skipping.html#skipping-test-functions)
 [//]: # (TODO: 5 tests failing.)
-[//]: # (    The first three are from reboundx and may be fixable via https://github.com/dtamayo/reboundx/issues/26)
+[//]: # (    The first three are from reboundx and may be fixable via https://github.com/dtamayo/reboundx/issues/26, or more probably https://github.com/dtamayo/reboundx/issues/39)
 [//]: # (    The latter two are from mpcpp being unavailable. cf. Dockerfile:59)
 
 ## 2022 : MJP: The following are WIP, attempting to get tests to pass...
@@ -26,8 +25,6 @@
 ### `pytest test_convenience_Horizons.py`
  - `convenience_Horizons.py` only depends on EXTERNAL packages
  - passes within and without containerized environment 
-
-[//]: # (TODO: Make note of test_convenience_functions.py, .._data_classes, _ephem, ..malloc_reboundx, nbody_NbodySim, nbody_ParseElements, orbit_cheby, sifter_*, _sockets, tmp.py. Or just a general note on them?)
 
 ### `pytest test_obs_pos.py`
  - `obs_pos.py` depends on INTERNAL `MPC_library.py`: eventually want to change dependency to `wis.py`
@@ -87,3 +84,37 @@
 - nbody.py also depends on the s REBOUNDX:EPHEM library
 - Here I am focusing on tests of the propagation of the cartesian covariance matrix by the run_mpcorb routine (which uses *_get_covariance_from_tangent_vectors* under-the-hood)
 - passes within containerized environment
+
+## The following suites were identified during a March 2022 review
+[//]: # (TODO: Make note of test_convenience_functions.py, .._data_classes, _ephem, ..malloc_reboundx, nbody_NbodySim, nbody_ParseElements, orbit_cheby, sifter_*, _sockets, tmp.py. Or just a general note on them?)
+
+The following suites are passing as-is: 
+- `test_data_classes.py` 
+
+The following tests pass with new changes:
+- `test_malloc_reboundx.py` (after using a similar `integration_function(.)` call as in `test_nbody_run.py`)
+- `test_nbody_NbodySim.py` (with a provision to skip `test_initialize_integration_function_A()` if there's not enough memory to do the simulation (Need > 58.1 GB).)
+- `test_sifter_sqlite.py` passing after updating the tests to use the proper `SQLSifter` object. Also made several updates to `sql.py` to ensure the `SQLSifter` class routines make the appropriate references to `DB`.
+
+## The following suites have issues I cannot easily resolve
+### `test_convenience_functions.py`
+- Not passing. The `nbody` library has changed from what it used to be in `archaic/nbody20220131`. On `nbody.py:385` there's a reference to the function that can ostensibly load an orbit file from text, not JSON, which is the only current function that runs. Perhaps this test isn't necessary anymore?
+
+### `test_ephem.py`
+- Skipping the one test for now since I'm not sure how to instantiate the Ephemeris object. 
+
+### `test_nbody_ParseElements.py`
+- Skipping 5 tests as the fixtures appear to be unavailable.
+
+### `test_orbit_cheby.py`
+- see todo in file:427.
+
+### `test_sifter_base.py` & `test_sifter_tracklets.py`
+- Need `mpcpp`?
+
+### `test_sockets.py`
+- As the tests mention, the latter two tests pass after running `sockets_server_starter_DO_NOT_DELETE.py` in the background.
+- Not sure what's wrong with the first test yet.
+
+### `tmp.py`
+- Has a call to `integration_function(.)` out of a function, and the test appears to be looking for fixtures perhaps related to this call. Skipping for now.
