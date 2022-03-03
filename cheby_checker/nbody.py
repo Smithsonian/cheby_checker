@@ -18,14 +18,9 @@ This module provides functionalities to
 
 # Import third-party packages
 # -----------------------------------------------------------------------------
-import sys
 import os
 import numpy as np
 from astropy.time import Time
-import getpass
-import json
-import itertools
-import copy
 
 # Import MPC packages
 # -----------------------------------------------------------------------------
@@ -36,11 +31,8 @@ from mpc_orb.parse import MPCORB
 # -----------------------------------------------------------------------------
 from examples.ephem_forces.ephem_forces import production_integration_function_wrapper
 
-# old conversion library
-from . import MPC_library as mpc
 
 from . import coco
-from .decorators import timer
 
 
 # Constants and stuff
@@ -82,8 +74,7 @@ class NbodySim():
     """
     Provides methods to call reboundx-ephemeris NBody integrator
     """
-
-    def __init__( self,):
+    def __init__(self):
 
         # class variables: declared @ run-time and/or parsed from input
         self.tstart             = None
@@ -204,11 +195,10 @@ class NbodySim():
         return True
 
     #@timer
-    def _parse_orbfit_json(self, mpcorb_file_or_dict ):
+    def _parse_orbfit_json(self, mpcorb_file_or_dict):
         """
         Parse a file containing OrbFit elements for a single object & epoch.
         Assumes input is in standard mpcorb-json format
-
 
         Input:
         -------
@@ -227,9 +217,7 @@ class NbodySim():
 
         self.non_grav_dict_list
         self.non_grav_EXISTS
-
         """
-        
         # Call -----------  MPCORB -----------------
         # NB(1): This parses & validates ...
         # NB(2): MPCORB Handles either FILE or DICTIONARY input
@@ -259,6 +247,7 @@ class NbodySim():
             self.integration_epoch = this_mpcorb_epoch
         else:
             if self.integration_epoch != this_mpcorb_epoch:
+                # TODO: jsonfile_dictionary dne
                 raise TypeError("The epochs vary from file-to-file: "
                                 f"jsonfile_dictionary= {jsonfile_dictionary}")
 
@@ -393,6 +382,7 @@ class NbodySim():
         return contents
     """
 
+    # TODO: is this function needed for test_convencience_functions.py and
     """
     def parse_orbfit_felfile_txt(self, felfile_contents, CHECK_EPOCHS=True):
         '''
@@ -581,10 +571,10 @@ class NbodySim():
         if partial_derivatives_wrt_NG is not None:
             raise Error('Have not coded partial_derivatives_wrt_NG into _get_covariance_from_tangent_vectors ')
 
-        return partial_derivatives_wrt_state , partial_derivatives_wrt_NG
+        return partial_derivatives_wrt_state, partial_derivatives_wrt_NG
 
     #@timer
-    def _get_covariance_from_tangent_vectors(self, init_covariances, partial_derivatives_wrt_state ,  partial_derivatives_wrt_NG=None ):
+    def _get_covariance_from_tangent_vectors(self, init_covariances, partial_derivatives_wrt_state, partial_derivatives_wrt_NG=None):
         """
         Follow Milani et al 1999
         Gamma_t = [partial X / partial X_0] Gamma_0 [partial X / partial X_0]^T
@@ -592,9 +582,7 @@ class NbodySim():
         NB
         init_covariances.shape              =  (#particles, 6, 6)
         partial_derivatives_wrt_state.shape =  (#times, #particles, 6, 6)
-
         """
-        
         if partial_derivatives_wrt_NG is not None :
             raise Error('Have not coded partial_derivatives_wrt_NG into _get_covariance_from_tangent_vectors ')
 
