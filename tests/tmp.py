@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # mpc_nbody/tests/test_run_nbody.py
 
-'''
+"""
 ----------------------------------------------------------------------------
 tests for mpc_nbody's run_nbody module.
 
@@ -9,7 +9,7 @@ Mar 2020
 Mike Alexandersen & Matthew Payne & Matthew Holman
 
 ----------------------------------------------------------------------------
-'''
+"""
 
 # import third-party packages
 # -----------------------------------------------------------------------------
@@ -22,25 +22,20 @@ from astroquery.jplhorizons import Horizons
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
 sys.path.append(os.environ['REBX_DIR'])
-from examples.ephem_forces import ephem_forcess
-from tests.test_parse_input import is_parsed_good_enough, compare_xyzv
-from cheby_checker import nbody
-
+from examples.ephem_forces import ephem_forces
+from tests.test_nbody_NbodySim import compare_xyzv
 
 # Constants & Test Data
 # -----------------------------------------------------------------------------
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(
                         os.path.realpath(__file__))), 'dev_data')
 
-
-# Tests
-
-      
+@pytest.mark.skip(reason="archaic")
 def test_nbody_vs_Horizons(tstart, tstep, trange, geocentric,
                            targets, id_type, threshold_xyz, threshold_v):
-    '''
+    """
     Test that putting input from Horizons in gives Horizons consistent output.
-    '''
+    """
     centre = '500' if geocentric else '500@0'
     
     # Make the single array with 6 elements for each particle.
@@ -99,38 +94,36 @@ def test_nbody_vs_Horizons(tstart, tstep, trange, geocentric,
 
 # Non-test helper functions
 # -----------------------------------------------------------------------------
-
 def nice_Horizons(target, centre, epochs, id_type):
-    '''
+    """
     Only require the inputs I actually want to vary.
     Return in the format I actually want, not an astropy table.
-    '''
+    """
     horizons_table  = Horizons(target, centre, epochs=epochs, id_type=id_type)
     horizons_vector = horizons_table.vectors(refplane='earth')
     horizons_xyzv   = horizons_vector['x', 'y', 'z', 'vx', 'vy', 'vz']
     print('nice_Horizons : ', np.array(list(horizons_xyzv.as_array()[0])))
     return np.array(list(horizons_xyzv.as_array()[0]))
 
-
-
-
-
-
 #test_nbody_vs_Horizons(2458850.0, 1.0, 10., 0, ['2020 CD3'], ['smallbody'], 1e-10, 1e-11)
 
-try:  # Import ephem_forces from whereever REBX_DIR is set to live
+try:  # Import ephem_forces from wherever REBX_DIR is set to live
     sys.path.append(os.environ['REBX_DIR'])
     from examples.ephem_forces.ephem_forces import integration_function
 except (KeyError, ModuleNotFoundError):
     from reboundx.examples.ephem_forces.ephem_forces import integration_function
 
-tstart,    tstep,    trange,    geocentric,    n_particles,    init_states = 2458850.0, 0.1, 10.0, 0, 1, np.array([-0.18297081,  0.8869136,   0.39472742, -0.01719277, -0.0028644,  -0.00117345])
+tstart, tstep, trange, geocentric, n_particles, init_states = \
+    2458850.0, 0.1, 10.0, 0, 1, \
+    np.array([-0.18297081,  0.8869136,   0.39472742, -0.01719277, -0.0028644,  -0.00117345])
+# TODO: Not sure if these last three (required) params are correct. See also test_malloc_reboundx.py
+n_var = 6
+invar_part = np.zeros(6, dtype=int)
+invar = np.identity(6)
 print('tstart,    tstep,    trange,    geocentric,    n_particles,    init_states')
 print(tstart,    tstep,    trange,    geocentric,    n_particles,    init_states)
-times, output_vectors, n_times, n_particles_out = integration_function( tstart,
-                                                                        tstep,
-                                                                        trange,
-                                                                        geocentric,
-                                                                        n_particles,
-                                                                        init_states)
-                                                                        
+times, states, var, var_ng, status = integration_function(
+      tstart, tstart + trange, tstep,
+      geocentric, n_particles, init_states,
+      n_var, invar_part, invar
+    )
