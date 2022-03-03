@@ -1,29 +1,24 @@
 # -*- coding: utf-8 -*-
 # sifter/tests/test_orbit_cheby
 
-'''
-    --------------------------------------------------------------
-    tests of orbit_cheby's base class
-    
-    Jan 2020
-    Matt Payne
-    
-    --------------------------------------------------------------
-'''
+"""
+--------------------------------------------------------------
+tests of orbit_cheby's base class
 
+Jan 2020
+Matt Payne
+
+--------------------------------------------------------------
+"""
 
 # Import third-party packages
 # --------------------------------------------------------------
-import sys
 import os
-import numpy as np
 import pytest
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from cheby_checker import orbit_cheby
 from cheby_checker import nbody
-
 
 
 # Constants & Test Data
@@ -35,17 +30,15 @@ orbfit_filenames = [os.path.join(DATA_DIR, file) for file in ['30101.eq0_horizon
 
 # Convenience data / functions to aid testing
 # --------------------------------------------------------------
-
-
-@pytest.mark.parametrize( ('orbfit_file' ) , orbfit_filenames  )
+@pytest.mark.parametrize(('orbfit_file') , orbfit_filenames)
 def test_Sim(orbfit_file):
-    '''
-        A convenience function to return a simulation object
-        Proper testing of mpc_nbody is done elsewhere (test_run_nbody.py)
-    '''
-
+    """
+    A convenience function to return a simulation object
+    Proper testing of mpc_nbody is done elsewhere (test_run_nbody.py)
+    """
     # First, let's initiate the class with an input file:
-    Sim = mpc_nbody.NbodySim(orbfit_file, 'eq')
+    Sim = nbody.NbodySim() # 'eq' was an arg to this, may be deprecated per current nbody.py
+    Sim._parse_orbfit_json(orbfit_file)
 
     # Now run the integrator, by calling the object.
     Sim(tstep=20, trange=1000)
@@ -55,5 +48,3 @@ def test_Sim(orbfit_file):
         assert attrib in Sim.__dict__
 
     return Sim
-
-
