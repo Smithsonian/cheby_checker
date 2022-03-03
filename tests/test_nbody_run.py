@@ -28,14 +28,8 @@ import sys
 import os
 import numpy as np
 import pytest
-from astropy.time import Time
-import pytest
-from filecmp import cmp
-import getpass
-import json
 import time
 import glob
-
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
@@ -183,7 +177,8 @@ def test_integration_function_A():
     invar = np.identity(6)
 
     # Run the integration
-    times, states, var, var_ng, status = ephem_forces.integration_function(tstart, tend, tstep, geocentric, n_particles, instates, n_var, invar_part, invar)
+    times, states, var, var_ng, status = ephem_forces.integration_function(
+        tstart, tend, tstep, geocentric, n_particles, instates, n_var, invar_part, invar)
 
 
     assert isinstance(states, np.ndarray)
