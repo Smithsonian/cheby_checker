@@ -1,7 +1,9 @@
 # cheby_checker tests go in this directory
 
 [//]: # (TODO: Use Pytest skip/skipf decorators to skip WIP Tests. Mostly done here. https://docs.pytest.org/en/latest/how-to/skipping.html#skipping-test-functions)
-[//]: # (TODO: Get tests running in Docker/Local: get dev data, dependent packages mounted/installed. Made some progress but facing further issues.)
+[//]: # (TODO: 5 tests failing.)
+[//]: # (    The first three are from reboundx and may be fixable via https://github.com/dtamayo/reboundx/issues/26)
+[//]: # (    The latter two are from mpcpp being unavailable. cf. Dockerfile:59)
 
 ## 2022 : MJP: The following are WIP, attempting to get tests to pass...
 
