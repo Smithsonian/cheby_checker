@@ -270,7 +270,7 @@ def test_instantiation_with_data(data_file, file_type, test_result_file):
                               file_type, save_parsed=True )
 
     # Check the output
-    is_parsed_good_enough( save_file , os.path.join(DATA_DIR, expected_results_file) )
+    is_parsed_good_enough(save_file , os.path.join(DATA_DIR, expected_results_file))
     
     # Tidy
     if os.path.isfile('holman_ic') : os.remove('holman_ic')
@@ -279,7 +279,6 @@ def test_instantiation_with_data(data_file, file_type, test_result_file):
 
 # Non-test helper functions
 # -----------------------------------------------------------------------------
-
 def is_parsed_good_enough(new_results_file, expected_results_file):
     """
     Helper function to help test whether a just-created holman_ic file matches
