@@ -1,25 +1,25 @@
 # -*- coding: utf-8 -*-
 # sifter/sifter/query
 
-'''
+"""
     --------------------------------------------------------------
     cheby checker.
-    
+
     Jun 2021
-    Matt Payne  
-    
+    Matt Payne
+
     This module provides access to some parameters / funcs / classes
     that don't sit well anywhere else, and are pretty general and / or
     module-wide
-    
+
     Currently this contains
     (1) "Base" Class
      - Mainly used to specify the hard-wired date ranges and sectors
        that this package will work within
     () ...
-    
+
     --------------------------------------------------------------
-    '''
+    """
 
 
 # Import third-party packages
@@ -36,13 +36,13 @@ from astropy_healpix import HEALPix as hp
 # --------------------------------------------------------------
 
 class Base():
-    '''
+    """
         Parent class to hold fundamental definitions / settings used across ...
         ... various ChebyChecker components.
-        
+
         [[ much of this originally in precalc.py ]]
-        
-    '''
+
+    """
         
     # --- Notes on the expected mapping of coord-components to position ...
     # --- ... required in order to allow functions ** and ** to work properly ...
@@ -115,24 +115,23 @@ class Base():
     # --------------------------------------------------------------
 
     def _fetch_data_directory(self):
-        '''
-            Returns the default path to the directory where data will be downloaded.
-            
-            By default, this method will return ~/.cheby_checker_data/data
-            and create this directory if it does not exist.
-            
-            If the directory cannot be accessed or created, then it returns the local directory (".")
-            
-            Returns
-            -------
-            data_dir : str
-            Path to location of `data_dir` where data (FITs files) will be downloaded
-            '''
+        """
+        Returns the default path to the directory where data will be downloaded.
+
+        By default, this method will return ~/.cheby_checker_data/data
+        and create this directory if it does not exist.
+
+        If the directory cannot be accessed or created, then it returns the local directory (".")
+
+        Returns
+        -------
+        data_dir : str
+        Path to location of `data_dir` where data (FITs files) will be downloaded
+        """
         
         data_dir = os.path.join(os.path.expanduser('~'), self.db_dir)
         print(" *** WARNING TO MPC STAFF *** \n THIS DEVELOPMENTAL CODE IS SAVING TO THE USERS-DIRECTORY \n THIS SHOULD BE CHANGED ON DEPLOYMENT \n *** END OF WARNING ***" )
-        
-        
+
         # If it doesn't exist, make a new data directory
         if not os.path.isdir(data_dir):
             
@@ -152,54 +151,54 @@ class Base():
     # --------------------------------------------------------------
     @staticmethod
     def map_JD_to_sector_number( JD_TDB , JD0):
-        ''' This maps input integer days onto a "sector"
-        
+        """ This maps input integer days onto a "sector"
+
             I.e. it maps times into fixed-length sectors (starting from JD0),
             and returns the index of the sector that any input times belong to
-        '''
+        """
         return ( np.asarray( JD_TDB ) - JD0).astype(int) // Base.sector_length_days
     
     @staticmethod
     def map_sector_number_to_sector_start_JD( sector_number, JD0):
-        ''' Function to map a sector number to the starting julian date of that sector
-        '''
+        """ Function to map a sector number to the starting julian date of that sector
+        """
         return JD0 + sector_number * Base.sector_length_days
 
     @staticmethod
     def map_JD_to_sector_number_and_sector_start_JD(JD_TDB, JD0):
-        '''
+        """
             For a given JD_TDB, calculate the sector number it will be in
             Assumes a standard starting julian date
-            
+
             inputs:
             -------
             JD_TDB : number or iterable (i.e. something that numpy can work with!)
-            
+
             returns:
             -------
             sector_number : numpy array
             start_JDs : numpy array
-                    
-        '''
+
+        """
         sector_number   = Base.map_JD_to_sector_number(JD_TDB , JD0)
         return sector_number , Base.map_sector_number_to_sector_start_JD( sector_number, JD0)
 
     def map_JDtimes_to_relative_times(self, times_TDB):
-        '''
-            For a given JD, map the JD to the sector # and 
+        """
+            For a given JD, map the JD to the sector # and
             the (relative) time within the sector (starting from 0 for each sector)
-        '''
+        """
         sector_numbers, sector_JD0s = self.map_JD_to_sector_number_and_sector_start_JD( times_TDB, self.standard_MJDmin )
         sector_relative_times = times_TDB - sector_JD0s
         return sector_numbers , sector_relative_times
     
     def get_required_sector_dict(self, ):
-        '''
+        """
             Understand the basic sector-size used in constructing cheby-coefficients
             - Use that to define a complete list of sectors spanning the JDs in JDlist
             Will look like {0: 2440000, 1: 2440032, ...}
             - N.B. The dictionary automatically handles making a "set" of the keys
-        '''
+        """
         return {a:b for a,b in zip(*self.map_JD_to_sector_number_and_sector_start_JD( self.JDlist , self.standard_MJDmin ))}
 
 

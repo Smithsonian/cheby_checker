@@ -29,7 +29,6 @@ functionality (pCheck, MPChecker, etc)
 
 # Import third-party packages
 # --------------------------------------------------------------
-import sys, os
 import numpy as np
 
 # Import neighboring packages
@@ -40,29 +39,23 @@ from . import data_classes
 detn_var_names, Detections = data_classes.var_names['Detections'], data_classes.Detections
 
 
-# Ephemeris Object
-# --------------------------------------------------------------
-class Ephem():
+class Ephem:
     """
-        ...
+    Ephemeris Object
     """
-    
-
-    def __init__(self, designations, times, observatoryXYZ = None , obsCode = None):
+    def __init__(self, designations, times, observatoryXYZ=None, obsCode=None):
         """
            Initializing ephemeris call
            Will get object data from database & instantiate MSC(s)
         """
-    
         # Rectify designations to ensure in list-format
         self.designations = list(np.atleast_1d(designations))
         
         # Get the observatory positions
         assert observatoryXYZ is not None or obsCode is not None , \
             'Both observatoryXYZ == None and obsCode == None'
-        self.observatoryXYZ   = np.asarray(observatoryXYZ) if obsCode is None else ObsPos().get_heliocentric_equatorial_xyz(times,
-                                                                                                                            obsCode=obsCode,
-                                                                                                                            verbose=False)
+        self.observatoryXYZ = np.asarray(observatoryXYZ) if obsCode is None \
+            else ObsPos().get_heliocentric_equatorial_xyz(times, obsCode=obsCode, verbose=False)
 
         # Ensure that the times & positions have appropriate dimensions
         self.times                        = np.asarray(times)
@@ -70,13 +63,18 @@ class Ephem():
 
         # Establish the minimal required set of sectors to be fetched from the database :
         # Turn dates into minimal set of sectors
-        sector_numbers = np.asarray(sorted(set( orbit_cheby.Base.map_JD_to_sector_number( self.obsJDs , orbit_cheby.Base.standard_MJDmin) ) ) )
+        sector_numbers = np.asarray(sorted(set(
+            orbit_cheby.Base.map_JD_to_sector_number(self.obsJDs, orbit_cheby.Base.standard_MJDmin)
+        )))
         
         # Add-in the adjacent sectors (just in case)
         sector_numbers = np.unique(np.concatenate([sector_numbers-1,sector_numbers,sector_numbers+1]))
         
         # Ensure that all requested sectors are supported
-        minAllowed,maxallowed = orbit_cheby.Base.map_JD_to_sector_number( [orbit_cheby.Base.standard_MJDmin,orbit_cheby.Base.standard_MJDmax] , orbit_cheby.Base.standard_MJDmin)
+        minAllowed, maxallowed = orbit_cheby.Base.map_JD_to_sector_number(
+            [orbit_cheby.Base.standard_MJDmin, orbit_cheby.Base.standard_MJDmax],
+            orbit_cheby.Base.standard_MJDmin
+        )
         sector_numbers = sector_numbers[ (sector_numbers>=minAllowed) & (sector_numbers<=maxallowed) ]
         
         # Use MSC_Loader to return the required list of MSCs
@@ -91,12 +89,11 @@ class Ephem():
 
     # Convenience functions to generate various ephemeris quantities
     # --------------------------------------------------------------
-    def generate_sky_predictions(self, ):
+    def generate_sky_predictions(self):
         """
            Get the on-sky RA,Dec & associated uncertainties
 
            At some point should probably extend to Rates-of-Motion
-
         """
         self.prediction_dict = {}
         for M in self.MSCs:
