@@ -456,7 +456,6 @@ def test_run_integration_A():
             N.output_covar.shape[3] == 6
 
 
-@pytest.mark.skip(reason="Not Passing: similar_bool == False")
 def test_run_mpcorb_A():
     """
     Test the overall *run_mpcorb* function

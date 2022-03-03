@@ -55,7 +55,7 @@
 - nbody.py also depends on the s REBOUNDX:EPHEM library
 - There are tests in place which get the same cartesian coords to ~10km when comparing an orbfit result to a JPL result. This seems good enough.
 
-[//]: # (TODO: test_run_mpcorb_A is not currently passing.)
+[//]: # (TODO: test_run_mpcorb_A is not passing on my local setup, but is on the container.)
 
 ### `pytest test_orbit_cheby_locations.py`
 - `orbit_cheby.py` has an INTERNAL dependence on the `nbody.py` module
@@ -69,7 +69,7 @@
 - Detailed tests of the *accuracy* of the chebyshevs that get created as a by-product of calling *from_coord_arrays* will primarily be performed elsewhere
 - passes within containerized environment (not yet local)
 
-[//]: # (TODO: 4 tests failing.. cf. TODOs in orbit_cheby.py. Likewise with test_orbit_cheby_horizons.py. These are passing on the container now.)
+[//]: # (TODO: 4 tests failing locally.. cf. TODOs in orbit_cheby.py. Likewise with test_orbit_cheby_horizons.py. These are passing on the container now.)
 
 ### `pytest test_orbit_cheby_horizons.py`
 - orbit_cheby.py has an INTERNAL dependence on the nbody.py module
@@ -86,7 +86,6 @@
 - passes within containerized environment
 
 ## The following suites were identified during a March 2022 review
-[//]: # (TODO: Make note of test_convenience_functions.py, .._data_classes, _ephem, ..malloc_reboundx, nbody_NbodySim, nbody_ParseElements, orbit_cheby, sifter_*, _sockets, tmp.py. Or just a general note on them?)
 
 The following suites are passing as-is: 
 - `test_data_classes.py` 

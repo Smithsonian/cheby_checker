@@ -24,15 +24,10 @@ Removing many tests of non-json input
 import sys
 import os
 import numpy as np
-import pytest
-from astroquery.jplhorizons import Horizons
 from astropy.time import Time
 import pytest
 from filecmp import cmp
-import getpass
 import json
-
-
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
