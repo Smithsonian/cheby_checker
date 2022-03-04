@@ -9,6 +9,15 @@ on:
   pull_request:
     branches: [ master ]
 
+env:
+  WORK_DIR: /home/runner/work/cheby_checker
+  REB_DIR: $WORK_DIR/rebound
+  LD_LIBRARY_PATH_REB: $REB_DIR/src
+  REBX_DIR: $WORK_DIR/reboundx
+  LD_LIBRARY_PATH: "$LD_LIBRARY_PATH:$REBX_DIR/src"
+  JPL_PLANET_EPHEM: $REBX_DIR/examples/ephem_forces/linux_p1550p2650.440
+  JPL_SB_EPHEM: $REBX_DIR/examples/ephem_forces/sb441-n16.bsp
+
 jobs:
   build:
 
@@ -29,16 +38,11 @@ jobs:
         # Install rebound
         git clone https://github.com/Smithsonian/rebound.git
         make -C rebound
-        export WORK_DIR=/home/runner/work/cheby_checker
-        export REB_DIR=$WORK_DIR/rebound
-        export LD_LIBRARY_PATH=$REB_DIR/src
         # Install reboundx
         git clone -b mpc_dev https://github.com/Smithsonian/reboundx.git
         make -C reboundx/examples/ephem_forces/
-        export REBX_DIR=$WORK_DIR/reboundx
-        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$REBX_DIR/src
-        export JPL_PLANET_EPHEM=$REBX_DIR/examples/ephem_forces/linux_p1550p2650.440
-        export JPL_SB_EPHEM=$REBX_DIR/examples/ephem_forces/sb441-n16.bsp
+        ls
+        tree
         cd cheby_checker
         cp cheby_container/sb441-n16.bsp $REBX_DIR/examples/ephem_forces
     #- name: Lint with flake8
