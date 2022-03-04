@@ -1,0 +1,61 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Python application
+
+on:
+  push:
+    branches: [ MPC-73/assessment ]
+  pull_request:
+    branches: [ MPC-73/assessment ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 pytest
+        pip install -r requirements.txt
+        cd ..
+        # Install rebound TODO: Use cache (https://github.com/flat35hd99/cache-make)
+        git clone https://github.com/Smithsonian/rebound.git
+        make -C rebound
+        export WORK_DIR=/home/runner/work/cheby_checker
+        export REB_DIR=$WORK_DIR/rebound
+        export LD_LIBRARY_PATH=$REB_DIR/src
+        # Install reboundx
+        git clone -b mpc_dev https://github.com/Smithsonian/reboundx.git
+        make -C reboundx/examples/ephem_forces/
+        export REBX_DIR=$WORK_DIR/reboundx
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$REBX_DIR/src
+        export JPL_PLANET_EPHEM=$REBX_DIR/examples/ephem_forces/linux_p1550p2650.440
+        export JPL_SB_EPHEM=$REBX_DIR/examples/ephem_forces/sb441-n16.bsp
+        cd cheby_checker
+        cp cheby_container/sb441-n16.bsp $REBX_DIR/examples/ephem_forces
+    #- name: Lint with flake8
+    #  run: |
+    #    # stop the build if there are Python syntax errors or undefined names
+    #    flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    #    # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+    #    flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Test with pytest
+      run: |
+        export WORK_DIR=/home/runner/work/cheby_checker
+        export REB_DIR=$WORK_DIR/rebound
+        export LD_LIBRARY_PATH=$REB_DIR/src
+        export REBX_DIR=$WORK_DIR/reboundx
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$REBX_DIR/src
+        export JPL_PLANET_EPHEM=$REBX_DIR/examples/ephem_forces/linux_p1550p2650.440
+        export JPL_SB_EPHEM=$REBX_DIR/examples/ephem_forces/sb441-n16.bsp
+        # Set up the server for sockets tests
+        python tests/sockets_server_starter_DO_NOT_DELETE.py & 
+        pytest
