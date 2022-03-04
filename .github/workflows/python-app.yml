@@ -56,7 +56,11 @@ jobs:
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$REBX_DIR/src
         export JPL_PLANET_EPHEM=$REBX_DIR/examples/ephem_forces/linux_p1550p2650.440
         export JPL_SB_EPHEM=$REBX_DIR/examples/ephem_forces/sb441-n16.bsp
+        # set up cheby_checker
         pip install -e .
+        # get LFS files!
+        git lfs install
+        git lfs pull
         # Set up the server for sockets tests
         python tests/sockets_server_starter_DO_NOT_DELETE.py & 
-        pytest
+        pytest tests
