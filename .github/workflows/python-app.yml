@@ -34,12 +34,13 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         cd ..
         # Install rebound
-        export LD_LIBRARY_PATH=${{ env.REB_DIR }}/src:${{ env.REBX_DIR }}/src
         git clone https://github.com/Smithsonian/rebound.git
         make -C ${{ env.REB_DIR }}
+        export LD_LIBRARY_PATH=${{ env.REB_DIR }}/src
         # Install reboundx
         git clone -b mpc_dev https://github.com/Smithsonian/reboundx.git
         make -C ${{ env.REBX_DIR }}/examples/ephem_forces/
+        export LD_LIBRARY_PATH=${{ env.REB_DIR }}/src:${{ env.REBX_DIR }}/src
         ls
         tree
         cd cheby_checker
