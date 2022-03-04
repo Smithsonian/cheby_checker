@@ -33,7 +33,7 @@ jobs:
         export LD_LIBRARY_PATH=$REB_DIR/src
         # Install reboundx
         git clone -b mpc_dev https://github.com/Smithsonian/reboundx.git
-        make -C reboundx
+        make -C reboundx/examples/ephem_forces/
         export REBX_DIR=/reboundx
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$REBX_DIR/src
         export JPL_PLANET_EPHEM=$REBX_DIR/examples/ephem_forces/linux_p1550p2650.440
