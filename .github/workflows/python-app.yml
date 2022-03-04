@@ -10,9 +10,9 @@ on:
     branches: [ master ]
 
 env:
-  WORK_DIR: /home/runner/work/cheby_checker
-  REB_DIR: $WORK_DIR/rebound
-  REBX_DIR: $WORK_DIR/reboundx
+  WORK_DIR_GITHUB: /home/runner/work/cheby_checker
+  REB_DIR: $WORK_DIR_GITHUB/rebound
+  REBX_DIR: $WORK_DIR_GITHUB/reboundx
   LD_LIBRARY_PATH: "$REB_DIR/src:$REBX_DIR/src"
   JPL_PLANET_EPHEM: $REBX_DIR/examples/ephem_forces/linux_p1550p2650.440
   JPL_SB_EPHEM: $REBX_DIR/examples/ephem_forces/sb441-n16.bsp
