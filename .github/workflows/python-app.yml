@@ -13,7 +13,6 @@ env:
   WORK_DIR_GITHUB: /home/runner/work/cheby_checker
   REB_DIR: $WORK_DIR_GITHUB/rebound
   REBX_DIR: $WORK_DIR_GITHUB/reboundx
-  LD_LIBRARY_PATH: "$REB_DIR/src:$REBX_DIR/src"
   JPL_PLANET_EPHEM: $REBX_DIR/examples/ephem_forces/linux_p1550p2650.440
   JPL_SB_EPHEM: $REBX_DIR/examples/ephem_forces/sb441-n16.bsp
 
@@ -35,11 +34,12 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         cd ..
         # Install rebound
+        export LD_LIBRARY_PATH=$REB_DIR/src:$REBX_DIR/src
         git clone https://github.com/Smithsonian/rebound.git
-        make -C rebound
+        make -C $REB_DIR
         # Install reboundx
         git clone -b mpc_dev https://github.com/Smithsonian/reboundx.git
-        make -C reboundx/examples/ephem_forces/
+        make -C $REBX_DIR/examples/ephem_forces/
         ls
         tree
         cd cheby_checker
@@ -52,6 +52,7 @@ jobs:
     #    flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
+        export LD_LIBRARY_PATH=$REB_DIR/src:$REBX_DIR/src
         # Set up the server for sockets tests
         python tests/sockets_server_starter_DO_NOT_DELETE.py & 
         pytest
