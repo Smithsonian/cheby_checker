@@ -10,4 +10,4 @@ scipy
 
 # GitHub Packages
 # git+https://github.com/path/to/package-two@master#egg=package-two
--e git+https://github.com/matthewjohnpayne/mpc_orb.git@master#egg=mpc_orb
+-e git+https://github.com/matthewjohnpayne/mpc_orb.git@main#egg=mpc_orb
