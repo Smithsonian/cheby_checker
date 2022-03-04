@@ -27,7 +27,7 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         cd ..
         # Install rebound
-        RUN git clone https://github.com/Smithsonian/rebound.git
+        git clone https://github.com/Smithsonian/rebound.git
         make -C rebound
         export REB_DIR=./rebound
         export LD_LIBRARY_PATH=$REB_DIR/src
