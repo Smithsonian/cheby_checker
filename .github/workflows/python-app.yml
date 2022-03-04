@@ -11,10 +11,10 @@ on:
 
 env:
   WORK_DIR_GITHUB: /home/runner/work/cheby_checker
-  REB_DIR: $WORK_DIR_GITHUB/rebound
-  REBX_DIR: $WORK_DIR_GITHUB/reboundx
-  JPL_PLANET_EPHEM: $REBX_DIR/examples/ephem_forces/linux_p1550p2650.440
-  JPL_SB_EPHEM: $REBX_DIR/examples/ephem_forces/sb441-n16.bsp
+  REB_DIR: "${{ env.WORK_DIR_GITHUB }}/rebound"
+  REBX_DIR: "${{ env.WORK_DIR_GITHUB }}/reboundx"
+  JPL_PLANET_EPHEM: "${{ env.REBX_DIR }}/examples/ephem_forces/linux_p1550p2650.440"
+  JPL_SB_EPHEM: "${{ env.REBX_DIR }}/examples/ephem_forces/sb441-n16.bsp"
 
 jobs:
   build:
@@ -37,6 +37,8 @@ jobs:
         git clone https://github.com/Smithsonian/rebound.git
         make -C ${{ env.REB_DIR }}
         export LD_LIBRARY_PATH=${{ env.REB_DIR }}/src
+        # Print vars for debugging
+        echo "${{ env.LD_LIBRARY_PATH }} $LD_LIBRARY_PATH ${{ env.REB_DIR }}"
         # Install reboundx
         git clone -b mpc_dev https://github.com/Smithsonian/reboundx.git
         make -C ${{ env.REBX_DIR }}/examples/ephem_forces/
