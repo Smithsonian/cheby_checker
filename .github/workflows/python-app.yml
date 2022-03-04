@@ -56,7 +56,7 @@ jobs:
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$REBX_DIR/src
         export JPL_PLANET_EPHEM=$REBX_DIR/examples/ephem_forces/linux_p1550p2650.440
         export JPL_SB_EPHEM=$REBX_DIR/examples/ephem_forces/sb441-n16.bsp
+        pip install -e .
         # Set up the server for sockets tests
-        python setup.py install
         python tests/sockets_server_starter_DO_NOT_DELETE.py & 
         pytest
