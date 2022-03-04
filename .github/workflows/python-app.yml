@@ -11,10 +11,10 @@ on:
 
 env:
   WORK_DIR_GITHUB: /home/runner/work/cheby_checker
-  REB_DIR: ${{ env.WORK_DIR_GITHUB }}/rebound
-  REBX_DIR: ${{ env.WORK_DIR_GITHUB }}/reboundx
-  JPL_PLANET_EPHEM: ${{ env.REBX_DIR }}/examples/ephem_forces/linux_p1550p2650.440
-  JPL_SB_EPHEM: ${{ env.REBX_DIR }}/examples/ephem_forces/sb441-n16.bsp
+  REB_DIR: $WORK_DIR_GITHUB/rebound
+  REBX_DIR: $WORK_DIR_GITHUB/reboundx
+  JPL_PLANET_EPHEM: $REBX_DIR/examples/ephem_forces/linux_p1550p2650.440
+  JPL_SB_EPHEM: $REBX_DIR/examples/ephem_forces/sb441-n16.bsp
 
 jobs:
   build:
@@ -36,14 +36,14 @@ jobs:
         # Install rebound
         export LD_LIBRARY_PATH=${{ env.REB_DIR }}/src:${{ env.REBX_DIR }}/src
         git clone https://github.com/Smithsonian/rebound.git
-        make -C $REB_DIR
+        make -C ${{ env.REB_DIR }}
         # Install reboundx
         git clone -b mpc_dev https://github.com/Smithsonian/reboundx.git
-        make -C $REBX_DIR/examples/ephem_forces/
+        make -C ${{ env.REBX_DIR }}/examples/ephem_forces/
         ls
         tree
         cd cheby_checker
-        cp cheby_container/sb441-n16.bsp $REBX_DIR/examples/ephem_forces
+        cp cheby_container/sb441-n16.bsp ${{ env.REBX_DIR }}/examples/ephem_forces
     #- name: Lint with flake8
     #  run: |
     #    # stop the build if there are Python syntax errors or undefined names
