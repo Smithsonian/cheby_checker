@@ -17,7 +17,7 @@ def kill():
     os.system(f"docker image rm {image_name}")
 
 def build():
-    ''' commands needed to create an image and fire-up a container of that image'''
+    """ commands needed to create an image and fire-up a container of that image"""
     
     # commands to remove any extant running versions of the mpcremote image and/or container
     kill()

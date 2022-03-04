@@ -330,15 +330,16 @@ class MSC(Base):
         
         # query the database for the required sector coefficients
         coeff_dict = precalc.get_specific_object(primary_unpacked_provisional_designation,
-                                                 sector_numbers = sector_numbers)
+                                                 sector_numbers=sector_numbers)
     
         # create the entries in the sector_coeffs dict (N.B. have to transform the keys)
         self.sector_coeffs = { int(k.split("_")[1]) : v for k,v in coeff_dict.items() }
         
         # set the min & max supported times / sectors
-        self.sector_init, self.sector_final = np.min(list(self.sector_coeffs.keys())) , np.max(list(self.sector_coeffs.keys()))
-        self.TDB_init  = Base.map_sector_number_to_sector_start_JD( self.sector_init  , self.standard_MJDmin)
-        self.TDB_final = Base.map_sector_number_to_sector_start_JD( self.sector_final , self.standard_MJDmin) + self.sector_length_days - self.epsilon
+        self.sector_init, self.sector_final = np.min(list(self.sector_coeffs.keys())), np.max(list(self.sector_coeffs.keys()))
+        self.TDB_init = Base.map_sector_number_to_sector_start_JD(self.sector_init, self.standard_MJDmin)
+        self.TDB_final = Base.map_sector_number_to_sector_start_JD(self.sector_final, self.standard_MJDmin) \
+                         + self.sector_length_days - self.epsilon
     
         # check things are as expected
         assert self.TDB_init >= self.standard_MJDmin and self.TDB_final <= self.standard_MJDmax, \
@@ -346,36 +347,35 @@ class MSC(Base):
     
     def from_coord_arrays(self, primary_unpacked_provisional_designation, times_TDB , states , covariances = None ):
         """
-           Populate the MSC starting from supplied numpy-arrays
-           Expected to be used when passing in the data from an NBody integration (REBOUNDX)
+        Populate the MSC starting from supplied numpy-arrays
+        Expected to be used when passing in the data from an NBody integration (REBOUNDX)
 
-            inputs:
-            -------
-            primary_unpacked_provisional_designation :
-            -
+        inputs:
+        -------
+        primary_unpacked_provisional_designation :
+        -
 
-            TDB_init :
-            -
+        TDB_init :
+        -
 
-            TDB_final :
-            -
+        TDB_final :
+        -
 
-            times_TDB :
-            -
+        times_TDB :
+        -
 
-            states: np.array
-             - This should be ONLY the main fitted variables (e.g. 3-posn, 3-vel, + N-non-grav-coeffs)
-             - Expect shape == ( Nt ,  Nc ), where Nc in [6,7,8,9]
-             - IN early development, assume Nc == 6 (gravity-only)
+        states: np.array
+         - This should be ONLY the main fitted variables (e.g. 3-posn, 3-vel, + N-non-grav-coeffs)
+         - Expect shape == ( Nt ,  Nc ), where Nc in [6,7,8,9]
+         - IN early development, assume Nc == 6 (gravity-only)
 
-            covariances: np.array
-             - This should be the covariances corresponding to the states, so dimension should be (Nt, Nc, Nc)
+        covariances: np.array
+         - This should be the covariances corresponding to the states, so dimension should be (Nt, Nc, Nc)
 
-            returns:
-            --------
-            True
-            - Doesn't directly return, just populates the MSC object
-
+        returns:
+        --------
+        True
+        - Doesn't directly return, just populates the MSC object
         """
         # Store name
         self.primary_unpacked_provisional_designation = primary_unpacked_provisional_designation

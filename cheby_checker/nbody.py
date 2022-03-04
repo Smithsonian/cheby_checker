@@ -382,7 +382,7 @@ class NbodySim():
         return contents
     """
 
-    # TODO: is this function needed for test_convencience_functions.py and
+    # TODO: is this function needed for test_convenience_functions.py and test_nbody_ParseElements.py?
     """
     def parse_orbfit_felfile_txt(self, felfile_contents, CHECK_EPOCHS=True):
         '''

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # cheby_checker/cheby_checker/sifter_precalc.py
 
-'''
+"""
     --------------------------------------------------------------
     sifter's precalculation module.
 
@@ -15,7 +15,7 @@
     *WRITE MORE STUFF*
 
     --------------------------------------------------------------
-    '''
+    """
 
 
 # Import third-party packages
@@ -46,6 +46,7 @@ from mpcpp.obs80.obs80 import parse80
 # Import neighboring packages
 # --------------------------------------------------------------
 from . import sql
+DB = sql.SQLSifter()
 from .obs_pos import ObsPos
 
 # Default for caching stuff using lru_cache
@@ -57,9 +58,9 @@ from .obs_pos import ObsPos
 
 
 class Base():
-    '''
+    """
         Parent class to hold some file/directory definitions & methods
-    '''
+    """
 
     def __init__(self):
 
@@ -78,46 +79,43 @@ class Base():
         # MPC Observatory list:
         self.obsCodes = mpc.Observatory()
 
-    def _fetch_data_directory(self, ):
-        '''
-            Returns the default path to the directory where data will be
-            downloaded.
+    def _fetch_data_directory(self):
+        """
+        Returns the default path to the directory where data will be
+        downloaded.
 
-            By default, this method will return ~/.sifter_data/data
-            and create this directory if it does not exist.
+        By default, this method will return ~/.sifter_data/data
+        and create this directory if it does not exist.
 
-            If the directory cannot be accessed or created, then it returns
-            the local directory (".")
+        If the directory cannot be accessed or created, then it returns
+        the local directory (".")
 
-            Returns
-            -------
-            data_dir : str
-            Path to location of `data_dir` where data (FITs files) will be
-            downloaded
-        '''
-
+        Returns
+        -------
+        data_dir : str
+        Path to location of `data_dir` where data (FITs files) will be
+        downloaded
+        """
         data_dir = os.path.join(os.path.expanduser('~'), '.sifter_data')
 
         # If it doesn't exist, make a new data directory
         if not os.path.isdir(data_dir):
-
             try:
                 os.mkdir(data_dir)
-
             # downloads locally if OS error occurs
             except OSError:
                 warnings.warn('Warning: unable to create {}. '
                               'Download directory set to be the current '
                               'working directory instead.'.format(data_dir))
-            data_dir = '.'
+                data_dir = '.'
 
         return data_dir
 
 
 class Tracklets(Base, ObsPos):
-    '''
+    """
         Class to facilitate "precalculations" on a list of tracklets
-        '''
+        """
 
     def __init__(self, observations=None, verbose=False):
 
@@ -125,7 +123,7 @@ class Tracklets(Base, ObsPos):
         super().__init__()
 
         # connect to db
-        self.conn = sql.create_connection(sql.fetch_db_filepath())
+        self.conn = DB.create_connection()
 
         # if observations supplied, process them ...
         if observations is not None:
@@ -133,7 +131,7 @@ class Tracklets(Base, ObsPos):
                                                             verbose))
 
     def parse_all_observations(self, list_of_observations, verbose=False):
-        '''
+        """
             read observational input (probably be in obs80-string formats)
 
             Inputs:
@@ -146,13 +144,13 @@ class Tracklets(Base, ObsPos):
             -------
             list of tracklet dictionaries
             - specified as per "parse_tracklet_observations" function
-        '''
+        """
         return [self.parse_tracklet_observations(tracklet_observations, verbose)
                 for tracklet_observations
                 in identify_tracklets(list_of_observations)]
 
     def parse_tracklet_observations(self, observation_list, verbose=False):
-        '''
+        """
             read observational input (probably be in obs80-string formats)
 
             Inputs:
@@ -175,7 +173,7 @@ class Tracklets(Base, ObsPos):
             measured from East towards North.
             - tracklet_name: string; Unique ID for the tracklet
             - observations: list of strings; the input obs80 lines
-            '''
+            """
         # Check number of observations given.
         nobs = len(observation_list)
         if nobs == 0:
@@ -234,7 +232,7 @@ class Tracklets(Base, ObsPos):
         return tracklet_dictionary
 
     def save_tracklets(self, tracklet_dictionary_list):
-        '''
+        """
             This should use the results from parse_all_observations
             and store them appropriately in a nice file/database structure.
 
@@ -246,24 +244,24 @@ class Tracklets(Base, ObsPos):
             Returns
             -------
 
-        '''
+        """
         JD = [tracklet_dic['JD'] for tracklet_dic in tracklet_dictionary_list]
         HP = [tracklet_dic['HP'] for tracklet_dic in tracklet_dictionary_list]
         tracklet_name = [tracklet_dic['tracklet_name'] for tracklet_dic in tracklet_dictionary_list]
 
         # upload data (making equal-length lists)
-        return sql.upsert_tracklets(self.conn, JD, HP, tracklet_name,
+        return DB.upsert_tracklets(self.conn, JD, HP, tracklet_name,
                                     tracklet_dictionary_list)
 
     def delete_tracklets(self, tracklet_name_list):
-        '''
+        """
         We need some method to remove tracklets
-        '''
-        return sql.delete_tracklets(self.conn, tracklet_name_list)
+        """
+        return DB.delete_tracklets(self.conn, tracklet_name_list)
 
 
 def identify_tracklets(list_of_observations):
-    '''
+    """
         Read a long list of observational input (probably in
         obs80-string formats) and identifies which lines belong to the
         same tracklet. Returns a list of sub-lists, each containing
@@ -278,7 +276,7 @@ def identify_tracklets(list_of_observations):
         -------
         list of list
         - each containing obs80 lines for obs of a single tracklet.
-    '''
+    """
     # Initiate a list with just the first obs of first tracklet to start with.
     list_of_lists = [[list_of_observations[0]]]
     # Parse all the obs80 lines into a generator

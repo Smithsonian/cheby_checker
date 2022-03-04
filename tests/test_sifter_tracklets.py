@@ -14,7 +14,6 @@ Matt Payne & Mike Alexandersen
 
 # Import third-party packages
 # --------------------------------------------------------------
-import sys
 import os
 import numpy as np
 import pytest
@@ -23,6 +22,7 @@ import pytest
 # --------------------------------------------------------------
 from cheby_checker import sifter_precalc as precalc
 from cheby_checker import sql
+DB = sql.SQLSifter()
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'dev_data')
 
 
@@ -38,13 +38,13 @@ def convenience_func_create_db_and_tables():
     so let's set that up...
     Force deletion then creation of db...
     """
-    if os.path.isfile(sql.fetch_db_filepath()):
-        os.remove(sql.fetch_db_filepath())
-    conn = sql.create_connection(sql.fetch_db_filepath())
+    if os.path.isfile(DB.fetch_db_filepath()):
+        os.remove(DB.fetch_db_filepath())
+    conn = DB.create_connection()
     cur = conn.cursor()
 
     # Create required table(s)
-    sql.create_specific_table(conn)
+    DB.create_sifter_tables(conn)
 
     # Double-check that this worked by getting the count of tables with the name
     # - if the count is 1, then table exists
@@ -99,7 +99,7 @@ def test_save_tracklets(observation_pair_list):
     assert(len(f) == 2 and np.all([len(_) > 3 for _ in f])), 'data not uploaded'
 
     # Completely delete db to facilitate future testing
-    os.remove(sql.fetch_db_filepath())
+    os.remove(DB.fetch_db_filepath())
 
 
 @pytest.mark.parametrize(('observation_pairs'), [test_tracklet])
@@ -118,7 +118,7 @@ def test_instantiation_with_observations(observation_pairs):
     assert(len(f) > 3), 'data not uploaded'
 
     # Completely delete db to facilitate future testing
-    os.remove(sql.fetch_db_filepath())
+    os.remove(DB.fetch_db_filepath())
 
 
 # End of file.
