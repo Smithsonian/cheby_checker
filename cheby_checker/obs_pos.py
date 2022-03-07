@@ -76,12 +76,10 @@ class ObsPos:
 
         if isinstance(obsCode, int):
             obsCode = str(obsCode)
-            if len(obsCode) != 3:
-                raise NotImplementedError(
-                    f"Bad Observatory Code!\n Observatory Code given: {obsCode}, must be a three digit number!" \
-                    "\nFor four digit Observatory Codes, please bug M. Alexandersen or M. Payne.")
-            return obsCode
-        else:
+
+        if len(obsCode) != 3:
             raise NotImplementedError(
-                f"Unexpected error on Observatory Code {obsCode}. Please bug M. Alexandersen or M. Payne."
-            )
+                f"Bad Observatory Code!\n Observatory Code given: {obsCode}, must be a three digit number!" \
+                "\nFor four digit Observatory Codes, please bug M. Alexandersen or M. Payne.")
+
+        return obsCode
