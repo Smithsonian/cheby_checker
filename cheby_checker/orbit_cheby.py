@@ -39,21 +39,14 @@
 
 # Import third-party packages
 # --------------------------------------------------------------
-import sys, os
+import sys
 import numpy as np
-import operator
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 import astropy
-from astropy_healpix import HEALPix as hp
 from astropy_healpix import healpy
-from functools import lru_cache
-import json
-import itertools
-
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from . import nbody
 from .cheby_checker import Base
 
 
@@ -127,8 +120,6 @@ class MSC_Loader(Base):
         else:
             self._generate_empty()
                 
-
-
     def _generate_empty(self,  ):
         """  """
         # TODO: Use logging here and elsewhere
@@ -136,12 +127,9 @@ class MSC_Loader(Base):
         print('\t','This occurs (a) on erroneous input, and (b) when no input supplied\n')
         self.MSCs.append(MSC())
 
-
-
     # Functions to handle different instantiaion methods
     #  - Take input and generate the chebyshev coefficients
     # --------------------------------------------------------------
-
     """
     def _populate_from_nbody_text( self, text_filepath ):
         '''
@@ -237,8 +225,6 @@ class MSC_Loader(Base):
             self.MSCs.append( M )
 
         return self.MSCs
-
-
 
     def _populate_from_database(self, dict_of_dicts ):
         """
@@ -453,7 +439,6 @@ class MSC(Base):
         self.TDB_init   = self.map_sector_number_to_sector_start_JD( self.sector_init,  self.standard_MJDmin )
         self.TDB_final  = self.map_sector_number_to_sector_start_JD( self.sector_final, self.standard_MJDmin ) + self.sector_length_days - self.epsilon
 
-
     # Function(s) related to CoVariance Matrix Structure ...
     # --------------------------------------------------------------
     #  - Convert back-and-forth betweeen "square" and "triangular" representations of covariance matrices
@@ -499,7 +484,6 @@ class MSC(Base):
         self.covXYZ_slice_spec    = np.array( [self.combi_map[k] for k in ['x_x', 'x_y', 'x_z','y_y', 'y_z', 'z_z' ] ] )
         self.covXYZUVW_slice_spec = np.array( [self.combi_map[k] for k in ['x_x', 'x_y', 'x_z', 'x_vx', 'x_vy', 'x_vz', 'y_y', 'y_z', 'y_vx', 'y_vy', 'y_vz', 'z_z', 'z_vx', 'z_vy', 'z_vz', 'vx_vx', 'vx_vy', 'vx_vz', 'vy_vy', 'vy_vz', 'vz_vz'] ] )
 
-
     def _take_triangular(self, covariances ):
         """
         Take a stack of square matricees and reduce to just the triangular components
@@ -530,7 +514,6 @@ class MSC(Base):
         i = np.triu_indices(self.n_coordinates)
         return np.array( [_[i] for _ in covariances ] )
         
-        
     def _make_square( self, covariances_tri ):
         """
         Take a stack of triangular components and reconstruct a stack of square matricees
@@ -554,9 +537,6 @@ class MSC(Base):
             M[n,j,i] = _
         # Return array of dimension (covariances_tri.shape[0] , sfq_dim, sq_dim)
         return M
-
-
-
 
     # Function(s) to fit supplied chebys to coords/data
     # --------------------------------------------------------------
@@ -608,27 +588,16 @@ class MSC(Base):
         else:
             return self.generate_cheb_for_sector(t, y, order + int(np.ceil((self.maxorder - order) / 2)))
 
-
-
-
-
-
-
-
     # Date Function(s) ...
     # --------------------------------------------------------------
-
     def get_valid_range_of_dates( self,  ):
         """
             Return the minimum and maximum dates for which this MSC is valid
         """
         return self.TDB_init , self.TDB_final
 
-
-
     # Functions to evaluate supplied multi-sector-cheby-dictionary
     # --------------------------------------------------------------
-
     def generate_HP( self, times_tdb , observatoryXYZ , APPROX = False, CHECK = False ):
         """
             Calculate apparent HP-locn from specified observatory-posn(s) at given time(s)
@@ -664,7 +633,6 @@ class MSC(Base):
 
         # Calc the HP from the UV and return
         return healpy.vec2pix(self.HP_nside, UV[0], UV[1], UV[2], nest=True if self.HP_order=='nested' else False )
-
 
     def generate_UnitVector( self, times_tdb , observatoryXYZ,  APPROX = False ,
                                                                 DELTASWITCH_XYZ = False,
@@ -843,7 +811,6 @@ class MSC(Base):
 
         return np.stack(np.array( (_dX, _dY, _dZ, _dU, _dV, _dW) ), axis=1).T / (2*d)
     
-    
     def covRaDec(self, times_tdb , observatoryXYZ ):
         """
             Evaluate the covariance in RA, Dec
@@ -856,8 +823,6 @@ class MSC(Base):
         # - Similar to the nbody code ...
         # - CoV_t = np.linalg.inv( GammaStack_t )
         return np.array( [ np.linalg.multi_dot([dRaDecdXYZUVW[i].T , covXYZUVW[i], dRaDecdXYZUVW[i]]) for i in range(len(dRaDecdXYZUVW)) ] )
-
-    
 
     def generate_XYZ( self, times_tdb  ):
         """
@@ -879,7 +844,6 @@ class MSC(Base):
         """
         return self.evaluate_components( times_tdb  , component_slice_spec=self.XYZ_slice_spec )
         
-        
     def generate_XYZUVW( self, times_tdb  ):
         """
             Evaluate the XYZUVW components at the supplied times
@@ -887,8 +851,6 @@ class MSC(Base):
             Not used
         """
         return self.evaluate_components( times_tdb  , component_slice_spec=self.XYZUVW_slice_spec )
-
-
 
     def covXYZUVW( self, times_tdb  ):
         """
@@ -908,7 +870,6 @@ class MSC(Base):
         # Reshape to get square matrix for each time
         return self._make_square(cov)
 
-
     def dXYZdt(self,  times_tdb  , dt=1e-5):
         """
             Calculate the gradient in XYZ at supplied times
@@ -921,7 +882,6 @@ class MSC(Base):
         # dt~1e-5 => ~1sec
         return ( self.generate_XYZ( times_tdb + dt ) - self.generate_XYZ( times_tdb - dt ) ) / (2*dt)
     
-
     def evaluate_components( self, times_TDB , component_slice_spec=slice(None) ):
         """
             
@@ -968,10 +928,3 @@ class MSC(Base):
         # Taking the transpose to return the array in the shape (N_times, N_components)
         # - This is to make it as similar as possible to the shape that comes out of reboundx/NbodySim
         return combinedComponents.T
-
-
-
-
-
-# End Of File
-# --------------------------------------------------------------

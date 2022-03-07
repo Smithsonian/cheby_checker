@@ -19,7 +19,6 @@ sifter searches the ITF & database for tracklets that match an orbit.
 
 # Import third-party packages
 # --------------------------------------------------------------
-import sys, os
 import argparse
 
 

@@ -7,7 +7,6 @@
 # Import third-party packages
 # --------------------------------------------------------------
 import numpy as np
-import sys, os
 from astropy_healpix import healpy
 
 # Import neighboring packages
@@ -72,9 +71,6 @@ def test_vectorial():
             pass
         
         
-    
-    
-    
 # -------------------------- Pointings --------------------------
 def test_pointings():
     # (i) Instantiate Pointing object containing input data (1d input) and check
@@ -119,11 +115,9 @@ def test_pointings():
             pass
         
 
-
 # -------------------------- Detections --------------------------
 def test_detections():
     pass
-
 
 
 # -------------------------- Residuals ---------------------------

@@ -98,8 +98,7 @@ class Observatory:
                     ObservatoryXYZ[code]=(None,None,None)
         self.ObservatoryXYZ = ObservatoryXYZ
 
-    def getObservatoryPosition(self, obsCode, jd_utc, xyz=None,
-                               velocity=False, old=False):
+    def getObservatoryPosition(self, obsCode, jd_utc, xyz=None, velocity=False, old=False):
         """
         This routine calculates the heliocentric position of the observatory
         in equatorial cartesian coordinates.
@@ -114,18 +113,14 @@ class Observatory:
             obsCode = '500'
         if (obsCode, jd_utc) in self.observatoryPositionCache and not velocity:
             return self.observatoryPositionCache[(obsCode, jd_utc)]
+
         try:
             obsVec = self.ObservatoryXYZ[obsCode]
         except KeyError:
-            print("*" * 80 + "\n" +
-                  "*" * 30 + "       ERROR!       " + "*" * 30 + "\n" +
-                  "*" * 80 + "\n" +
-                  "*" * 20 + " That's not a valid Observatory Code!!! " +
-                  "*" * 20 + "\n" +
-                  "*" * 80 + "\n")
-            raise
+            raise KeyError(f"Observatory Code {obsCode} is not a key in self.ObservatoryXYZ. Invalid.")
         if obsVec[0] is None and xyz is None:
             return None, None, None
+
         jd_tdb = EOP.jdTDB(jd_utc)
         pos, vel = getEarthPV(jd_tdb, old=old)
         if obsCode == '500':
