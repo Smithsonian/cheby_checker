@@ -105,7 +105,7 @@ class NbodySim():
 
         self.CHECK_EPOCHS       = True
 
-        self.unpacked_primary_provisional_designation = None
+        self.unpacked_primary_provisional_designation_list = []
 
         # class variables: variables that will be used to hold the elements
         # - They get populated by *parse_...* & *make_bary_equatorial*
@@ -243,7 +243,7 @@ class NbodySim():
         M = MPCORB(mpcorb_file_or_dict)
         
         # ----------- DESIGNATION -------------------------
-        self.unpacked_primary_provisional_designation = M.designation_data["unpacked_primary_provisional_designation"]
+        self.unpacked_primary_provisional_designation_list.append( M.designation_data["unpacked_primary_provisional_designation"] )
 
         # ----------- TIME -------------------------
         # Using Astropy.time for time conversion,
@@ -539,28 +539,81 @@ class NbodySim():
          - number of time outputs
         n_particles_out     = integer,
          - number of output particles (different why?)
+         
+         
+         
+        *** NOTES ON PROBLEMS WITH MULTI-PARTICLE INPUT ***
+        When testing on 4-particle input, I found that the integration ran wild,
+        with the solutions zooming off to 10,000au (individually they stayed @ 3au)
+        The problem was found to be that the input matrix, self.bary_eq_vec, (2D array)
+        gets transposed inside C, but only when passed in as-is.
+         - A hard-pasted copy of the array gets passed in just fine, without transposition
+        Checking things in python before shows *NO* difference between the self.bary_eq_vec
+        and the hardpasted copy, so the difference is presumably something to do with
+        the internal memory array adopted in numpy arrays in different circumstances, and then
+        how that is translated to C
+        SPECULATION : Is it something to do with bary_eq_vec being reshaped / reduced in dimension
+        at some point in the preceeding code? Does this affect memory layout?
+        
+        hardpasted = np.array(
+        [[ 2.4260322844717380e-01, -3.0090867545871860e+00, -1.1363474792630044e+00,
+           9.1908324088463677e-03,  2.0472935970702337e-04, -1.5374992052716444e-03],
+         [-2.7888126437563829e+00,  1.7058528476705044e+00,  3.9449682717556311e-01,
+          -5.2133449765416028e-03, -7.5295451342754713e-03, -7.8760899838941603e-04],
+         [-5.1094716747791424e-01, -3.1254423057577734e+00, -2.0995426392478924e+00,
+           7.8191160668487376e-03, -3.3055503238910031e-04,  9.7078064274683739e-04],
+         [-2.1582274449687930e+00,  2.0100970703192091e+00,  3.1933652106784710e-01,
+          -5.5592970943310026e-03, -7.8839265248180895e-03, -3.4116741888535933e-03]])
+
+        The Good Inputs
+        INPUT SET TO HARDPASTED NUMBERS ...
+
+        *** f= *** 0.7916875000004463
+
+         ---ccc--- 0.2426032284471738 -3.0090867545871860 -1.1363474792630044 0.0091908324088464 0.0002047293597070 -0.0015374992052716
+
+         ---ccc--- -2.7888126437563829 1.7058528476705044 0.3944968271755631 -0.0052133449765416 -0.0075295451342755 -0.0007876089983894
+
+         ---ccc--- -0.5109471674779142 -3.1254423057577734 -2.0995426392478924 0.0078191160668487 -0.0003305550323891 0.0009707806427468
+
+         ---ccc--- -2.1582274449687930 2.0100970703192091 0.3193365210678471 -0.0055592970943310 -0.0078839265248181 -0.0034116741888536
+
+
+
+        The Bad Inputs
+        INPUTS AS ORIGINAL ...
+
+        *** f= *** 0.7916875000004463
+
+         ---ccc--- 0.2426032284471738 -2.7888126437563829 -0.5109471674779142 -2.1582274449687930 -3.0090867545871860 1.7058528476705044
+
+         ---ccc--- -3.1254423057577734 2.0100970703192091 -1.1363474792630044 0.3944968271755631 -2.0995426392478924 0.3193365210678471
+
+         ---ccc--- 0.0091908324088464 -0.0052133449765416 0.0078191160668487 -0.0055592970943310 0.0002047293597070 -0.0075295451342755
+
+         ---ccc--- -0.0003305550323891 -0.0078839265248181 -0.0015374992052716 -0.0007876089983894 0.0009707806427468 -0.0034116741888536
         '''
         
         
         # Now run the nbody integrator:
         if self.verbose:
             print(f"self.tstart={self.tstart}, self.tstop={self.tstop}, epoch=float(self.integration_epoch.tdb.to_value('jd'))={float(self.integration_epoch.tdb.to_value('jd'))},")
+
             
         self.output_times, self.output_states, partial_derivatives_wrt_state, partial_derivatives_wrt_NG, return_value = \
             production_integration_function_wrapper(    self.tstart,
                                                         self.tstop,
                                                         float(self.integration_epoch.tdb.to_value('jd')) , # Converting Astropy.Time ...
                                                         self.bary_eq_vec,
-                                                        non_grav_dict_list = self.non_grav_dict_list,
+                                                        non_grav_dict_list = [],#self.non_grav_dict_list,
                                                         tstep = 20,
-                                                        geocentric = self.geocentric,
+                                                        geocentric = 0,#self.geocentric,
                                                         epsilon = 1e-7,  #1e-8
                                                         tstep_min = 0.1, #0.02
                                                         tstep_max = 32.)
 
         # Reshape the partial derivative arrays
-        partial_derivatives_wrt_state, partial_derivatives_wrt_NG = self.reshape_partial_deriv_arrays(  partial_derivatives_wrt_state,
-                                                                                                        partial_derivatives_wrt_NG)
+        partial_derivatives_wrt_state, partial_derivatives_wrt_NG = self.reshape_partial_deriv_arrays(  partial_derivatives_wrt_state,partial_derivatives_wrt_NG)
         self.partial_derivatives_wrt_state = partial_derivatives_wrt_state
         
         

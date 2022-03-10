@@ -144,7 +144,7 @@ class SQLChecker(DB):
             
             Created table has columns that look like
                 object_coeff_id                             : integer
-                primary_unpacked_provisional_designation    : text
+                unpacked_primary_provisional_designation    : text
                 sector_%d_%d                                : text blob      <<-- *MANY* of these sectors
                 
                 
@@ -164,7 +164,7 @@ class SQLChecker(DB):
         sql_statement = """
             CREATE TABLE IF NOT EXISTS object_coefficients (
             object_coeff_id INTEGER PRIMARY KEY,
-            primary_unpacked_provisional_designation TEXT UNIQUE NOT NULL,""" + \
+            unpacked_primary_provisional_designation TEXT UNIQUE NOT NULL,""" + \
                 sector_spec + "); "   # <<-- Lots of extra fields in here!!!
             
         if self.conn is not None:
@@ -172,7 +172,7 @@ class SQLChecker(DB):
             self.create_table( sql_statement )
             
             # Create indicex on designation
-            createSecondaryIndex =  "CREATE INDEX index_desig ON object_coefficients (primary_unpacked_provisional_designation);"
+            createSecondaryIndex =  "CREATE INDEX index_desig ON object_coefficients (unpacked_primary_provisional_designation);"
             self.conn.cursor().execute(createSecondaryIndex)
 
 
@@ -213,7 +213,7 @@ class SQLChecker(DB):
     # --- Funcs to write to / update CHECKER db-tables
     # --------------------------------------------------------
 
-    def upsert_coefficients(self, primary_unpacked_provisional_designation , sector_names, sector_values):
+    def upsert_coefficients(self, unpacked_primary_provisional_designation , sector_names, sector_values):
         """
             Insert/Update coefficients in the *object_coefficients* table
             
@@ -227,7 +227,7 @@ class SQLChecker(DB):
             inputs:
             -------
             
-            primary_unpacked_provisional_designation : string
+            unpacked_primary_provisional_designation : string
 
             sector_names :
              - column names in *object_coefficients* table that are to be populated
@@ -242,17 +242,17 @@ class SQLChecker(DB):
         # Make a default insert disct that contains ...
         # (a) the designation
         # (b) all the sector fields with "None" values
-        insert_dict = {'primary_unpacked_provisional_designation':primary_unpacked_provisional_designation}
+        insert_dict = {'unpacked_primary_provisional_designation':unpacked_primary_provisional_designation}
         
         # Check inputs ...
-        assert isinstance(primary_unpacked_provisional_designation, str) \
+        assert isinstance(unpacked_primary_provisional_designation, str) \
             and len(sector_names)==len(sector_values)
         
         # Update the coeff dict using the input values
         insert_dict.update( {k:v for k,v in zip(sector_names, sector_values) } )
         
         # Construct an sql insert statement
-        # NB(1): Because the primary_unpacked_provisional_designation field is unique, this should enforce replacement on duplication
+        # NB(1): Because the unpacked_primary_provisional_designation field is unique, this should enforce replacement on duplication
         # NB(2): It completely deletes the initial row, then replaces it with the new stuff
         columns      = ', '.join(insert_dict.keys())
         placeholders = ':'+', :'.join(insert_dict.keys())
@@ -339,7 +339,7 @@ class SQLChecker(DB):
     # --------------------------------------------------------
 
     def query_object_coefficients(self,
-                                    primary_unpacked_provisional_designation,
+                                    unpacked_primary_provisional_designation,
                                     sector_numbers = None):
         """
            Define standard query used to get cheby-coeff data for a named object
@@ -347,7 +347,7 @@ class SQLChecker(DB):
            
            inputs:
            -------
-            primary_unpacked_provisional_designation: string
+            unpacked_primary_provisional_designation: string
         
             sector_numbers: integer
         
@@ -371,8 +371,8 @@ class SQLChecker(DB):
                                                                                             Base().map_sector_number_to_sector_start_JD(np.atleast_1d(sector_numbers) ,\
                                                                                             Base().standard_MJDmin))})
         # Construct & execute the sql query
-        sqlstr = "SELECT " + ", ".join( sector_field_names ) + " FROM object_coefficients WHERE primary_unpacked_provisional_designation=?"
-        cur.execute(sqlstr , ( primary_unpacked_provisional_designation, ))
+        sqlstr = "SELECT " + ", ".join( sector_field_names ) + " FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
+        cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
 
         # Parse the result ...
         result = cur.fetchall()[0]
@@ -383,7 +383,7 @@ class SQLChecker(DB):
 
     def query_desig_by_object_coeff_id(self, object_coeff_ids):
         """
-        Given a list of object_ids, return the associated primary_unpacked_provisional_designations
+        Given a list of object_ids, return the associated unpacked_primary_provisional_designations
         
         *** THIS FUNCTION SEEMS TO BE OF LITTLE USE ***
 
@@ -399,7 +399,7 @@ class SQLChecker(DB):
         """
         # Get the object_id & return it
         cur = self.conn.cursor()
-        cur.execute(f'''SELECT object_coeff_id, primary_unpacked_provisional_designation FROM object_coefficients WHERE object_coeff_id in ({','.join(['?']*len(object_coeff_ids))});''', (*(int(_) for _ in object_coeff_ids),) )
+        cur.execute(f'''SELECT object_coeff_id, unpacked_primary_provisional_designation FROM object_coefficients WHERE object_coeff_id in ({','.join(['?']*len(object_coeff_ids))});''', (*(int(_) for _ in object_coeff_ids),) )
         
         # key is object_coeff_id, value is desig
         return {_[0]:_[1] for _ in cur.fetchall()}
@@ -423,8 +423,8 @@ class SQLChecker(DB):
             returns
             -------
             dictionary-of-dictionaries
-            - keys   = primary_unpacked_provisional_designation
-            - values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
+            - keys   = unpacked_primary_provisional_designation
+            - values = list of coeff-dictionaries for each unpacked_primary_provisional_designation
         '''
         
         # What sector numbers are we searching for ?
@@ -438,14 +438,14 @@ class SQLChecker(DB):
                                                                                           Base().map_sector_number_to_sector_start_JD(np.atleast_1d(sector_numbers) ,\
                                                                                                                                                   Base().standard_MJDmin))})
         # Construct & execute the sql query
-        sqlstr =    "SELECT object_coefficients.primary_unpacked_provisional_designation," + \
+        sqlstr =    "SELECT object_coefficients.unpacked_primary_provisional_designation," + \
                     ", ".join( sector_field_names ) + \
                     f" FROM object_coefficients INNER JOIN objects_by_jdhp ON objects_by_jdhp.object_coeff_id = object_coefficients.object_coeff_id WHERE objects_by_jdhp.jd=? and objects_by_jdhp.hp in ({','.join(['?']*len(HPlist))})"
         cur = self.conn.cursor()
         cur.execute(sqlstr , (int(JD), *(int(_) for _ in HPlist), ))
 
         # Parse the result into a dict-of-dicts
-        # - Outer dict is key-ed on primary_unpacked_provisional_designation
+        # - Outer dict is key-ed on unpacked_primary_provisional_designation
         # - Inner dicts are key-ed on sector
         results      = cur.fetchall()
         return { r[0] : { sfn:pickle.loads( coeff )  for sfn, coeff in zip(sector_field_names, r[1:]) if coeff != None } \

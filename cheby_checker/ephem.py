@@ -84,7 +84,7 @@ class Ephem():
         # Use MSC_Loader to return the required list of MSCs
         self.MSCs = orbit_cheby.MSC_Loader(
                                            FROM_DB = True ,
-                                           primary_unpacked_provisional_designations = self.designations,
+                                           unpacked_primary_provisional_designations = self.designations,
                                            sectors = sector_numbers)
                                            
         # Generate the required ephemeris quantities
@@ -130,7 +130,7 @@ class Ephem():
             Ds.D[:,detn_var_names['rmsdec']] = covRADEC[:,1]
 
             # Store the Detections object in a dictionary
-            self.prediction_dict[ M.primary_unpacked_provisional_designation ] = Ds
+            self.prediction_dict[ M.unpacked_primary_provisional_designation ] = Ds
 
         return self.prediction_dict
 

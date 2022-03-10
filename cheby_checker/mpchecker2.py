@@ -67,12 +67,12 @@ class Check(Base):
         ''' Empty initialization '''
         self.MSCs = None
     
-    def posn_check(self, primary_unpacked_provisional_designation, detections , param_dict = None ):
+    def posn_check(self, unpacked_primary_provisional_designation, detections , param_dict = None ):
     ''' pCheck: Do ephemeris look-up & calculate residuals w.r.t. detections
         
         inputs:
         -------
-        primary_unpacked_provisional_designation : string 
+        unpacked_primary_provisional_designation : string 
          - 
         detections : A single *Detections* object
          - 
@@ -85,17 +85,17 @@ class Check(Base):
     '''
 
         # Check parameters are as required
-        assert isinstance(primary_unpacked_provisional_designation, str)
+        assert isinstance(unpacked_primary_provisional_designation, str)
         assert isinstance(detections, data_classes.Detections )
         assert param_dict is None or isinstance(param_dict, dict)
 
         # Call Ephem (ephemeris-querying object)
-        Eph = Ephem(primary_unpacked_provisional_designation , detections.obstime , observatoryXYZ = detections.pos )
+        Eph = Ephem(unpacked_primary_provisional_designation , detections.obstime , observatoryXYZ = detections.pos )
 
         # Get the predicted sky-positions
         # - As written PCheck only for single desig, so can just expand out the returned dict which will be of length-1
         # - These 'predictions' will be a 'Detections' object (with some cols as zeroes)
-        predictions = Eph.generate_sky_predictions()[primary_unpacked_provisional_designation]
+        predictions = Eph.generate_sky_predictions()[unpacked_primary_provisional_designation]
 
         # Initialize & return Residuals object
         return Residuals(predictions, detections, param_dict = param_dict)

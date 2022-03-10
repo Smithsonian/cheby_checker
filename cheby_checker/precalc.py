@@ -31,6 +31,8 @@ from collections import OrderedDict, defaultdict
 from astropy_healpix import HEALPix
 from functools import lru_cache
 import json
+from astropy.time import Time
+import pickle
 
 
 # Import neighboring packages
@@ -39,6 +41,8 @@ from . import orbit_cheby
 from . import sql
 from . import obs_pos
 from . import nbody
+from . import coco
+from . import cheby_checker
 
 
 # --------------------------------------------------------
@@ -46,7 +50,7 @@ from . import nbody
 # various pre-calculated quantities
 # --------------------------------------------------------
 
-class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
+class PreCalc(cheby_checker.Base , obs_pos.ObsPos, sql.SQLChecker):
     '''
         Primary External Class for accessing ChebyChecker's
         pre-calculated data
@@ -61,7 +65,7 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
     def __init__(self):
         
         # Give access to "Base" & "ObsPos" methods & attributes
-        orbit_cheby.Base.__init__(self)
+        cheby_checker.Base.__init__(self)
         obs_pos.ObsPos.__init__(self)
         sql.SQLChecker.__init__(self)
 
@@ -130,25 +134,27 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
         # If observatory coords are not supplied, set to be the location of the geocenter
         # N.B. (1) Default list of Julian Dates to use, self.JDlist = (2440000 ==> 1968, 2464000.0 ==> 2034)
         # N.B. (2) This obs-posn code likely takes a long time to execute in its draft/old version
-        if observatoryXYZ is not None:
-            observatoryXYZ = self.get_heliocentric_equatorial_xyz(self.JDlist,
+        if observatoryXYZ is None:
+            t = Time( self.JDlist , format='jd', scale='tdb' )
+            t = t.utc  # <<-- This converts to utc (from tdb, above)
+            helio_eq_observatoryXYZ = np.array( [ self.get_heliocentric_equatorial_xyz(  jd,
                                                                     obsCode="500",
-                                                                    verbose=False)
+                                                                    verbose=False) for jd in t.jd ] )
+            t = t.tdb # <<-- Convert to TDB
+            bary_eq_observatoryXYZ  = coco.equatorial_helio2bary( helio_eq_observatoryXYZ ,t.jd)
+
                                         
-        # Ensure that the observatory coords have the right shape
-        assert observatoryXYZ.shape == (3 , len(self.JDlist) ), \
-            f'the shape of observatoryXYZ needs to be {(3, len(self.JDlist))} : instead it is {observatoryXYZ.shape}'
         
         # iterate over each MSC in list ...
         for M in MSC_list:
             
             # update list of coefficients for individual MSC
             # NB This is required for "phase-1" (Ephemeris Service)
-            self.upsert_MSC_coefficients(M)
+            object_coeff_id = self.upsert_MSC_coefficients(M)
             
             # update healpix locations for individual MSC for valid integer-JD in JDlist
             # NB This is required for "phase-2" (Pointer Service)
-            self.upsert_MSC_HP(M, observatoryXYZ)
+            self.upsert_MSC_HP(M, bary_eq_observatoryXYZ, object_coeff_id)
             
 
     def _rectify_inputs(self,  MSCs ):
@@ -216,16 +222,19 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
         # (i) Get the sector field names required for this specific MSC
         # - Current method seems unnecessarily verbose
         sector_field_names =   self.generate_sector_field_names( sector_dict = \
-                                                         { sector_num: Base().map_sector_number_to_sector_start_JD(sector_num , Base().standard_MJDmin) for sector_num in M.sector_coeffs.keys()}
+                                                         { sector_num: self.map_sector_number_to_sector_start_JD(sector_num , self.standard_MJDmin) for sector_num in M.sector_coeffs.keys()}
                                                          )
         
         # (ii) Get the coefficients for each sector
         sector_field_values = [pickle.dumps(coeffs, pickle.HIGHEST_PROTOCOL) for coeffs in M.sector_coeffs.values()]
         
         # (iii) Do the insert
-        self.upsert_coefficients(M.primary_unpacked_provisional_designation , sector_field_names, sector_field_values)
+        object_coeff_id = self.upsert_coefficients(M.unpacked_primary_provisional_designation , sector_field_names, sector_field_values)
+        
+        return object_coeff_id
      
-    def upsert_MSC_HP(self, M, observatoryXYZ):
+     
+    def upsert_MSC_HP(self, M, observatoryXYZ, object_coeff_id):
         '''
             Upload nightly HP locations for a single MSC to the database
         
@@ -241,8 +250,10 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
              
             observatoryXYZ : np.array (optional)
              - Position of the observatory from which you want to calculate the
-               nightly healpix (in Heliocentric Equatorial coords)
-                         
+               nightly healpix
+             - Everything in orbit_cheby.MSC needs BARYCENTRIC EQUATORIAL coords
+            - shape = ( len(times_tdb), 3)
+
             return:
             -------
             None
@@ -250,11 +261,11 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
         '''
         # Use the coefficient-dictionary(ies) to get the HP for each integer-JD in JDlist
         # NB: need to restrict the queried dates to the those supported by the MSC
-        indicees = np.where( Base().JDlist < M.get_valid_range_of_dates()[1] )[0]
-        HPlist   = M.generate_HP(Base().JDlist[indicees],  observatoryXYZ[:,indicees] , APPROX = True)
+        indicees = np.where( self.JDlist < M.get_valid_range_of_dates()[1] )[0]
+        HPlist   = M.generate_HP(self.JDlist[indicees],  observatoryXYZ[indicees, :] , APPROX = True)
 
-        # update HP data
-        self.db.insert_HP(self.db.conn, self.JDlist[indicees], HPlist, object_id)
+        # update HP data in db
+        self.db.insert_HP(self.JDlist[indicees], HPlist, object_coeff_id)
 
 
     # ------------------------------------------------------------------
@@ -288,7 +299,7 @@ class PreCalc(orbit_cheby.Base , obs_pos.ObsPos, sql.SQLChecker):
         '''
 
         # Get the coefficients for the objects
-        # - Outer dict is key-ed on primary_unpacked_provisional_designation
+        # - Outer dict is key-ed on unpacked_primary_provisional_designation
         # - Inner dicts are key-ed on sector
         dict_of_dicts = query_coefficients_by_jd_hp(conn, JD, HPlist , sector_numbers = None)
         
