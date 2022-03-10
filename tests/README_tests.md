@@ -9,7 +9,7 @@
 - orbit_cheby.py has an INTERNAL dependance on the cheby_checker.py module 
 - Not sure whether any of the tests in here are still required. 
 - Many tests have been established in test_orbit_cheby_locations / test_orbit_cheby_creation / test_orbit_cheby_horizons / test_orbit_cheby_covariance
-- Definitely need to write tests of the propagation of RA, Dec covariances, buut they might best belong in test_orbit_cheby_covariance
+- Definitely need to write tests of the propagation of RA, Dec covariances, but they might best belong in test_orbit_cheby_covariance
 
 
 ### test_precalc.py :
@@ -60,6 +60,8 @@
 - nbody.py also depends on INTERNAL MPC_library.py: should shift away from this if/when possible
 - nbody.py also depends on the s REBOUNDX:EPHEM library
 - There are tests in place which get the same cartesian coords to ~10km when comparing an orbfit result to a JPL result. This seems good enough.
+- pytest test_nbody_run.py 
+- passes within containerized environment (but takes a while to run ... ~20secs)
 
 ### test_orbit_cheby_locations.py :
 - orbit_cheby.py has an INTERNAL dependance on the nbody.py module
