@@ -20,7 +20,9 @@ import pytest
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from cheby_checker import sifter_precalc as precalc
+
+#@pytest.mark.skip(reason="Sifter Code/Tests have NOT been reviewed in 2022 by MJP")
+#from cheby_checker import sifter_precalc as precalc
 from cheby_checker import sql
 DB = sql.SQLSifter()
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'dev_data')
@@ -57,12 +59,14 @@ def convenience_func_create_db_and_tables():
 
 # Actual tests ...
 # --------------------------------------------------------------
+@pytest.mark.skip(reason="Sifter Code/Tests have NOT been reviewed in 2022 by MJP")
 def test_instantiation():
     """Test instantiation of the Tracklets class with no observations."""
     assert isinstance(precalc.Tracklets(), precalc.Tracklets)
 
 
-@pytest.mark.parametrize(('tracklet_obs'), [test_tracklet])
+@pytest.mark.skip(reason="Sifter Code/Tests have NOT been reviewed in 2022 by MJP")
+#@pytest.mark.parametrize(('tracklet_obs'), [test_tracklet])
 def test_parse_tracklet_observations(tracklet_obs):
     """Test that observations get parsed correctly."""
     T = precalc.Tracklets()
@@ -78,7 +82,8 @@ def test_parse_tracklet_observations(tracklet_obs):
     assert 'tracklet_name' in tracklet_dictionary
 
 
-@pytest.mark.parametrize(('observation_pair_list'), [[test_tracklet, test_tracklet]])
+@pytest.mark.skip(reason="Sifter Code/Tests have NOT been reviewed in 2022 by MJP")
+#@pytest.mark.parametrize(('observation_pair_list'), [[test_tracklet, test_tracklet]])
 def test_save_tracklets(observation_pair_list):
     """Test that creating a db works and saving stuff to it works."""
     # Create db from scratch
@@ -102,7 +107,8 @@ def test_save_tracklets(observation_pair_list):
     os.remove(DB.fetch_db_filepath())
 
 
-@pytest.mark.parametrize(('observation_pairs'), [test_tracklet])
+@pytest.mark.skip(reason="Sifter Code/Tests have NOT been reviewed in 2022 by MJP")
+#@pytest.mark.parametrize(('observation_pairs'), [test_tracklet])
 def test_instantiation_with_observations(observation_pairs):
     """Test instantiation of the Tracklets class with some observations."""
     # Create db from scratch
