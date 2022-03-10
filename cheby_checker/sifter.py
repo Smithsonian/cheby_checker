@@ -1,26 +1,24 @@
 # -*- coding: utf-8 -*-
 # cheby_checker/cheby_checker/sifter.py
 
-'''
-    --------------------------------------------------------------
-    sifter module.
-    
-    Jan 2020
-    Matt Payne & Mike Alexandersen
-    
-    This module provides overall access to sifter:
-    sifter searches the ITF & database for tracklets that match an orbit.
+"""
+--------------------------------------------------------------
+sifter module.
+
+Jan 2020
+Matt Payne & Mike Alexandersen
+
+This module provides overall access to sifter:
+sifter searches the ITF & database for tracklets that match an orbit.
 
 
-    *WRITE MORE STUFF*
-    
-    --------------------------------------------------------------
-    '''
+*WRITE MORE STUFF*
 
+--------------------------------------------------------------
+"""
 
 # Import third-party packages
 # --------------------------------------------------------------
-import sys, os
 import argparse
 
 
@@ -37,8 +35,6 @@ default_dict = {
 }
 
 def sifter():
-    
-    
     # -------- PARSE ANY COMMAND-LINE ARGUMENTS ----------------
     arg_parser = argparse.ArgumentParser()
 
@@ -59,7 +55,6 @@ def sifter():
                                     N.B. Currently assumes will be JSON format and contain CHEBYSHEV COEFFS. \
                                     Default value = default_dict['orbit_file'] = %r ." % default_dict['orbit_file'])
 
-
     # Add an optional additional argument:
     arg_parser.add_argument('arg', nargs='?', default=None)
 
@@ -69,8 +64,6 @@ def sifter():
     # **DEBUGGING** Print out variable names & values
     for k,v in args.__dict__.items():
         print(k,v)
-
-
 
     # -------- EXECUTE QUERY (TO SEARCH ITF) ----------------
     #
@@ -89,6 +82,3 @@ def sifter():
 
 if __name__ == '__main__':
     sifter()
-
-
-

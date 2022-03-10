@@ -34,7 +34,6 @@ import getpass
 import json
 
 
-
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
 sys.path.append(os.environ['REBX_DIR'])
@@ -58,8 +57,6 @@ code_dir = os.path.join(repo_dir, 'cheby_checker')
 
 # Utility functions to help with testing
 # -----------------------------------------------------------------------------
-
-
 def similar_xyzuvw(xyzv0, xyzv1, threshold_xyz=1e-13, threshold_v=1e-14): # 15 mm, 1.5 mm/day
     '''
     Calculate the difference between two sets of cartesian coordinates.
@@ -73,12 +70,8 @@ def similar_xyzuvw(xyzv0, xyzv1, threshold_xyz=1e-13, threshold_v=1e-14): # 15 m
     return np.all(good_tf), error
 
 
-
-
 # Tests of ParseElements
 # -----------------------------------------------------------------------------
-
-
 def test_nbody_A():
     '''
     Test instantiation of NbodySim object
@@ -113,9 +106,6 @@ def test_nbody_A():
         N.output_states      == None  and \
         N.output_covar       == None
 
-            
-    
-
 
 @pytest.mark.parametrize(   ('data_file'),
                          [  '2000SR210.json',
@@ -143,7 +133,7 @@ def test_parse_orbfit_json_A(data_file):
     assert N.unpacked_primary_provisional_designation_list == []
     
     # call _parse_orbfit_json [this is the function we are testing]
-    N._parse_orbfit_json( os.path.join(std_json_dir , data_file) )
+    N._parse_orbfit_json(os.path.join(std_json_dir , data_file))
     
     # Check that the expected attributes have now been populated
     assert N.helio_ecl_vec_EXISTS   is True
@@ -278,7 +268,6 @@ def test_make_bary_equatorial_B():
     pass
     
     
-
 """
 def test_save_elements():
     '''Test that saving input-elements to an outpuut-file works correctly.'''
@@ -343,6 +332,3 @@ def test_instantiation_from_data_files(data_file, file_type, test_result_file):
     if os.path.isfile(save_file) : os.remove(save_file)
 
 """
-
-# End 
-

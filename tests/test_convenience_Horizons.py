@@ -1,10 +1,10 @@
-'''
+"""
 Tests of the "convenience_Horizons" routines that are used for testing.
 
 Some of these tests really function as demos/documentation to
 remind myself/ourselves of how these Horizons functions are
 intended to work
-'''
+"""
 
 # Import standard packages
 # --------------------------------------------------------------
@@ -15,13 +15,12 @@ import numpy as np
 import convenience_Horizons as Horizons
 
 
-
 def test_read_Horizons_state_from_text():
-    '''
+    """
     This is NOT testing a built-in Horizons function
     This is just testing a little convenience routine created by MJP
     This convenience routine is ONLY used as part of the testing code for Cheby Checker
-    '''
+    """
     
     # input text
     lines = """
@@ -40,11 +39,11 @@ VX=-1.454708370733871E-03 VY=-9.503445860627428E-03 VZ=-3.846514535533382E-03
 
 
 def test_extract_first_state_from_text():
-    '''
+    """
     This is NOT testing a built-in Horizons function
     This is just testing a little convenience routine created by MJP
     This convenience routine is ONLY used as part of the testing code for Cheby Checker
-    '''
+    """
     # input text
     lines = """
 *******************************************************************************
@@ -189,26 +188,23 @@ Computations by ...
     assert np.allclose(expected_array, result, rtol=1e-08, atol=1e-08)
 
 
-
-
-
 def test_nice_Horizons_A():
-    '''
+    """
     Testing Mike A's convenience wrapper around Horizon query functionality
      - Much of this test is being done to provide some reminder
        to myself/ourselves as to how to use the Horizons tool
-    
+
     Deliberately *not* using all of the functionalities of pytest here.
     Just want to keep it simple and keep it obvious what everything is supposed to be doing.
-    
+
     Here we extract the
         HELIOCENTRIC state
     for
         Asteroid number 12345 (== 1993 FT8)
     in an
         EQUATORIAL FRAME (refplane='earth')
-    
-    '''
+
+    """
     
     # Define the variables that will be used in the query
     target  = '12345'   # <<-- Asteroid number 12345 == 1993    FT8
@@ -363,27 +359,23 @@ Computations by ...
     assert np.allclose(expected_array, result, rtol=1e-8, atol=1e-8)
 
 
-
-
-
-
 def test_nice_Horizons_B():
-    '''
+    """
     Testing Mike A's convenience wrapper around Horizon query functionality
      - Much of this test is being done to provide some reminder
        to myself/ourselves as to how to use the Horizons tool
-    
+
     Deliberately *not* using all of the functionalities of pytest here.
     Just want to keep it simple and keep it obvious what everything is supposed to be doing.
-    
+
     Here we extract the
         HELIOCENTRIC state
     for
         GEOCENTER
     in an
         EQUATORIAL FRAME (refplane='earth')
-    
-    '''
+
+    """
     
     # Define the variables that will be used in the query
     target  = '399'       # Earth
@@ -529,28 +521,24 @@ Computations by ...
     assert np.allclose(expected_array, result, rtol=1e-10, atol=1e-10)
 
 
-
-
-
-
 def test_nice_Horizons_C():
-    '''
+    """
     Testing Mike A's convenience wrapper around Horizon query functionality
      - Much of this test is being done to provide some reminder
        to myself/ourselves as to how to use the Horizons tool
-    
+
     Deliberately *not* using all of the functionalities of pytest here.
     Just want to keep it simple and keep it obvious what everything is supposed to be doing.
-    
+
     Here we extract the
         TOPOCENTRIC (F51) state
     for
         Asteroid number 54321 (== 2000 JA81)
     in an
         EQUATORIAL FRAME (refplane='earth')
-    
 
-    '''
+
+    """
     
     # Define the variables that will be used in the query
     target  = '54321'       # <<-- Asteroid number 54321 == 2000 JA81
@@ -706,23 +694,19 @@ Computations by ...
     assert np.allclose(expected_array, result, rtol=1e-11, atol=1e-11)
 
 
-
-
-
-
 def test_nice_Horizons_D():
-    '''
+    """
     Similar to test_nice_Horizons_C, but ECLIPTIC insted of equatorial
-    
+
     Here we extract the
         TOPOCENTRIC (F51) state
     for
         Asteroid number 54321 (== 2000 JA81)
     in an
         ECLIPTIC FRAME (refplane='ecliptic')
-    
 
-    '''
+
+    """
     
     # Define the variables that will be used in the query
     target  = '54321'       # <<-- Asteroid number 54321 == 2000 JA81
@@ -879,27 +863,20 @@ Computations by ...
     assert np.allclose(expected_array, result, rtol=1e-11, atol=1e-11)
 
 
-
-
-
-
-
-
-
 def test_nice_Horizons_E():
-    '''
+    """
     Here we use Horizons to get the Heliocentric EQUATORIAL position of the Observatory
     (NB we use a hack, setting the target as the Sun, and the center as the observatory)
-    
+
     Here we extract the
         TOPOCENTRIC (F51) state
     for
         The Sun
     in an
         EQUATORIAL FRAME (refplane='earth')
-    
 
-    '''
+
+    """
     
     # Define the variables that will be used in the query
     target  = '10'
@@ -1041,27 +1018,22 @@ Computations by ...
     assert np.allclose(expected_array, result, rtol=1e-11, atol=1e-11)
 
 
-
-
-
-
-
 def test_nice_Horizons_F():
-    '''
+    """
     Similar to test_nice_Horizons_E, but ECLIPTIC instead of equatorial
-    
+
     Here we use Horizons to get the Heliocentric ECLIPTIC position of the Observatory
         (NB we use a hack, setting the target as the Sun, and the center as the observatory)
-    
+
     Here we extract the
         TOPOCENTRIC (F51) state
     for
         The Sun
     in an
         ECLIPTIC FRAME (refplane='ecliptic')
-    
 
-    '''
+
+    """
     
     # Define the variables that will be used in the query
     target  = '10'
@@ -1202,9 +1174,3 @@ Computations by ...
     print('result=\n' , result)
     # Check that the results are as expected
     assert np.allclose(expected_array, result, rtol=1e-11, atol=1e-11)
-
-
-
-
-
-

@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 # cheby_checker/cheby_checker/mpchecker2.py
 
-'''
+"""
 --------------------------------------------------------------
 The main "checking" functionalities
 
 Jul 2020
 Matt Payne
 
-As currently sketched-out 
+As currently sketched-out
 (i)     Pre-Calculations are handled in precalc.py
 (ii)    The Check class provides the methods to undertake
         (a) pCheck == posn_check == Are the supplied
@@ -20,20 +20,17 @@ As currently sketched-out
             consistent with the supplied detections
         (d) checkidX == was per checkid, but allowing the
             mean anomaly to vary
-            
+
 *** AS OF 2020_07_31, MUCH OF THE CODE IN HERE SHOULD BE    ***
 *** VIEWED AS PSEUDO-CODE, JUST SKETCHING OUT APPROXIMATELY ***
 *** HOW IT COULD/SHOULD WORK. NO TESTING HAS BEEN DONE      ***
 
 --------------------------------------------------------------
-'''
-
+"""
 
 # Import third-party packages
 # --------------------------------------------------------------
-import sys
 import numpy as np
-from astropy_healpix import healpy
 
 
 # Import neighboring packages
@@ -43,54 +40,49 @@ from .orbit_cheby import Base
 from . import data_classes
 
 
-
 # Main functional classes for ...
 # --------------------------------------------------------------
-
 class Check(Base):
-    '''
-        Provide all methods associated with "Checking"
-         - Get "shortlists" for night
-         - Do detailed orbital advance
-         - Get "refined" list of actual overlap with FoV
-         - Associated refined list with detections/tracklets
-         
-         *** AS OF 2020_07_31, MUCH OF THE CODE IN HERE SHOULD BE    ***
-         *** VIEWED AS PSEUDO-CODE, JUST SKETCHING OUT APPROXIMATELY ***
-         *** HOW IT COULD/SHOULD WORK. NO TESTING HAS BEEN DONE      ***
+    """
+    Provide all methods associated with "Checking"
+     - Get "shortlists" for night
+     - Do detailed orbital advance
+     - Get "refined" list of actual overlap with FoV
+     - Associated refined list with detections/tracklets
 
-        
-    '''
-    
-    
+     *** AS OF 2020_07_31, MUCH OF THE CODE IN HERE SHOULD BE    ***
+     *** VIEWED AS PSEUDO-CODE, JUST SKETCHING OUT APPROXIMATELY ***
+     *** HOW IT COULD/SHOULD WORK. NO TESTING HAS BEEN DONE      ***
+    """
+
     def __init__(self,):
-        ''' Empty initialization '''
+        """ Empty initialization """
         self.MSCs = None
     
-    def posn_check(self, unpacked_primary_provisional_designation, detections , param_dict = None ):
-    ''' pCheck: Do ephemeris look-up & calculate residuals w.r.t. detections
-        
+
+    def posn_check(self, primary_unpacked_provisional_designation, detections, param_dict=None):
+        """
+        pCheck: Do ephemeris look-up & calculate residuals w.r.t. detections
+
         inputs:
         -------
-        unpacked_primary_provisional_designation : string 
-         - 
+        primary_unpacked_provisional_designation : string
+         -
         detections : A single *Detections* object
-         - 
-         
+         -
+
         returns:
         --------
         None
-        
-     
-    '''
-
+        """
         # Check parameters are as required
-        assert isinstance(unpacked_primary_provisional_designation, str)
-        assert isinstance(detections, data_classes.Detections )
+
+        assert isinstance(primary_unpacked_provisional_designation, str)
+        assert isinstance(detections, data_classes.Detections)
         assert param_dict is None or isinstance(param_dict, dict)
 
         # Call Ephem (ephemeris-querying object)
-        Eph = Ephem(unpacked_primary_provisional_designation , detections.obstime , observatoryXYZ = detections.pos )
+        Eph = Ephem(primary_unpacked_provisional_designation, detections.obstime, observatoryXYZ=detections.pos)
 
         # Get the predicted sky-positions
         # - As written PCheck only for single desig, so can just expand out the returned dict which will be of length-1
@@ -98,30 +90,28 @@ class Check(Base):
         predictions = Eph.generate_sky_predictions()[unpacked_primary_provisional_designation]
 
         # Initialize & return Residuals object
-        return Residuals(predictions, detections, param_dict = param_dict)
+        return Residuals(predictions, detections, param_dict=param_dict)
 
     
-    def mpchecker(self,  pointings_object ):
-        '''
-            We want to calculate which objects are in the FoV 
-            (or have some chance of being in the FoV) of a single pointing. 
-            
-            We load precalculated quantities to help us understand which subset of
-            known objects have any chance at all of being close to the FoV
-            
-            We advance the subset (using chebys) to find whether or not they
-            actually are in the FoV
-            
-            Inputs
-            ----------
-            pointing : a Pointing object
-            
-            Returns
-            -------
-            MSCs: a list of MSC objects
-                    
-        '''
+    def mpchecker(self, pointings_object):
+        """
+        We want to calculate which objects are in the FoV
+        (or have some chance of being in the FoV) of a single pointing.
 
+        We load precalculated quantities to help us understand which subset of
+        known objects have any chance at all of being close to the FoV
+
+        We advance the subset (using chebys) to find whether or not they
+        actually are in the FoV
+
+        Inputs
+        ----------
+        pointing : a Pointing object
+
+        Returns
+        -------
+        MSCs: a list of MSC objects
+        """
         # Check is *Vectorial* object
         # N.B. Pointings & Detections will pass as they inherit from Vectorial
         assert isinstance(pointings_object, data_classes.Vectorial)
@@ -146,17 +136,16 @@ class Check(Base):
 
 
     def checkid(self, detections ):
-        '''
-            Find objects close to presented detections
-            
-            Inputs
-            ----------
-            detections : a Detections object
-            
-            Returns
-            -------
+        """
+        Find objects close to presented detections
 
-        '''
+        Inputs
+        ----------
+        detections : a Detections object
+
+        Returns
+        -------
+        """
         # Check is *Detections* object
         assert isinstance(detections, data_classes.Detections)
 
@@ -184,5 +173,5 @@ class Check(Base):
 
 
     def checkidX(self, detections ):
-        ''' A version of checkid that allows varying mean anomaly / time '''
+        """ A version of checkid that allows varying mean anomaly / time """
         pass

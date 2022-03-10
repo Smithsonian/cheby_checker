@@ -18,15 +18,15 @@ the build_container.py file) to allow interactive development
 of an assumed local version. 
 
 ### To build & execute container ...
->>> python3 build_container.py
+    python3 build_container.py
 
 This builds and runs the image and deposit you on the command line of the running container. 
 
 ### To test / run some of the cheby_checker code ...
->>> cd /cheby_checker/tests
->>> pytest test_sql.py
+    cd /cheby_checker/tests
+    pytest test_sql.py
 
-This should successfully run a bunch of tess of the sql module. 
+This should successfully run a bunch of tests of the sql module. 
 
 MJP 
  

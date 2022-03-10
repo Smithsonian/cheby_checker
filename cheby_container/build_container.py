@@ -17,13 +17,13 @@ def kill():
     os.system(f"docker image rm {image_name}")
 
 def build():
-    ''' commands needed to create an image and fire-up a container of that image'''
+    """ commands needed to create an image and fire-up a container of that image"""
     
     # commands to remove any extant running versions of the mpcremote image and/or container
     kill()
     
     # build the image and name it "{image_name}" (NB --no-cache will force a rebuild)
-    os.system(f"docker build . -t {image_name} --no-cache")
+    os.system(f"docker build . -t {image_name}")
     
     # get the path of the parent directory (i.e. for the entire repo)
     repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) ; print(f"repo_dir={repo_dir}")
@@ -39,7 +39,10 @@ def build():
     os.system(command)
 
     # execute interactively (so you get into the command-line)
-    os.system(f"docker exec -it {container_name} bash")
+    # os.system(f"docker exec -it {container_name} bash")
+
+    # install cheby_checker here
+    os.system(f"docker exec -it {container_name} python3.6 -m pip install -e cheby_checker/.")
 
 if __name__ == '__main__':
     

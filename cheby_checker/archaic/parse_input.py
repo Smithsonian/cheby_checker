@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # mpc_nbody/mpc_nbody/parse_input.py
 
-'''
+"""
 ----------------------------------------------------------------------------
 mpc_nbody's module for parsing OrbFit + ele220 elements
 
@@ -15,7 +15,7 @@ This module provides functionalities to
 
 This is meant to prepare the elements for input into the n-body integrator
 ----------------------------------------------------------------------------
-'''
+"""
 
 # Import third-party packages
 # -----------------------------------------------------------------------------
@@ -26,7 +26,8 @@ import getpass
 
 if getpass.getuser() in ['matthewjohnpayne']:  # Payne's dev laptop set up differently ...:
     sys.path.append('/Users/matthewjohnpayne/Envs/mpcvenv/')
-import mpcpp.MPC_library as mpc
+# import mpcpp.MPC_library as mpc
+from .. import MPC_library as mpc # May be very wrong
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
@@ -44,22 +45,22 @@ au_km = 149597870.700  # This is now a definition
 
 
 class ParseElements():
-    '''
+    """
     Class for parsing elements and returning them in the format required by
     NbodySim in mpc_nbody
-    
+
     Can be instantiated empty
-    
+
     Can be instantiated with "input"
-    
+
     input :
     -------
     string or list-of-strings
      - each string must be either:
        --- valid file-path
        --- valid file-contents (e.g. orbfit output)
-     
-    '''
+
+    """
 
     def __init__(self, input=None, filetype='eq', save_parsed=False , save_file='save_file.tmp', CHECK_EPOCHS=True):
     
@@ -107,22 +108,22 @@ class ParseElements():
             print("instantiating empty object.")
                   
     def _parse_input_type(self,input):
-        '''
+        """
         Because we allow file(s) or file-content(s), need to parse
-        
+
         input :
         -------
         string or list-of-strings
          - each string must be either:
            --- valid file-path
            --- valid file-contents (e.g. orbfit output)
-        
+
         returns:
         --------
         list :
          - each list-item consists of file-contents
-         
-        '''
+
+        """
         # Make a list
         if isinstance(input, str): input = list(str)
         
@@ -166,16 +167,16 @@ class ParseElements():
             outfile.write(f"{coeff: 18.15e} " + suffix)
 
     def parse_ele220(self, ele220file_contents, CHECK_EPOCHS=True ):
-        '''
+        """
         Parse a file containing a single ele220 line.
         Currently returns junk data.
         NOT ACTUALLY IMPLEMENTED YET!!!
-        '''
+        """
         # make fake data & set appropriate variables
         self._get_and_set_junk_data()
 
     def parse_orbfit(self, felfile_contents, CHECK_EPOCHS=True):
-        '''
+        """
         Parse a file containing OrbFit elements for a single object & epoch.
 
         Inputs:
@@ -189,7 +190,7 @@ class ParseElements():
         self.helio_ecl_cov_EXISTS   : Boolean
         self.helio_ecl_cov          : 1D np.ndarray
         self.time                   : astropy Time object
-        '''
+        """
         
         # Parse the contents of the orbfit file
         try:
@@ -249,10 +250,10 @@ class ParseElements():
                     f"e = {e}")
 
     def make_bary_equatorial(self):
-        '''
+        """
         Transform heliocentric-ecliptic coordinates into
         barycentric equatorial coordinates
-        
+
         requires:
         ----------
         self.helio_ecl_vec_EXISTS   : Boolean
@@ -266,7 +267,7 @@ class ParseElements():
         self.bary_eq_vec            = 1D np.ndarray
         self.bary_eq_cov_EXISTS     = Boolean
         self.bary_eq_cov            = 2D np.ndarray
-        '''
+        """
         if self.helio_ecl_vec_EXISTS :
             # Transform the helio-ecl-coords to bary-eq-coords
             # NB 2-step transformation for the vector (posn,vel)
@@ -320,22 +321,22 @@ class ParseElements():
 # -----------------------------------------------------------------------------
     
 def ecliptic_to_equatorial(input, backwards=False):
-    '''
+    """
     Rotates a cartesian vector or Cov-Matrix from mean ecliptic to mean equatorial.
-    
+
     Backwards=True converts backwards, from equatorial to ecliptic.
-    
+
     inputs:
     -------
     input : 1-D or 2-D arrays
      - If 1-D, then len(input) must be 3 or 6
      - If 2-D, then input.shape must be (6,6)
-     
+
     output:
     -------
     output : np.ndarray
      - same shape as input
-    '''
+    """
 
     # Ensure we have an array
     input = np.atleast_1d(input)
@@ -364,7 +365,7 @@ def ecliptic_to_equatorial(input, backwards=False):
 
 
 def equatorial_helio2bary(input_xyz, jd_tdb, backwards=False):
-    '''
+    """
     Convert from heliocentric to barycentic cartesian coordinates.
     backwards=True converts backwards, from bary to helio.
     input:
@@ -375,7 +376,7 @@ def equatorial_helio2bary(input_xyz, jd_tdb, backwards=False):
                     - same shape as input_xyz
 
     input_xyz MUST BE EQUATORIAL!!!
-    '''
+    """
     direction = -1 if backwards else +1
 
     # Ensure we have an array of the correct shape to work with
@@ -397,11 +398,11 @@ def equatorial_helio2bary(input_xyz, jd_tdb, backwards=False):
 
 
 def _old_parse_Covariance_List(Els):
-    '''
+    """
     Convenience function for reading and splitting the covariance
     lines of an OrbFit file.
     Not intended for user usage.
-    '''
+    """
     ElCov  = []
     covErr = ""
     for El in Els:
@@ -424,12 +425,12 @@ def _old_parse_Covariance_List(Els):
             c33, c34, c35, c36, c44, c45, c46, c55, c56, c66)
     
 def _parse_Covariance_List(Els):
-    '''
+    """
     Convenience function for reading and splitting the covariance
     lines of an OrbFit file.
     Not intended for user usage.
     # MJP : 20200901 : Suggest to just make & return the required matrix
-    '''
+    """
     # Set-up array of zeroes
     CoV        = np.zeros( (6,6) )
     CoV_EXISTS = False

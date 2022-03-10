@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # cheby_checker/cheby_checker/data_classes
-'''
+"""
 Data classes for Cheby Checker
 
 NB (1)
@@ -18,16 +18,13 @@ NB (4)
     Related to NB (3), some of the class definitions below are a
     bit "hacky" as I experiment with what will work best, and as
     I discover new (to me) ways to make classes work efficiently
-    
-'''
+
+"""
 
 # Import third-party packages
 # --------------------------------------------------------------
-from collections import namedtuple 
 import numpy as np
-import sys
 from astropy_healpix import healpy
-#from functools import lru_cache
 
 # Import neighboring packages
 # --------------------------------------------------------------
@@ -35,8 +32,6 @@ from . import orbit_cheby
 
 # Simple dictionary-definitions of sets of variable names
 # --------------------------------------------------------------
-
-# Set up a dictionary to hold some variable names.
 # - Add in some convenience-variable names
 var_names = { 'Convenience' : ['pos','unit_vec','HP','HPlist'] }
 
@@ -50,7 +45,7 @@ var_names['Pointings'] = var_names['Vectorial'] + additional_pntng_var_names
 # Variables for "Detections"
 additional_detn_var_names = [ 'rmstime','rmsra','rmsdec', 'mag','rmsmag']
 var_names['Detections'] = var_names['Vectorial'] + additional_detn_var_names
-                                           
+
 # Variables for "Residuals"
 var_names['Residuals'] =    ['offsetRA',
                             'offsetDec',
@@ -60,27 +55,28 @@ var_names['Residuals'] =    ['offsetRA',
                             'maxUnc',
                             'badBool']
 
+
 # Set up a name:number mapping between variables and posn in array
 def var_map(vars):
     return {v:n for n,v in enumerate(vars)}
 var_maps = {k:var_map(vars) for k,vars in var_names.items()}
 
+
 # Data Class Definitions
 # "Vectorial", "Pointing", "Detections", "Residuals"
 # --------------------------------------------------------------
-
 class Vectorial(orbit_cheby.Base):
-    '''
-        Intended as a (hidden) parent class from which
-        Pointing & Detections will inherit
-        
-        NB (1): Using __slots__ to get rid of (slowish) __dict__
-        NB (2): Overwriting __getattribute__ to provide
-                custom slices & combos (see below)
-        NB (3): Want an intrinsically array-based method,
-                but with the ability to take namedtuple-like
-                slices of the array
-    '''
+    """
+    Intended as a (hidden) parent class from which
+    Pointing & Detections will inherit
+
+    NB (1): Using __slots__ to get rid of (slowish) __dict__
+    NB (2): Overwriting __getattribute__ to provide
+            custom slices & combos (see below)
+    NB (3): Want an intrinsically array-based method,
+            but with the ability to take namedtuple-like
+            slices of the array
+    """
     __slots__ =  'iama', 'arr', *var_names['Convenience'], *var_names['Vectorial']
 
     def __init__(self,):
@@ -92,7 +88,7 @@ class Vectorial(orbit_cheby.Base):
         # Allow set-up of empty array of length-N
         if isinstance(arg, int ):
             self.arr = np.zeros( (arg, len(var_names[self.iama])) )
-         
+
         # This will interpret the following
         # - Single Iterable of length == len(var_names[self.iama])
         # - Iterable of iterables (inner iterables of length len(var_names[self.iama]))
@@ -104,7 +100,7 @@ class Vectorial(orbit_cheby.Base):
             self.arr = np.atleast_2d( arg ).astype(float)
             assert self.arr.ndim == 2 ,                               f'Problem:self.arr.ndim={self.arr.ndim}'
             assert self.arr.shape[1] == len(var_names[self.iama]),    f'Problem:self.arr.shape={self.arr.shape}'
-            
+
         return self.arr
 
     # Overwrite string method
@@ -122,7 +118,7 @@ class Vectorial(orbit_cheby.Base):
         # Default behaviour for these two ...
         if name in ['iama', 'arr']:
             return object.__getattribute__(self, name)
-            
+
         # Allow array slices via name, using the name:number mapping
         elif name in var_maps[self.iama]:
             return self.arr[:,var_maps[self.iama][name]]
@@ -144,21 +140,20 @@ class Vectorial(orbit_cheby.Base):
             return object.__getattribute__(self, name)
 
 
- 
 class Pointings(Vectorial):
-    ''' The pointing (exposure) which is the input to MPChecker
-        
+    """ The pointing (exposure) which is the input to MPChecker
+
         Store in class centered around numpy array.
         Inherits from Vectorial
         Uses Vectorial methods to provide namedtuple-like slicing
-        
+
         Need to initialise using
          - Single Iterable of length == len(pntng_var_names)
          - Iterable of iterables (inner iterables of length len(pntng_var_names))
         where pntng_var_names.keys = ( obstime, ra, dec, pos1, pos2, pos3, radius)
-        
-    '''
-    
+
+    """
+
     # Add in pntng_var_names in addn to those from Vectorial
     __slots__ = *var_names['Pointings'],
 
@@ -168,29 +163,26 @@ class Pointings(Vectorial):
         self._custom_array_init( arg )
 
 
-
-
-
 class Detections(Vectorial):
-    ''' Store detections in class centered around numpy array.
+    """ Store detections in class centered around numpy array.
         Inherits from Vectorial
         Uses Vectorial methods to provide namedtuple-like slicing
-        
+
         Need to initialise using
          - Single Iterable of length == len(detn_var_names)
          - Iterable of iterables (inner iterables of length len(detn_var_names))
         where detn_var_names.keys = ( obstime, ra, dec, pos1, pos2, pos3, 'rmstime','rmsra','rmsdec', 'mag','rmsmag')
 
-    '''
-    
+    """
+
     # Add in detn_var_names ( & pntng_var_names) in addn to those from Vectorial
     __slots__ = *var_names['Detections'], *var_names['Pointings'],
-    
+
     # Initialize via method provided in Vectorial
     def __init__(self, arg):
         self.iama = 'Detections'
         self._custom_array_init( arg )
-        
+
     def __getattribute__(self, name):
         """ Attribute override to provide an equivalent 'radius' for a detection
         """
@@ -202,28 +194,27 @@ class Detections(Vectorial):
             return object.__getattribute__(self, name)
 
 
-
-
 class Residuals:
-   ''' For the analysis of residuals: differences between Detections & Predictions
-        
-       Stores as a lean, mean, np.array-machine ...
-       Allows slices using names (like a namedtuple)
-       
-       *** I REMAIN UNCERTAIN AS TO WHETHER THERE'S ANY POINT HAVING THIS AS ***
-       *** A SEPARATE CLASS, OR WHETHER IT SHOULD BE A METHOD ON DETECTION   ***
-   '''
-   
-   #__slots__ = ( *resid_var_names )
-   
-   def __init__(self, detections, predictions):
+    """
+    For the analysis of residuals: differences between Detections & Predictions
+
+    Stores as a lean, mean, np.array-machine ...
+    Allows slices using names (like a namedtuple)
+
+    *** I REMAIN UNCERTAIN AS TO WHETHER THERE'S ANY POINT HAVING THIS AS ***
+    *** A SEPARATE CLASS, OR WHETHER IT SHOULD BE A METHOD ON DETECTION   ***
+    """
+
+    #__slots__ = ( *resid_var_names )
+
+    def __init__(self, detections, predictions):
        """
-           
+
            inputs:
            -------
-           
+
        """
-       
+
        # Check we have *Detections* objects of same shape
        assert isinstance(detections, Detections)
        assert isinstance(predictions, Detections)
@@ -240,39 +231,36 @@ class Residuals:
 
        # Evaluate the residuals & return array object
        self.R = self._evaluate_residuals(detections.D, predictions.D)
-           
-   def __getattribute__(self, name):
+
+    def __getattribute__(self, name):
        """
-           Overwriting default because
-           (a) always want to take fresh slice (in case R is ever updated)
-           (b) want to allow named access to the quantities in resid_var_names
-           """
+       Overwriting default because
+       (a) always want to take fresh slice (in case R is ever updated)
+       (b) want to allow named access to the quantities in resid_var_names
+       """
        if name in resid_var_names:
            return self.R[:,resid_var_names[name]]
        else:
            # Default behaviour
            return object.__getattribute__(self, name)
 
+    def _evaluate_residuals(self, detections, predictions):
+       """
+       Compare each detection to the expected value from the orbit
+       Is the residual (difference between them) acceptable?
 
-   def _evaluate_residuals(self, detections, predictions):
-       '''
-           Compare each detection to the expected value from the orbit
-           Is the residual (difference between them) acceptable?
-           
-           # I think that the proper solution to this involves understanding whether two ellipses are separated
-           # This is doable but complicated:
-           # https://www.geometrictools.com/Documentation/IntersectionOfEllipses.pdf
-           # http://www.iri.upc.edu/files/scidoc/1852-New-algebraic-conditions-for-the-identification-of-the-relative-position-of-two-coplanar-ellipses.pdf
-           # For the sake of rapid development (and execution!) I'll just stick to (what I believe is) an effectively circular approximation
-           
-           
-           *** SOME VERSION OF THIS LIKELY TO BE USED IN MPCHECKER / CHECKID ***
-           *** MIGHT WANT TO LOCATE THIS IN SOME MORE OBVIOUS GENERAL LOCN *****
-           
-           Could also try and connect this to the logic Federica uses to identify bad-tracklets
-           after doing a full refit
-           
-           '''
+       # I think that the proper solution to this involves understanding whether two ellipses are separated
+       # This is doable but complicated:
+       # https://www.geometrictools.com/Documentation/IntersectionOfEllipses.pdf
+       # http://www.iri.upc.edu/files/scidoc/1852-New-algebraic-conditions-for-the-identification-of-the-relative-position-of-two-coplanar-ellipses.pdf
+       # For the sake of rapid development (and execution!) I'll just stick to (what I believe is) an effectively circular approximation
+
+       *** SOME VERSION OF THIS LIKELY TO BE USED IN MPCHECKER / CHECKID ***
+       *** MIGHT WANT TO LOCATE THIS IN SOME MORE OBVIOUS GENERAL LOCN *****
+
+       Could also try and connect this to the logic Federica uses to identify bad-tracklets
+       after doing a full refit
+       """
        # Calculate offsets in RA & Dec between predictions & detections
        # Could use astropy ... https://github.com/astropy/astropy/issues/4209
        nRA   = detn_var_names['ra']
@@ -282,7 +270,7 @@ class Residuals:
        offsetRA  = (predictions.D[:,nRA]  - detections.D[:,nRA]  ) * np.cos( detections.D[:,nDec] )
        offsetDec = (predictions.D[:,nDec] - detections.D[:,nDec] )
        offsetTot = np.sqrt( offsetRA**2 + offsetDec**2 )
-       
+
        '''
            # Could try to follow the approach suggested by M.Pan ...
            
@@ -299,7 +287,7 @@ class Residuals:
             a uniform or random sampling from the surface of a 6D sphere.
            
        '''
-       
+
        # Comparing offsets/residuals to the allowed tolerances : I have put very little thought into this.
        # - Seems something like a circular approximation
        # - Should be tested & investigated in far more detail to ensure it is better than the old pcheck
@@ -312,18 +300,8 @@ class Residuals:
        maxUnc = np.sqrt( (maxUncOrb * self.param_dict['nSigOrb'])**2 + (maxUncDet * self.param_dict['nSigDet'])**2 )
        # Check whether the sepn is larger than allowed
        badBool = offsetTot > maxUnc
-       
+
        # Put everything into a *Residuals* object
        # - Could / should reformat this as necessary
        self.residuals = Residuals( np.array(offsetRA, offsetDec, offsetTot, maxUncOrb, maxUncDet, maxUnc, badBool).T )
        return self.results_dict
-   
-   
-   
-
-
-
-
-
-
-

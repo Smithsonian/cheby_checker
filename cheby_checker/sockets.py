@@ -1,36 +1,32 @@
 # -*- coding: utf-8 -*-
 # cheby_checker/cheby_checker/ephem
 
-'''
-    --------------------------------------------------------------
-    cheby_checker's / sockets module.
-    
-    Aug 2020
-    Matt Payne
-    
-    This module is intended to handle the server-client connections
-    for cheby-checker
-    
-    It is currently developmental while MJP gets his head around the
-    sockets methods
-    
-    It is intended to set up a server (e.g. on marsden) that will
-    listen for requests for data from clients (either on marsden,
-    and/or on some other machines). It is expected that this will
-    be requests for ephemeris / mpchecker / pcheck / ...
-    
-    --------------------------------------------------------------
-    '''
+"""
+--------------------------------------------------------------
+cheby_checker's / sockets module.
+
+Aug 2020
+Matt Payne
+
+This module is intended to handle the server-client connections
+for cheby-checker
+
+It is currently developmental while MJP gets his head around the
+sockets methods
+
+It is intended to set up a server (e.g. on marsden) that will
+listen for requests for data from clients (either on marsden,
+and/or on some other machines). It is expected that this will
+be requests for ephemeris / mpchecker / pcheck / ...
+
+--------------------------------------------------------------
+"""
 
 
 # Import third-party packages
 # --------------------------------------------------------------
-import sys, os
-import pytest
 import threading
 import socket
-from datetime import datetime
-import time
 import pickle
 import numpy as np
 import struct
@@ -47,12 +43,11 @@ import struct
 # Socket-Server-Related Object Definitions
 # --------------------------------------------------------------
 class SharedSocket(object):
-    '''
+    """
     Primarily used to provide shared methods
     to send & receive messages of arbitrary length/size
     https://stackoverflow.com/questions/17667903/python-socket-receive-large-amount-of-data
-    
-    '''
+    """
 
     default_server_host = '' # '127.0.0.1'
     default_server_port = 54321
@@ -86,15 +81,15 @@ class SharedSocket(object):
 
 
 class Server(SharedSocket):
-    '''
+    """
     Set up a server that will listen for clients
-    
+
     usage:
     ------
     Server().listen()
-    
-    
-    '''
+
+
+    """
 
     def __init__(self, host=None, port=None):
         
@@ -107,10 +102,10 @@ class Server(SharedSocket):
 
 
     def _demo_listen(self, startup_func = None ):
-        '''
+        """
         Demo function to illustrate how to set-up server
         and to allow tests of various functionalities
-        '''
+        """
     
         # Allow for doing a lengthy job on start-up
         # E.g. loading a big ephemeris file
@@ -169,9 +164,9 @@ class Server(SharedSocket):
         return True
 
 class Client(SharedSocket):
-    '''
+    """
     Convenience class & method(s) for connecting to server
-    '''
+    """
 
     def __init__(self, host=None, port=None):
         self.server_host = host if host is not None else self.default_server_host

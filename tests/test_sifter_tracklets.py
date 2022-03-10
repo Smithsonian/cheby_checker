@@ -1,27 +1,28 @@
 # -*- coding: utf-8 -*-
 # sifter/tests/test_tracklet
 
-'''
-    --------------------------------------------------------------
-    tests of sifter's Tracklet class
+"""
+--------------------------------------------------------------
+tests of sifter's Tracklet class
 
-    Jan 2020
-    Matt Payne & Mike Alexandersen
+Jan 2020
+Matt Payne & Mike Alexandersen
 
-    --------------------------------------------------------------
-    '''
+--------------------------------------------------------------
+"""
 
 
 # Import third-party packages
 # --------------------------------------------------------------
-import sys
 import os
 import numpy as np
 import pytest
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from cheby_checker import sifter_precalc as precalc, sifter_sql as sql
+from cheby_checker import sifter_precalc as precalc
+from cheby_checker import sql
+DB = sql.SQLSifter()
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'dev_data')
 
 
@@ -32,18 +33,18 @@ test_tracklet = ['     K11Q99F*~C2011 08 29.52378 01 57 34.729+14 35 44.64      
 
 
 def convenience_func_create_db_and_tables():
-    '''
-        In order to save data, we require sql-db to exist,
-        so let's set that up...
-        Force deletion then creation of db...
-    '''
-    if os.path.isfile(sql.fetch_db_filepath()):
-        os.remove(sql.fetch_db_filepath())
-    conn = sql.create_connection(sql.fetch_db_filepath())
+    """
+    In order to save data, we require sql-db to exist,
+    so let's set that up...
+    Force deletion then creation of db...
+    """
+    if os.path.isfile(DB.fetch_db_filepath()):
+        os.remove(DB.fetch_db_filepath())
+    conn = DB.create_connection()
     cur = conn.cursor()
 
     # Create required table(s)
-    sql.create_specific_table(conn)
+    DB.create_sifter_tables(conn)
 
     # Double-check that this worked by getting the count of tables with the name
     # - if the count is 1, then table exists
@@ -57,13 +58,13 @@ def convenience_func_create_db_and_tables():
 # Actual tests ...
 # --------------------------------------------------------------
 def test_instantiation():
-    '''Test instantiation of the Tracklets class with no observations.'''
+    """Test instantiation of the Tracklets class with no observations."""
     assert isinstance(precalc.Tracklets(), precalc.Tracklets)
 
 
 @pytest.mark.parametrize(('tracklet_obs'), [test_tracklet])
 def test_parse_tracklet_observations(tracklet_obs):
-    '''Test that observations get parsed correctly.'''
+    """Test that observations get parsed correctly."""
     T = precalc.Tracklets()
 
     # call parse_tracklet_observations
@@ -79,7 +80,7 @@ def test_parse_tracklet_observations(tracklet_obs):
 
 @pytest.mark.parametrize(('observation_pair_list'), [[test_tracklet, test_tracklet]])
 def test_save_tracklets(observation_pair_list):
-    '''Test that creating a db works and saving stuff to it works.'''
+    """Test that creating a db works and saving stuff to it works."""
     # Create db from scratch
     convenience_func_create_db_and_tables()
 
@@ -98,12 +99,12 @@ def test_save_tracklets(observation_pair_list):
     assert(len(f) == 2 and np.all([len(_) > 3 for _ in f])), 'data not uploaded'
 
     # Completely delete db to facilitate future testing
-    os.remove(sql.fetch_db_filepath())
+    os.remove(DB.fetch_db_filepath())
 
 
 @pytest.mark.parametrize(('observation_pairs'), [test_tracklet])
 def test_instantiation_with_observations(observation_pairs):
-    '''Test instantiation of the Tracklets class with some observations.'''
+    """Test instantiation of the Tracklets class with some observations."""
     # Create db from scratch
     convenience_func_create_db_and_tables()
 
@@ -117,7 +118,7 @@ def test_instantiation_with_observations(observation_pairs):
     assert(len(f) > 3), 'data not uploaded'
 
     # Completely delete db to facilitate future testing
-    os.remove(sql.fetch_db_filepath())
+    os.remove(DB.fetch_db_filepath())
 
 
 # End of file.

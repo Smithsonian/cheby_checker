@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # /tests/test_nbody.py
 
-'''
+"""
 ----------------------------------------------------------------------------
 tests for cheby_checker/nbody
  - Here I focus on the functions that RUN the nbody integrations.
@@ -20,7 +20,7 @@ Removing many tests of non-json input
  tests for mpc_nbody
 
 ----------------------------------------------------------------------------
-'''
+"""
 
 # import third-party packages
 # -----------------------------------------------------------------------------
@@ -28,14 +28,8 @@ import sys
 import os
 import numpy as np
 import pytest
-from astropy.time import Time
-import pytest
-from filecmp import cmp
-import getpass
-import json
 import time
 import glob
-
 
 # Import neighbouring packages
 # -----------------------------------------------------------------------------
@@ -61,9 +55,9 @@ std_json_dir = os.path.join(json_dir, 'standard_mp') # Standard grav-only fits
 # -----------------------------------------------------------------------------
 
 def similar_xyzuvw(xyzv0, xyzv1, threshold_xyz=1e-13, threshold_v=1e-14): # 15 mm, 1.5 mm/day
-    '''
+    """
     Calculate the difference between two sets of cartesian coordinates.
-    '''
+    """
     if isinstance(xyzv0, list):
         xyzv0 = np.array(xyzv0)
     if isinstance(xyzv1, list):
@@ -73,13 +67,12 @@ def similar_xyzuvw(xyzv0, xyzv1, threshold_xyz=1e-13, threshold_v=1e-14): # 15 m
     return np.all(good_tf), error
 
 
-
 def is_nbody_output_good_enough(times, data, target='30102'):
-    '''
+    """
     Mike Alexandersen & Matt Payne
     Helper function for determining whether the saved output from an nbody
     integration is good enough.
-    '''
+    """
     # Check 20 timesteps
     # NB If len(times)<20, indicees will initially contain repeats, but we subsequently force uniqueness using "set"
     indicees = np.linspace(0, len(times) - 1, 20).astype(int)
@@ -108,18 +101,13 @@ def is_nbody_output_good_enough(times, data, target='30102'):
         assert np.all(good_tf)
 
 
-
-
-
-
-
 # Tests of NbodySim
 # -----------------------------------------------------------------------------
 
 def test_nbody_A():
-    '''
+    """
     Test instantiation of NbodySim object
-    '''
+    """
     # Instantiate
     N = nbody.NbodySim()
 
@@ -149,26 +137,25 @@ def test_nbody_A():
         N.output_times       == None  and \
         N.output_states      == None  and \
         N.output_covar       == None
-            
     
 
 def test_integration_function_A():
-    '''
+    """
     If we put ANYTHING into the ephem_forces.integration_function,
     will it work or crash and burn?
-    
+
     Most likely if there is a problem, it'll cause pytest to crash entirely,
     so might as well start with this.
-    
+
     Note that *ephem_forces.integration_function* is NOT the main function that will
     be called by cheby_checker.nbody, but it IS called by
     *ephem_forces.production_integration_function_wrapper*, which IS called by
     cheby_checker.nbody
-    
+
     Note that this does NOT perform any tests of integration accuracy:
     I am purely trying to get a simple call to execute
 
-    '''
+    """
 
     # Define the initial positions. We use the state for Asteroid (3666) Holman from DE441
     # 2458849.500000000 = A.D. 2020-Jan-01 00:00:00.0000 TDB [del_T=     69.183900 s]
@@ -190,7 +177,8 @@ def test_integration_function_A():
     invar = np.identity(6)
 
     # Run the integration
-    times, states, var, var_ng, status = ephem_forces.integration_function(tstart, tend, tstep, geocentric, n_particles, instates, n_var, invar_part, invar)
+    times, states, var, var_ng, status = ephem_forces.integration_function(
+        tstart, tend, tstep, geocentric, n_particles, instates, n_var, invar_part, invar)
 
 
     assert isinstance(states, np.ndarray)
@@ -199,11 +187,11 @@ def test_integration_function_A():
 
 
 def test_integration_function_B():
-    '''
+    """
     ... ephem_forces.integration_function,
     ...
 
-    '''
+    """
 
     # Define the variables that will be used in the query
     target  = '12345'
@@ -247,17 +235,14 @@ def test_integration_function_B():
         assert similar_bool
         
 
-
-
-
 def test_production_integration_function_wrapper_A():
-    '''
+    """
     First test of *ephem_forces.production_integration_function_wrapper*
     Doing a 2-particle integration
     Testing the STRUCTURE of the returned arrays
     *NOT* testing the numerical accuracy
-    
-    '''
+
+    """
     tstart  = 2456184.7
     tstop   = tstart + 600
     epoch   = tstart
@@ -299,17 +284,17 @@ def test_production_integration_function_wrapper_A():
     
     
 def test_production_integration_function_wrapper_B():
-    '''
+    """
     Doing a timing test of the production_integration_function_wrapper
-    
+
     When running directly from a file in ephem_forcs, this test takes
     ~1 secs to run (20,000 day integration)
-    
+
     During development there were issues in which the same query run from a
     different directory would take ~3mins (i.e. 100 times longer)
-    
+
     I want to ensure that we don't have this problem
-    '''
+    """
     start_time = time.time()
     #print(__file__, ':test_production_integration_function_wrapper_B')
     
@@ -330,10 +315,10 @@ def test_production_integration_function_wrapper_B():
 
 
 def test_production_integration_function_wrapper_C():
-    '''
+    """
     Another test of timing...
     In practice 10 particles seemed to take ~2.5 secs (end-start below)
-    '''
+    """
     start_time = time.time()
     #print(__file__, ':test_production_integration_function_wrapper_B')
     
@@ -364,18 +349,17 @@ def test_production_integration_function_wrapper_C():
     assert end_time-start_time < allowed_time
 
 
-
 def test_production_integration_function_wrapper_D():
-    '''
-    
+    """
+
     Testing the numerical ACCURACY of the results returned from a
     single run of the *ephem_forces.production_integration_function_wrapper*
     function.
-    
+
     Note that many more tests of the accuracy of the reboundx integrator
     need to be performed, but they need to be done in the REBOUNDX
     package itself
-    '''
+    """
     
     # Define the variables that will be used in the query
     target  = '719' # Asteroid #123456
@@ -414,20 +398,17 @@ def test_production_integration_function_wrapper_D():
         similar_bool , error = similar_xyzuvw(h, states[n][0], threshold_xyz=1e-10, threshold_v=1e-11)
         assert similar_bool, f'test_production_integration_function_wrapper_D:n={n}, error={error}'
         
-        
- 
 
-    
 def test_run_integration_A():
-    '''
+    """
     Test the NbodySim.__run_integration() function
     This
         calls *production_integration_function_wrapper*
         then performs various functions to reshape the partial derivs,
         then calculates the cov-matrix at each timestep
-        
+
     We want to check that the output has the expected type & shape
-    '''
+    """
     
     # Instantiate
     N = nbody.NbodySim()
@@ -475,16 +456,14 @@ def test_run_integration_A():
             N.output_covar.shape[3] == 6
 
 
-
-
 def test_run_mpcorb_A():
-    '''
+    """
     Test the overall *run_mpcorb* function
-    
+
     Note that here we are testing that
     (a) the cartesian positions from the orbfit fit are "close enough" to the JPL fit (10's of km)
     (b) the cartesian positions remain close to the JPL fit throughout the integration by reboundx
-    '''
+    """
 
     # Instantiate
     N = nbody.NbodySim()
@@ -520,10 +499,10 @@ def test_run_mpcorb_A():
 
 
 def test_run_mpcorb_B():
-    '''
+    """
     Test the overall *run_mpcorb* function on MULTIPLE INPUT FILES
-    
-    '''
+
+    """
 
     # Instantiate
     N = nbody.NbodySim()

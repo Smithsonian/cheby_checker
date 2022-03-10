@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # /cheby_checker/cheby_checker/nbody.py
 
-'''
+"""
 ----------------------------------------------------------------------------
 nbody is a wrapper around a REBOUNDX integrator:
 reboundx/examples/ephem_forces
@@ -15,7 +15,7 @@ This module provides functionalities to
 (c) read the output from the nbody simulations
 
 ----------------------------------------------------------------------------
-'''
+"""
 
 
 # Import third-party packages
@@ -54,7 +54,6 @@ sys.path.append( os.path.join( top_dir , 'mpc_orb/mpc_orb') )
 import MPCORB
 
 
-
 # Constants and stuff
 # -----------------------------------------------------------------------------
 DATA_PATH = os.path.realpath(os.path.dirname(__file__))
@@ -90,30 +89,26 @@ nFields     = nComponents + 1
 # --------------------------------------------------------------
 
 
-
-
-
 # Data classes/methods
 # -----------------------------------------------------------------------------
-
 class ParseElements():
-    '''
+    """
     Class for parsing input elements and returning them in the format required by
     NbodySim class
     (see below for definition of NBodySim class)
-    
+
     Can be instantiated empty
-    
+
     Can be instantiated with "input"
-    
+
     input :
     -------
     string or list-of-strings
      - each string must be either:
        --- valid file-path
        --- valid file-contents (e.g. orbfit output)
-     
-    '''
+
+    """
 
     def __init__(   self,
                     input=None,
@@ -171,22 +166,22 @@ class ParseElements():
             print(f"Exception:{e.__str__()}")
 
     def _parse_input_type(self,input):
-        '''
+        """
         Because we allow file(s) or file-content(s), need to parse
-        
+
         input :
         -------
         string or list-of-strings
          - each string must be either:
            --- valid file-path
            --- valid file-contents (e.g. orbfit output)
-        
+
         returns:
         --------
         list :
          - each list-item consists of file-contents
-         
-        '''
+
+        """
 
         # Make a list
         if isinstance(input, str):
@@ -241,10 +236,10 @@ class ParseElements():
                 
             
     def parse_orbfit_json(self, jsonfile_dictionary, CHECK_EPOCHS=True ):
-        '''
+        """
         Parse a file containing OrbFit elements for a single object & epoch.
         Assumes input is in standard mpcorb-json format
-        '''
+        """
         
         # Instantiate MPCORB: NB This parses & validates ...
         M = MPCORB(jsonfile_dictionary)
@@ -306,7 +301,7 @@ class ParseElements():
                 
 
     def parse_orbfit_felfile_txt(self, felfile_contents, CHECK_EPOCHS=True):
-        '''
+        """
         Parse a file containing OrbFit elements for a single object & epoch.
         Assumes input is in the "old" ~text format (filetype ~ .eq0/.eq1)
 
@@ -321,7 +316,7 @@ class ParseElements():
         self.helio_ecl_cov_EXISTS   : Boolean
         self.helio_ecl_cov          : 1D np.ndarray
         self.time                   : astropy Time object
-        '''
+        """
         
         # Parse the contents of the orbfit file
         try:
@@ -382,10 +377,10 @@ class ParseElements():
                     f"e = {e}\n")
 
     def make_bary_equatorial(self):
-        '''
+        """
         Transform heliocentric-ecliptic coordinates into
         barycentric equatorial coordinates
-        
+
         requires:
         ----------
         self.helio_ecl_vec_EXISTS   : Boolean
@@ -399,7 +394,7 @@ class ParseElements():
         self.bary_eq_vec            = 1D np.ndarray
         self.bary_eq_cov_EXISTS     = Boolean
         self.bary_eq_cov            = 2D np.ndarray
-        '''
+        """
         if self.helio_ecl_vec_EXISTS :
             # Transform the helio-ecl-coords to bary-eq-coords
             # NB 2-step transformation for the vector (posn,vel)
@@ -435,11 +430,11 @@ class ParseElements():
 
 
 def _parse_Covariance_List(Els):
-    '''
+    """
     Convenience function for reading and splitting the covariance
     lines of an OrbFit file.
     Not intended for user usage.
-    '''
+    """
     # Set-up array of zeroes
     # NB: CoV.ndim ==3 , CoV.shape == (1,6,6)
     CoV        = np.zeros( (1,6,6) )
@@ -497,9 +492,9 @@ def _parse_Covariance_List(Els):
 
 
 class NbodySim():
-    '''
+    """
     Provides methods to call reboundx-ephemeris NBody integrator
-    '''
+    """
 
     def __init__(   self,
                     input       =   None,
@@ -535,10 +530,10 @@ class NbodySim():
                 covariances =None,
                 save_output =None,
                 verbose     =False):
-        '''
+        """
         Allows the NbodySim object to be called as a function
          - Performs integration by calling *integration_function* within *run_nbody*
-        '''
+        """
         self.time_parameters = tstart, tstep, trange
         
         # Get the initial conditions for the particle integration
@@ -595,7 +590,7 @@ class NbodySim():
                     tend,
                     geocentric=False,
                     verbose=False):
-        '''
+        """
         Run the nbody integrator with the parsed input.
 
         Input:
@@ -632,7 +627,7 @@ class NbodySim():
          - number of time outputs
         n_particles_out     = integer,
          - number of output particles (different why?)
-        '''
+        """
         
         # Get the number of particles
         assert input_states.ndim == 2 and input_states.shape[1] == 6, \
@@ -674,14 +669,14 @@ class NbodySim():
                 final_covariance_arrays)
 
     def reshape_partial_deriv_arrays( self,  partial_derivatives_wrt_state,  partial_derivatives_wrt_NG):
-        '''
+        """
         (1) partial_derivatives_wrt_state
         From: partial_derivatives_wrt_state.shape = (N_times, 6*n_particlea, 6)
         To  : partial_derivatives_wrt_state.shape = (N_times, n_particlea, 6, 6)
-        
+
         (2) partial_derivatives_wrt_NG
         *** NOT YET IMPLEMENTED partial_derivatives_wrt_NG ***
-        '''
+        """
         
         # (1) (N_times, 6*n_particlea, 6) -> (N_times, n_particlea, 6, 6)
         partial_derivatives_wrt_state = partial_derivatives_wrt_state.reshape(partial_derivatives_wrt_state.shape[0],-1,6,6)
@@ -694,10 +689,10 @@ class NbodySim():
         
         
     def _get_covariance_from_tangent_vectors(self, init_covariances, partial_derivatives_wrt_state ,  partial_derivatives_wrt_NG=None ):
-        '''
+        """
         Follow Milani et al 1999
         Gamma_t = [partial X / partial X_0] Gamma_0 [partial X / partial X_0]^T
-        '''
+        """
         
         if partial_derivatives_wrt_NG is not None:
             raise Error('Have not coded partial_derivatives_wrt_NG into _get_covariance_from_tangent_vectors ')
@@ -801,16 +796,16 @@ class NbodySim():
 # --------------------------------------------------------------
 
 def parse_nbody_txt( text_filepath ):
-    '''
+    """
         Read a text file
-        
+
         returns:
         --------
         name: str
          - name of object being processed: hopefully is an UNPACKED DESIGNATION
         array:
          - time, state, triangular-cov
-    '''
+    """
     if os.path.isfile( text_filepath ):
         
         # Simple read of file -> array
@@ -833,10 +828,10 @@ def parse_nbody_txt( text_filepath ):
 
 
 def create_nbody_txt( text_filepath ):
-    '''
+    """
         Convenience function to create a text-file of coordinates
         ****This is only for the purposes of data exploration****
-        
+
         #  I am constructing an array that is ~20,000 rows long
         # Each row stores 1-time, 6-posn&vel, and 21-CoVarCoeffs
         #
@@ -850,7 +845,7 @@ def create_nbody_txt( text_filepath ):
         #   V         ]
         #
 
-    '''
+    """
     
     # times
     times = np.arange(40000, 60000, 1)

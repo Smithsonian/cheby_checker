@@ -10,4 +10,4 @@ from cheby_checker import sockets
 # Run socket server 
 # --------------------------------------------------------------
 S = sockets.Server()
-S._demo_listen(startup_func = True )
+S._demo_listen(startup_func=True)

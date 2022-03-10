@@ -1,5 +1,6 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+# TODO: List of ubuntus/OSes, Pythons... one day.
 
 name: Python application
 
@@ -56,6 +57,11 @@ jobs:
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$REBX_DIR/src
         export JPL_PLANET_EPHEM=$REBX_DIR/examples/ephem_forces/linux_p1550p2650.440
         export JPL_SB_EPHEM=$REBX_DIR/examples/ephem_forces/sb441-n16.bsp
+        # set up cheby_checker
+        pip install -e .
+        # get LFS files!
+        git lfs install
+        git lfs pull
         # Set up the server for sockets tests
         python tests/sockets_server_starter_DO_NOT_DELETE.py & 
-        pytest
+        pytest tests

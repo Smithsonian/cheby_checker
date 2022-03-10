@@ -12,6 +12,8 @@
 - It's not at all efficient, but I want to have the function outside of any of the other modules
 - Initially written to be dependent on naval obs code (), but later could be shifted to wis.py
 
+[//]: # (TODO: Check efficiency -- may be more appropriate to assess MPC_library.py instead.)
+
  ### nbody
 
  - Wrapper around REBOUND 
@@ -44,9 +46,9 @@
 ### data_classes
 
 - Classes to hold ad-hoc data (detections, pointing, etc) used by various check functions
-- Some tests written in tests/towards_tests_of_data_classes.py
+- Some tests written in tests/test_data_classes.py
 
- ### sifter, sifter_precalc, sifter_sql, sifter_query:
+ ### sifter, sifter_precalc, sifter_sql (now `sql`), sifter_query:
 
 - files from the formerly independent `sifter` repository, now fully merged into here. 
 - sifter_precalc parses observations, identifies tracklets and splits observations into seperate tracklets, figures out where the observer is, deals with coordinate frame conversion, calculates the important info about a tracklet (integer night, HealPix, etc) and saves it to a dictionary. 
@@ -56,9 +58,9 @@
 
 # To Do 
 
-- Edit sifter to use the stand-along obs_pos for figuring out where observaties are, and remove the duplicated code from sifter_precalc.py [MA]
+- Edit sifter to use the stand-alone obs_pos for figuring out where observatories are, and remove the duplicated code from sifter_precalc.py [MA]
 
-- Develop tests for the many many functionalities within orbit_cheby [MA/MJP]
+- Some tests exist for the many many functionalities within orbit_cheby [MA/MJP]. It may be useful to split them between the two classes of `orbit_cheby.py`.
 
 - Add functionality from "playing_with_convex_hulls_and_ellipsoid_representations" to allow generation of ellipsoid boundary & calculation of overlap of convex hulls. This should probably be added to MSC (boundary) and Detections/Residuals (overlap). [MJP]
 
@@ -66,5 +68,7 @@
 
 - Develop test / demo of the end-to-end extraction of data from the database, through ephem, into pcheck [MJP]
 
-- Develop tests of functionalities in mpchecker. Start with pCheck (There are many more lower-level functionalities that need to have proper tests written for them, but I suspect that getting the pcheck & ephem codes working and tested will prompt me to get a whole lot of lower-level code sorted too) . [MJP]
+- Develop tests of functionalities in mpchecker. Start with pCheck (There are many more lower-level functionalities that need to have proper tests written for them, but I suspect that getting the pcheck & ephem codes working and tested will prompt me to get a whole lot of lower-level code sorted too). [MJP]
 
+- Modularize cheby_checker (group `cheby_checker/*` into folders) and propagate these modules to unit tests, too.
+- Determine SQLite vs. Postgres

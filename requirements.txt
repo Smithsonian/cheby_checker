@@ -1,0 +1,13 @@
+astropy
+astropy_healpix
+astroquery
+jplephem
+novas # Not available on Windows: https://github.com/brandon-rhodes/python-novas/issues/15
+novas_de405
+numpy
+pytest
+scipy
+
+# GitHub Packages
+# git+https://github.com/path/to/package-two@master#egg=package-two
+-e git+https://github.com/matthewjohnpayne/mpc_orb.git@main#egg=mpc_orb

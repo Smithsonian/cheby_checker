@@ -1,13 +1,8 @@
 # Import third-party packages
 # --------------------------------------------------------------
 import numpy as np
-import sys, os
-import pytest
 import threading
 import socket
-import pickle
-from datetime import datetime
-import subprocess
 
 # Import neighboring packages
 # --------------------------------------------------------------
@@ -25,16 +20,18 @@ def run_fake_server(HOST = '127.0.0.1', PORT = 65432):
     server_sock.accept()
     server_sock.close()
     assert True
-    
+
+
 def run_fake_client(HOST = '127.0.0.1', PORT = 65432):
     # This is our fake test client that is just going to attempt to connect and disconnect
     fake_client = socket.socket()
-    fake_client.settimeout(1)
+    fake_client.settimeout(2)
     fake_client.connect((HOST,PORT))
     fake_client.close()
-    
+
+
 def test_threading_server_and_client(HOST = '127.0.0.1', PORT = 65431):
-    ''' Adapted from https://www.devdungeon.com/content/unit-testing-tcp-server-client-python '''
+    """ Adapted from https://www.devdungeon.com/content/unit-testing-tcp-server-client-python """
 
     # Start fake server in background thread
     server_thread = threading.Thread(target=run_fake_server, args=(HOST,PORT))
@@ -46,22 +43,16 @@ def test_threading_server_and_client(HOST = '127.0.0.1', PORT = 65431):
 
     # Ensure server thread ends
     server_thread.join()
-    
-    
+
+
 # Tests of cheby-specific sockets classes
 # --------------------------------------------------------------
-
-
-
-
 #def test_server_instantiation():
 #    S = sockets.Server()
 #    assert isinstance(S,sockets.Server)
 #    C = sockets.Client()
 #    assert isinstance(C,sockets.Client)
 #    return True
-    
-
 def test_demo_client_server_connect():
     
     # launch client
@@ -92,6 +83,7 @@ def test_demo_client_server_connect():
     assert "received" in received
     assert received["received"] == True
 
+
 def test_demo_big_message_exchange():
     
     # launch client
@@ -109,5 +101,3 @@ def test_demo_big_message_exchange():
     assert "np" in received
     assert isinstance( received["np"], np.ndarray )
     assert received["np"].shape == (n,n)
-
-

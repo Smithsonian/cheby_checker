@@ -13,7 +13,6 @@ This module provides functionalities to perform coordinate conversions / rotatio
 # Import third-party packages
 # -----------------------------------------------------------------------------
 import sys
-import os
 import numpy as np
 
 # Import neighbouring packages
@@ -101,6 +100,7 @@ def equatorial_helio2bary(input_xyz, jd_tdb, backwards=False):
 
     # Position & Motion of the barycenter w.r.t. the heliocenter (and vice-versa)
     # NB: delta.shape == (3,N_times)  ==>>  delta.T.shape == (N_times, 3)
+    # TODO: use jpl_kernel with a public call on an Observatory object
     delta, delta_vel = mpc.jpl_kernel[0, 10].compute_and_differentiate(jd_tdb)
     
     # Work out whether we need xyz or xyzuvw

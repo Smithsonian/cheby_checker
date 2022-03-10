@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
+# TODO: Optimize imports, modularize this file (500 lns.)
 import math
 import numpy as np
-import scipy
 from scipy.interpolate import interp1d
 
 class Constants:
@@ -21,6 +21,7 @@ def rotate_matrix(ecl):
                   [0.0, -se,  ce]])
     return rotmat
 
+# Note: novas is not available on Windows.
 from novas import compat as novas
 from novas.compat import eph_manager
 from novas.compat import solsys
@@ -30,17 +31,21 @@ jd_start, jd_end, number = eph_manager.ephem_open()
 
 # This sets up DEV_DATA_PATH as the dev_data directory that the 430 ephemlives in.
 import os
-PARENT_PATH   = os.path.split(os.path.split(__file__)[0])[0]
-DATA_PATH = os.path.join( PARENT_PATH, "dev_data")
+PARENT_PATH = os.path.dirname(os.path.dirname(__file__))
+DATA_PATH = os.path.join(PARENT_PATH, "dev_data")
+kernel_path = os.path.join(DATA_PATH, "de440.bsp")
 
 # This loads the jplephem package and loads an ephemeris:
 from jplephem.spk import SPK
-print("kernal file to be opened in cheby version of MPC_library = ", os.path.join(DATA_PATH, "de440.bsp"))
-jpl_kernel = SPK.open(os.path.join(DATA_PATH, "de440.bsp"))
+print(f"kernel file to be opened in cheby version of MPC_library: {kernel_path}")
+jpl_kernel = SPK.open(kernel_path)
 
 
 class Observatory:
 
+    # TODO: Make getEarthPosition(.) and getEarthPV(.) class functions, write an init() that handles the kernel for I/O.
+    #   But also make it init(kernel=False) for external instantiations of Observatory(.), as in obs_pos.py
+    #   May be causing file handle issues with pytest.
     # Parses a line from the MPC's ObsCode.txt file
     def parseObsCode(self, line):
         code, longitude, rhocos, rhosin, ObsName = line[0:3], line[4:13], line[13:21], line[21:30], line[30:79].rstrip('\n')
@@ -93,34 +98,29 @@ class Observatory:
                     ObservatoryXYZ[code]=(None,None,None)
         self.ObservatoryXYZ = ObservatoryXYZ
 
-    def getObservatoryPosition(self, obsCode, jd_utc, xyz=None,
-                               velocity=False, old=False):
-        '''
+    def getObservatoryPosition(self, obsCode, jd_utc, xyz=None, velocity=False, old=False):
+        """
         This routine calculates the heliocentric position of the observatory
         in equatorial cartesian coordinates.
         If obsCode==None, set the observatory to be the geocenter.
         This solution using jplephem implemented by M. Alexandersen 2020/02/18,
         intended to replace old version using novas in getObservatoryPosition.
         *** If old=True, the old Novas implementation is used. ***
-        '''
+        """
         if old:  # If old=True, use Novas; For backwards compatibility
             return self.getObservatoryPosition_old(obsCode, jd_utc, xyz)
         if not obsCode:
             obsCode = '500'
         if (obsCode, jd_utc) in self.observatoryPositionCache and not velocity:
             return self.observatoryPositionCache[(obsCode, jd_utc)]
+
         try:
             obsVec = self.ObservatoryXYZ[obsCode]
         except KeyError:
-            print("*" * 80 + "\n" +
-                  "*" * 30 + "       ERROR!       " + "*" * 30 + "\n" +
-                  "*" * 80 + "\n" +
-                  "*" * 20 + " That's not a valid Observatory Code!!! " +
-                  "*" * 20 + "\n" +
-                  "*" * 80 + "\n")
-            raise
+            raise KeyError(f"Observatory Code {obsCode} is not a key in self.ObservatoryXYZ. Invalid.")
         if obsVec[0] is None and xyz is None:
             return None, None, None
+
         jd_tdb = EOP.jdTDB(jd_utc)
         pos, vel = getEarthPV(jd_tdb, old=old)
         if obsCode == '500':
@@ -191,22 +191,23 @@ class Observatory:
         jd_tdb  = EOP.jdTDB(jd_utc)
         p,v = getEarthPV(jd_tdb)
         return p
+
     def getEarthV(self, jd_utc, xyz=None):
         jd_tdb  = EOP.jdTDB(jd_utc)
         p,v = getEarthPV(jd_tdb)
         return v
 
 class EarthAndTime:
-    # Dealing with leap seconds and polar motion
-    # ### Relating this to MPC data
-    # 
-    # I believe that the MPC observations have dates in UTC, which is the conventional thing to do.   
-    # According to Gareth Williams, prior to 1972 Jan 1 the times are probably UT1.
-    # 
-    # So we take a time from an MPC observation.  If it's prior to 1972 Jan 1 we assume it's UT1 and 
-    # we get delta_t (TT-UT1) from the historical table.  If it's on or after 1972 Jan 1 we determine 
-    # the number of leap seconds from function below and then calculate delta_t.  
-    # 
+    """
+    Dealing with leap seconds and polar motion
+    # Relating this to MPC data
+    I believe that the MPC observations have dates in UTC, which is the conventional thing to do.
+    According to Gareth Williams, prior to 1972 Jan 1 the times are probably UT1.
+
+    So we take a time from an MPC observation.  If it's prior to 1972 Jan 1 we assume it's UT1 and
+    we get delta_t (TT-UT1) from the historical table.  If it's on or after 1972 Jan 1 we determine
+    the number of leap seconds from function below and then calculate delta_t.
+    """
     def __init__(self, filename1=os.path.join(DATA_PATH, 'finals2000A.all'),
                  filename2=os.path.join(DATA_PATH, 'tai-utc.dat')):
         _xydeltat = {}
@@ -299,11 +300,14 @@ class EarthAndTime:
         DUT1  = self.ut1_utc(jd_utc)
         delta_t = 32.184 + leaps - DUT1
         return delta_t
-        
+
+
 def getEarthPosition_old(jd_tdb):
     # Old version using Novas; stop using this!
     pos, _ = solsys.solarsystem(jd_tdb, 3, 1)
     return pos
+
+
 def getEarthPV_old(jd_tdb):
     # Old version using Novas; stop using this!
     pos, vel = solsys.solarsystem(jd_tdb, 3, 1)
@@ -311,12 +315,12 @@ def getEarthPV_old(jd_tdb):
 
 
 def getEarthPV(jd_tdb, old=False):
-    '''
+    """
         Get Earth's position and velocity.
-        This is M. Alexandersen's implementation implementation using jplephem,
+        This is M. Alexandersen's implementation using jplephem,
         intended to replace getEarthPV_old.
         *** If old=True, the old Novas implementation is used. ***
-    '''
+    """
     if old:  # If old=True, use Novas; For backwards compatibility
         return getEarthPV_old(jd_tdb)
     (bary_Sun_pos, bary_Sun_vel
@@ -331,13 +335,14 @@ def getEarthPV(jd_tdb, old=False):
                      ) / Constants.au_km  # Convert km/day to AU/day
     return helio_500_pos, helio_500_vel
 
+
 def getEarthPosition(jd_tdb, old=False):
-    '''
+    """
         Get Earth's position.
         This is M. Alexandersen's implementation implementation using jplephem,
         intended to replace getEarthPosition_old.
         *** If old=True, the old Novas implementation is used. ***
-    '''
+    """
     if old:  # If old=True, use Novas; For backwards compatibility
         return getEarthPosition_old(jd_tdb)
     pos, _ = getEarthPV(jd_tdb)
@@ -351,6 +356,7 @@ def parseDate(dateObs):
     dy = dateObs[8:]
     return yr, mn, dy
 
+
 # Converts the date string to a JD floating point number, using the NOVAS routine
 # The time scale of the returned value will be same as that of the input date.
 def date2JD(dateObs):
@@ -361,6 +367,7 @@ def date2JD(dateObs):
     jd = novas.julian_date(int(yr), int(mn), int(dy), 24.*hr)
     return jd
 
+
 # These routines convert the RA and Dec strings to floats.
 def RA2degRA(RA):
     hr = float(RA[0:2])
@@ -368,6 +375,7 @@ def RA2degRA(RA):
     sc = float(RA[6:])
     degRA = 15.0*(hr + 1./60. * (mn + 1./60. * sc))
     return degRA
+
 
 def Dec2degDec(Dec):
     s = Dec[0]
@@ -378,6 +386,7 @@ def Dec2degDec(Dec):
     if s == '-':
         degDec = -degDec
     return degDec
+
 
 def convertEpoch(Epoch):
     yr0 = Epoch[0]
@@ -408,12 +417,14 @@ def convertEpoch(Epoch):
     if not dy.isdigit():
         dy = 10 + ord(dy) - ord('A')
     return yr, mn, int(dy)
-    
+
+
 def yrmndy2JD(yrmndy):
     yr, mn, dy = yrmndy
     hr, dy = math.modf(float(dy))
     jd = novas.julian_date(int(yr), int(mn), int(dy), 24.*hr)
     return jd
+
 
 def deg2dms(v):
     minus_flag = (v<0.0)
@@ -426,6 +437,7 @@ def deg2dms(v):
     else:
         v_sgn = "+"
     return v_sgn, v_deg, v_min, v_sec
+
 
 def convert2MPC1992(trackID, line, mpNum="     ", disc=False):
     comps = line.split()
@@ -463,6 +475,7 @@ def convert2MPC1992(trackID, line, mpNum="     ", disc=False):
     #print trackID, yr, mn, day, ra_hr, ra_min, ra_sec, dec_deg, dec_min, dec_sec, mag, filt_trunc, obsCode
     
     return result_string, int(vac), int(rej)
+
 
 def H_alpha(H, G, alpha):
     # H is the absolute magnitude 

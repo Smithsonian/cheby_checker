@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
 # cheby_checker/cheby_checker/sql.py
 
-'''
+"""
     --------------------------------------------------------------
     cheby_checker's sqlite module.
-    
+
     Aug 2020
     Matt Payne
-    
+
     This module provides functionalities to interact with
     (i) The tables related to storing ephemeris representations
         - I.e. chebyshev representations
     (ii) The table(s) related to storing the ITF data for
         - SIFTER
-    
+
     --------------------------------------------------------------
-'''
+"""
 
 
 # Import third-party packages
@@ -39,41 +39,33 @@ from .cheby_checker import Base
 # E.g.
 # https://www.sqlitetutorial.net/sqlite-python/creating-database/
 # https://www.sqlitetutorial.net/sqlite-python/create-tables/
-# ...
-#
-# -------------------------------------------------------------
-
-class DB():
-    '''
+class DB:
+    """
     Class to handle basic database connections & locations
-    
-    Currently uses sqlite3 db
-    '''
 
-    def __init__(self,):
+    Currently uses sqlite3 db
+    """
+    def __init__(self):
         self.db_file = self.fetch_db_filepath()
         self.conn    = self.create_connection()
 
-
     @staticmethod
     def fetch_db_filepath():
-        '''
-        '''
         B = Base()
         db_dir = B._fetch_data_directory()
         return os.path.join(db_dir , B.db_filename)
 
-    def create_connection(self,):
-        """ Create a database connection to the SQLite database
-            specified by db_file
-            
-            inputs:
-            -------
-            db_file: database file
-            
-            return:
-            -------
-            Connection object or None
+    def create_connection(self):
+        """
+        Create a database connection to the SQLite database specified by db_file
+
+        inputs:
+        -------
+        db_file: database file
+
+        return:
+        -------
+        Connection object or None
         """
         conn = None
         try:
@@ -84,18 +76,18 @@ class DB():
         
         return conn
 
+    def create_table(self, create_table_sql):
+        """
+        Create a table from the create_table_sql statement
 
-    def create_table(self, create_table_sql ):
-        """ Create a table from the create_table_sql statement
-            
-            inputs:
-            -------
-            conn: Connection object
-            
-            create_table_sql: a CREATE TABLE statement
-            
-            return:
-            -------
+        inputs:
+        -------
+        conn: Connection object
+
+        create_table_sql: a CREATE TABLE statement
+
+        return:
+        -------
         """
         try:
             c = self.conn.cursor()
@@ -105,7 +97,7 @@ class DB():
 
 
 class SQLChecker(DB):
-    '''
+    """
     Class to handle all database interactions required by cheby_checker
 
     This includes table creation, data inserts/upserts/removals, and
@@ -113,22 +105,20 @@ class SQLChecker(DB):
 
     Currently uses sqlite3 db
 
-    '''
+    """
 
-    def __init__(self,):
+    def __init__(self):
         super().__init__()
-
 
     # ---------------------------------------------
     # Generic functionalities
     # ---------------------------------------------
-
     def generate_sector_field_names(self,  sector_dict = Base().get_required_sector_dict() ):
-        '''  Dynamically generate the field-specs that will be required for the coeffs-by-sector  '''
+        """  Dynamically generate the field-specs that will be required for the coeffs-by-sector  """
         return [ 'sector_%d_%d' % (i, jd) for i, jd in sector_dict.items() ]
 
     def generate_blank_coefficient_dict(self,  sector_dict = Base().get_required_sector_dict() ):
-        '''  Generate a blank default dictionary for upsert to coeffs table ...  '''
+        """  Generate a blank default dictionary for upsert to coeffs table ...  """
         return { _ : None for _ in self.generate_sector_field_names() }
 
     # ---------------------------------------------
@@ -138,7 +128,6 @@ class SQLChecker(DB):
         self.create_object_coefficients_table()
         self.create_objects_by_jdhp_table()
         
-
     def create_object_coefficients_table(self,):
         """ Create the object_coefficients table(s) that we need for ephemeris calcultions
             
@@ -175,7 +164,6 @@ class SQLChecker(DB):
             createSecondaryIndex =  "CREATE INDEX index_desig ON object_coefficients (unpacked_primary_provisional_designation);"
             self.conn.cursor().execute(createSecondaryIndex)
 
-
     def create_objects_by_jdhp_table(self,):
         """ Create the specific objects_by_jdhp table that we need for *mpchecker2*
             
@@ -208,11 +196,9 @@ class SQLChecker(DB):
             createSecondaryIndex =  "CREATE INDEX index_object_coeff_id ON objects_by_jdhp (object_coeff_id);"
             self.conn.cursor().execute(createSecondaryIndex)
 
-
     # --------------------------------------------------------
     # --- Funcs to write to / update CHECKER db-tables
     # --------------------------------------------------------
-
     def upsert_coefficients(self, unpacked_primary_provisional_designation , sector_names, sector_values):
         """
             Insert/Update coefficients in the *object_coefficients* table
@@ -267,10 +253,6 @@ class SQLChecker(DB):
         object_coeff_id = cur.lastrowid
         return object_coeff_id
 
-
-
-   
-
     def insert_HP(self, JDlist, HPlist, object_id ):
         """
             objects_by_jdhp is structured like ...
@@ -313,13 +295,9 @@ class SQLChecker(DB):
         # (d) remember to commit ...
         self.conn.commit()
 
-
-
-
     # --------------------------------------------------------
     # --- Funcs to delete data
     # --------------------------------------------------------
-
     def delete_JDHP_by_object_coeff_id(self, object_coeff_id):
         """
             Delete all rows from "objects_by_jdhp" that match the supplied "object_coeff_id"
@@ -332,12 +310,9 @@ class SQLChecker(DB):
         cur.execute( " DELETE FROM objects_by_jdhp WHERE object_coeff_id=?;", (int(object_coeff_id),) )
         self.conn.commit()
 
-
-
     # --------------------------------------------------------
     # --- Funcs to query db-tables
     # --------------------------------------------------------
-
     def query_object_coefficients(self,
                                     unpacked_primary_provisional_designation,
                                     sector_numbers = None):
@@ -378,9 +353,6 @@ class SQLChecker(DB):
         result = cur.fetchall()[0]
         return { sfn:pickle.loads( coeff )  for sfn, coeff in zip(sector_field_names, result) if coeff != None }
 
-
-
-
     def query_desig_by_object_coeff_id(self, object_coeff_ids):
         """
         Given a list of object_ids, return the associated unpacked_primary_provisional_designations
@@ -404,28 +376,27 @@ class SQLChecker(DB):
         # key is object_coeff_id, value is desig
         return {_[0]:_[1] for _ in cur.fetchall()}
 
-
-
     def query_coefficients_by_jd_hp(self, JD, HPlist , sector_numbers = None):
-        '''
+        """
             For a given (single) JD and list of Healpix,
             the query returns the relevant coefficients from the object_coefficients table
-            
+
             inputs
             ------
             JD: float or int
              - julian date of the night. If <float> will be silently converted to <int>
-             
+
             HPlist: list-of-integers
              - healpix to be queried
              - if integer (single healpix) supplied, is silently converted to list
-             
+
             returns
             -------
             dictionary-of-dictionaries
             - keys   = unpacked_primary_provisional_designation
             - values = list of coeff-dictionaries for each unpacked_primary_provisional_designation
-        '''
+
+        """
         
         # What sector numbers are we searching for ?
         # - Default is to get data for all of them
@@ -451,18 +422,14 @@ class SQLChecker(DB):
         return { r[0] : { sfn:pickle.loads( coeff )  for sfn, coeff in zip(sector_field_names, r[1:]) if coeff != None } \
                 for r in results}
 
-
-
-
-
     def query_jd_hp(self, JD, HPlist):
-        '''
+        """
             For a given (single) JD and list of Healpix,
             the query returns the relevant object_coeff_ids
-            
+
             May be of little use in practice, but helpful for development
-            
-        '''
+
+        """
         # Connection cursor
         cur = self.conn.cursor()
 
@@ -475,11 +442,8 @@ class SQLChecker(DB):
         return [_[0] for _ in cur.fetchall()]
 
 
-
-
-
 class SQLSifter(DB):
-    '''
+    """
     Class to handle all database interactions required by sifter
 
     This includes table creation, data inserts/upserts/removals, and
@@ -489,11 +453,10 @@ class SQLSifter(DB):
 
     *** PROBABLY HAS NOT BEEN PROPERLY TESTED WITHIN test_sql.py AS YET (Nov 2021) ***
 
-    '''
+    """
 
     def __init__(self,):
         super().__init__()
-
 
     # ---------------------------------------------
     # Generic functionalities
@@ -502,20 +465,19 @@ class SQLSifter(DB):
     # ---------------------------------------------
     # Create the *CHECKER* tables
     # ---------------------------------------------
-    def create_sifter_tables(conn):
-        """ Create the specific table(s) that we need for *sifter*
-            Currently creates:
-            (i) tracklets
-
-            inputs:
-            -------
-            conn: Connection object
-
-            return:
-            -------
-
+    def create_sifter_tables(self, conn):
         """
-        
+        Create the specific table(s) that we need for *sifter*
+        Currently creates:
+        (i) tracklets
+
+        inputs:
+        -------
+        conn: Connection object
+
+        return:
+        -------
+        """
         # Note that I am deliberately setting up the stored *tracklet* data as a "blob"
         # - Because not yet sure what will be in it!
         sql_create_tracklets_table = """ CREATE TABLE IF NOT EXISTS tracklets (
@@ -528,21 +490,21 @@ class SQLSifter(DB):
         
         # create table(s)
         if conn is not None:
-            
+            self.conn = conn
             # create "jdhp_to_tracklet" table
-            create_table(conn, sql_create_tracklets_table)
+            self.create_table(sql_create_tracklets_table)
 
             # Create compound/combined index on the jd & hp columns
-            createSecondaryIndex =  "CREATE INDEX index_jdhp ON tracklets (jd, hp);"
+            createSecondaryIndex = "CREATE INDEX index_jdhp ON tracklets (jd, hp);"
             conn.cursor().execute(createSecondaryIndex)
         
         # remember to commit ...
         conn.commit()
 
-
     # --------------------------------------------------------
     # --- Funcs to write to / update SIFTER db-tables
     # --------------------------------------------------------
+    @staticmethod
     def upsert_tracklet(conn, jd, hp, tracklet_name, tracklet_dict):
         """
             insert/update tracklet data
@@ -580,7 +542,7 @@ class SQLSifter(DB):
         # remember to commit ...
         conn.commit()
 
-
+    @staticmethod
     def upsert_tracklets(conn, jd_list, hp_list, tracklet_name_list, tracklet_dict_list):
         """
             insert/update lists of tracklet data
@@ -620,10 +582,10 @@ class SQLSifter(DB):
         # remember to commit ...
         conn.commit()
 
-
     # --------------------------------------------------------
     # --- Funcs to delete from SIFTER db-tables
     # --------------------------------------------------------
+    @staticmethod
     def delete_tracklet(conn, tracklet_name):
         """
             delete tracklet data
@@ -642,7 +604,7 @@ class SQLSifter(DB):
         cur.execute(sql, (tracklet_name,))
         conn.commit()
 
-
+    @staticmethod
     def delete_tracklets(conn, tracklet_name_list):
         """
             delete list of tracklet data
@@ -662,10 +624,10 @@ class SQLSifter(DB):
         cur.executemany(sql, records)
         conn.commit()
 
-
     # --------------------------------------------------------
     # --- Funcs to query SIFTER db-tables
     # --------------------------------------------------------
+    @staticmethod
     def query_tracklets_jdhp(conn, JD, HP):
         """
            Standard query used to find all tracklets for which jd,hp matches input
@@ -686,7 +648,7 @@ class SQLSifter(DB):
         # return a list-of-tuples: (tracklet_name, tracklet_dictionary)
         return [ (row[0] , pickle.loads( row[1] ) ) for row in cur.fetchall() ]
 
-
+    @staticmethod
     def query_tracklets_jd_hplist(conn, JD, HP_list):
         """
             Standard query used to find all tracklets for which jd,hp_list matches input
@@ -723,8 +685,3 @@ class SQLSifter(DB):
 
         # return a list-of-tuples: (tracklet_name, tracklet_dictionary)
         return [ (row[0] , pickle.loads( row[1] ) ) for row in cur.fetchall() ]
-
-
-
-
-
