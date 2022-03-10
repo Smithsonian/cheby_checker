@@ -17,6 +17,7 @@
 import sys
 import os
 import numpy as np
+import pytest
 
 # Import neighboring packages
 # --------------------------------------------------------------
