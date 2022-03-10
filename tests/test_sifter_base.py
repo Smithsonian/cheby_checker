@@ -20,14 +20,16 @@ import numpy as np
 
 # Import neighboring packages
 # --------------------------------------------------------------
-from cheby_checker import sifter_precalc as precalc
+#@pytest.mark.skip(reason="Sifter Code/Tests have NOT been reviewed in 2022 by MJP")
+#from cheby_checker import sifter_precalc as precalc
 
-
+@pytest.mark.skip(reason="Sifter Code/Tests have NOT been reviewed in 2022 by MJP")
 def test_instantiation():
     '''Test that the empty class instantiates correctly.'''
     assert isinstance(precalc.Base(), precalc.Base)
 
 
+@pytest.mark.skip(reason="Sifter Code/Tests have NOT been reviewed in 2022 by MJP")
 def test_variables():
     '''
     Test that necessary variables are available
