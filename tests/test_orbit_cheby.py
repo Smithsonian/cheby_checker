@@ -223,7 +223,7 @@ def test_from_coord_arrays_B(  ):
         
         # Do a local read of the json (using MPCORB) as it's useful to be able to read the name of the object
         M = MPCORB(mpc_orb_json_filepath)
-        primary_unpacked_provisional_designation = M.designation_data["unpacked_primary_provisional_designation"]
+        unpacked_primary_provisional_designation = M.designation_data["unpacked_primary_provisional_designation"]
 
         # Instantiate MSC object
         M=orbit_cheby.MSC()
@@ -233,7 +233,7 @@ def test_from_coord_arrays_B(  ):
         # NB1: This attempts to load from arrays ...
         # NB2: Need to do array slicing that will be taken care of within MSC_Loader in practical operation
         # ## ### #### #####
-        M.from_coord_arrays(primary_unpacked_provisional_designation, N.output_times , N.output_states[:,0,:] )
+        M.from_coord_arrays(unpacked_primary_provisional_designation, N.output_times , N.output_states[:,0,:] )
 
         # check that the expected attributes have been set
         for attr in ["TDB_init", "TDB_final", "sector_init", "sector_final", "sector_coeffs"]:
@@ -301,14 +301,14 @@ def test_evaluate_components_A():
     
     # Do a local read of the json (using MPCORB) as it's useful to be able to read the name of the object
     MO = MPCORB(mpc_orb_json_filepath)
-    primary_unpacked_provisional_designation = MO.designation_data["unpacked_primary_provisional_designation"]
+    unpacked_primary_provisional_designation = MO.designation_data["unpacked_primary_provisional_designation"]
     
     # Instantiate Nbody Object, Run NBody Simulation, and return populated Object
     N = convenience_call_to_nbody_run_mpcorb(mpc_orb_json_filepath)
     
     # Instantiate MSC object & populate using data from Nbody Object ...
     M=orbit_cheby.MSC()
-    M.from_coord_arrays(primary_unpacked_provisional_designation, N.output_times , N.output_states[:,0,:] )
+    M.from_coord_arrays(unpacked_primary_provisional_designation, N.output_times , N.output_states[:,0,:] )
 
     # Indicees for data supported by this MSC:
     init, final = M.get_valid_range_of_dates()

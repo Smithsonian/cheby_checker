@@ -276,8 +276,8 @@ def test_accuracy_cartesians_A(  ):
     # NB1: This attempts to load from arrays ...
     # NB2: Need to do array slicing that will be taken care of within MSC_Loader in practical operation
     # ## ### #### #####
-    primary_unpacked_provisional_designation = target
-    M.from_coord_arrays(primary_unpacked_provisional_designation, outtimes , states[:,0,:] )
+    unpacked_primary_provisional_designation = target
+    M.from_coord_arrays(unpacked_primary_provisional_designation, outtimes , states[:,0,:] )
 
     # check that the expected attributes have been set
     for attr in ["TDB_init", "TDB_final", "sector_init", "sector_final", "sector_coeffs"]:
@@ -398,8 +398,8 @@ def test_accuracy_cartesians_B(  ):
     # NB1: This attempts to load from arrays ...
     # NB2: Need to do array slicing that will be taken care of within MSC_Loader in practical operation
     # ## ### #### #####
-    primary_unpacked_provisional_designation = target
-    M.from_coord_arrays(primary_unpacked_provisional_designation, outtimes , states[:,0,:] )
+    unpacked_primary_provisional_designation = target
+    M.from_coord_arrays(unpacked_primary_provisional_designation, outtimes , states[:,0,:] )
 
     # check that the expected attributes have been set
     for attr in ["TDB_init", "TDB_final", "sector_init", "sector_final", "sector_coeffs"]:
@@ -524,8 +524,8 @@ def test_accuracy_RADEC_A(  ):
     # NB1: This attempts to load from arrays ...
     # NB2: Need to do array slicing that will be taken care of within MSC_Loader in practical operation
     # ## ### #### #####
-    primary_unpacked_provisional_designation = target
-    M.from_coord_arrays(primary_unpacked_provisional_designation, outtimes , states[:,0,:] )
+    unpacked_primary_provisional_designation = target
+    M.from_coord_arrays(unpacked_primary_provisional_designation, outtimes , states[:,0,:] )
 
     # check that the expected attributes have been set
     for attr in ["TDB_init", "TDB_final", "sector_init", "sector_final", "sector_coeffs"]:
@@ -699,8 +699,8 @@ def test_accuracy_RADEC_B(  ):
     # NB1: This attempts to load from arrays ...
     # NB2: Need to do array slicing that will be taken care of within MSC_Loader in practical operation
     # ## ### #### #####
-    primary_unpacked_provisional_designation = target
-    M.from_coord_arrays(primary_unpacked_provisional_designation, outtimes , states[:,0,:] )
+    unpacked_primary_provisional_designation = target
+    M.from_coord_arrays(unpacked_primary_provisional_designation, outtimes , states[:,0,:] )
 
     # check that the expected attributes have been set
     for attr in ["TDB_init", "TDB_final", "sector_init", "sector_final", "sector_coeffs"]:

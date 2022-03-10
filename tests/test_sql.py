@@ -115,7 +115,7 @@ def test_DB():
     sql_statement = """
         CREATE TABLE IF NOT EXISTS test_table_name (
         object_id integer PRIMARY KEY,
-        primary_unpacked_provisional_designation TEXT UNIQUE);
+        unpacked_primary_provisional_designation TEXT UNIQUE);
     """
     db.create_table( sql_statement)
     
@@ -168,7 +168,7 @@ def test_SQLChecker():
     sql_statement = """
             CREATE TABLE IF NOT EXISTS test_table_name (
             object_id integer PRIMARY KEY,
-            primary_unpacked_provisional_designation TEXT UNIQUE);
+            unpacked_primary_provisional_designation TEXT UNIQUE);
     """
     db.create_table( sql_statement)
     
@@ -240,7 +240,7 @@ def test_SQLChecker_TableCreation():
     # Test that the expected column names are in the *object_coefficients* table
     cur.execute("SELECT * FROM object_coefficients ")
     names = [description[0] for description in cur.description]
-    expected_names = ['object_coeff_id', 'primary_unpacked_provisional_designation'] + C.generate_sector_field_names()
+    expected_names = ['object_coeff_id', 'unpacked_primary_provisional_designation'] + C.generate_sector_field_names()
     assert np.all( [n in expected_names for n in names ])
   
     # Test that the expected column names are in the *objects_by_jdhp* table
@@ -271,22 +271,22 @@ def test_upsert_coefficients():
     # --------------------------------
     # Define some data to be inserted
     # NB: These will be used to store pickled dictionaries, so let's test that ...
-    primary_unpacked_provisional_designation = '2020 AB'
+    unpacked_primary_provisional_designation = '2020 AB'
     sector_field_names = C.generate_sector_field_names()[:2]
     sector_values_raw  = [ np.array([[n,n],[n,n]]) for n, _ in enumerate(sector_field_names) ]
     sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
     
     # Call upsert function
-    object_coeff_id = C.upsert_coefficients(primary_unpacked_provisional_designation , sector_field_names, sector_values)
+    object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
 
     # Check that the returned id is an integer:
     # - Because we have a new db & table for this test, the indexing should start from one (apparently), ...
     assert object_coeff_id == 1
     
     # Query the database and see what the returned data looks like
-    sqlstr = "SELECT * FROM object_coefficients WHERE primary_unpacked_provisional_designation=?"
+    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
     cur = C.conn.cursor()
-    cur.execute(sqlstr , ( primary_unpacked_provisional_designation, ))
+    cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
     result_raw     = cur.fetchall()[0]
     
     # Check that the returned results are the same as the inserted values
@@ -294,7 +294,7 @@ def test_upsert_coefficients():
     result_desig            = result_raw[1]
     result_sectors          = [ pickle.loads( _ ) for _ in result_raw if _ != None and not isinstance(_,(str,int))]
     assert result_object_coeff_id == object_coeff_id
-    assert result_desig == primary_unpacked_provisional_designation
+    assert result_desig == unpacked_primary_provisional_designation
     assert np.all( [ a==b for a,b in zip(sector_values_raw , result_sectors) ] )
 
 
@@ -303,22 +303,22 @@ def test_upsert_coefficients():
     # ------------- 2 ----------------
     # Simple test of additional data insert
     # --------------------------------
-    primary_unpacked_provisional_designation = '2021 XY'
+    unpacked_primary_provisional_designation = '2021 XY'
     sector_field_names = C.generate_sector_field_names()[:3]
     sector_values_raw  = [ np.array([[n,n],[n,n]]) for n, _ in enumerate(sector_field_names) ]
     sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
     
     # Call upsert function
-    object_coeff_id = C.upsert_coefficients(primary_unpacked_provisional_designation , sector_field_names, sector_values)
+    object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
 
     # Check that the returned id is an integer:
     # - This should be the second line ...
     assert object_coeff_id == 2
     
     # Query the database and see what the returned data looks like
-    sqlstr = "SELECT * FROM object_coefficients WHERE primary_unpacked_provisional_designation=?"
+    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
     cur = C.conn.cursor()
-    cur.execute(sqlstr , ( primary_unpacked_provisional_designation, ))
+    cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
     result_raw     = cur.fetchall()[0]
     
     # Check that the returned results are the same as the inserted values
@@ -326,7 +326,7 @@ def test_upsert_coefficients():
     result_desig            = result_raw[1]
     result_sectors          = [ pickle.loads( _ ) for _ in result_raw if _ != None and not isinstance(_,(str,int))]
     assert result_object_coeff_id == object_coeff_id
-    assert result_desig == primary_unpacked_provisional_designation
+    assert result_desig == unpacked_primary_provisional_designation
     assert np.all( [ a==b for a,b in zip(sector_values_raw , result_sectors) ] )
 
 
@@ -338,27 +338,27 @@ def test_upsert_coefficients():
     # So there should still only be 2 rows in the table (but the index will have updated because that's how it works ...)
     # --------------------------------
 
-    primary_unpacked_provisional_designation = '2021 XY'
+    unpacked_primary_provisional_designation = '2021 XY'
     sector_field_names = C.generate_sector_field_names()[:2]
     sector_values_raw  = [ np.array([[17*n,17*n],[17*n,17*n]]) for n, _ in enumerate(sector_field_names) ]
     sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
     
     # Call upsert function
-    object_coeff_id = C.upsert_coefficients(primary_unpacked_provisional_designation , sector_field_names, sector_values)
+    object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
     
     # Check that the returned id is as expected (the index updates)
     assert object_coeff_id == 3
     
     # Check that there's 2 (not 3) rows in the database
-    sqlstr = "SELECT object_coeff_id,primary_unpacked_provisional_designation FROM object_coefficients"
+    sqlstr = "SELECT object_coeff_id,unpacked_primary_provisional_designation FROM object_coefficients"
     cur    = C.conn.cursor()
     cur.execute(sqlstr)
     assert len(cur.fetchall()) == 2
     
     # Query the database and see what the returned data looks like
-    sqlstr = "SELECT * FROM object_coefficients WHERE primary_unpacked_provisional_designation=?"
+    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
     cur = C.conn.cursor()
-    cur.execute(sqlstr , ( primary_unpacked_provisional_designation, ))
+    cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
     result_raw     = cur.fetchall()[0]
     
     # Check that the retuurned coefficients are the same as this update and NOT like those inserted in ---2---
@@ -474,7 +474,7 @@ def test_inserts():
     C = sql.SQLChecker()
 
     # (2) Test Low level direct designation insert: result = object_id = 1
-    result = C.insert_desig(conn ,MSCs[0].primary_unpacked_provisional_designation )
+    result = C.insert_desig(conn ,MSCs[0].unpacked_primary_provisional_designation )
     assert result == 1
 
     # (3a) Test that there is something in the db by executing a query
@@ -483,7 +483,7 @@ def test_inserts():
     result = cur.fetchall()
     assert len(result) ==1
     # (3b) There is also an appropriate query functionality: result = object_id = 1
-    result = C.query_number_by_desig( MSCs[0].primary_unpacked_provisional_designation )
+    result = C.query_number_by_desig( MSCs[0].unpacked_primary_provisional_designation )
     assert result == 1
     
     # (4) Test MSC upsert
@@ -534,16 +534,16 @@ def test_query_object_coefficients():
     # Define some data to be inserted
     # NB: The *query_object_coefficient* routine is designed to un-pickle the stored data,
     #     so we need to supply pickled data ...
-    primary_unpacked_provisional_designation = '2020 AB'
+    unpacked_primary_provisional_designation = '2020 AB'
     sector_field_names = C.generate_sector_field_names()[:2]
     sector_values_raw  = [ np.array([[n,n],[n,n]]) for n, _ in enumerate(sector_field_names) ]
     sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
     
     # Call the convenient upsert function (tested above)
-    object_coeff_id = C.upsert_coefficients(primary_unpacked_provisional_designation , sector_field_names, sector_values)
+    object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
 
     # Now call the query function that we want to test
-    result_dict = C.query_object_coefficients(primary_unpacked_provisional_designation)
+    result_dict = C.query_object_coefficients(unpacked_primary_provisional_designation)
     
     # Check the results are as expected
     assert isinstance(result_dict, dict)
@@ -559,16 +559,16 @@ def test_query_object_coefficients():
     # NB: THIS IS A DIFFERENT DESIGNATION
     # --------------------------------
     # Define some data to be inserted
-    primary_unpacked_provisional_designation = '2021 XY'
+    unpacked_primary_provisional_designation = '2021 XY'
     sector_field_names = C.generate_sector_field_names()[:2]
     sector_values_raw  = [ np.array([[2*n,2*n],[2*n,2*n]]) for n, _ in enumerate(sector_field_names) ]
     sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
     
     # Call the convenient upsert function (tested above)
-    object_coeff_id = C.upsert_coefficients(primary_unpacked_provisional_designation , sector_field_names, sector_values)
+    object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
 
     # Now call the query function that we want to test
-    result_dict = C.query_object_coefficients(primary_unpacked_provisional_designation)
+    result_dict = C.query_object_coefficients(unpacked_primary_provisional_designation)
     
     # Check the results are as expected
     assert isinstance(result_dict, dict)
@@ -585,16 +585,16 @@ def test_query_object_coefficients():
     # So we expect the data to have been updated/replaced
     # --------------------------------
     # Define some data to be inserted
-    primary_unpacked_provisional_designation = '2020 AB'
+    unpacked_primary_provisional_designation = '2020 AB'
     sector_field_names = C.generate_sector_field_names()[:2]
     sector_values_raw  = [ np.array([[3*n,3*n],[3*n,3*n]]) for n, _ in enumerate(sector_field_names) ]
     sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
     
     # Call the convenient upsert function (tested above)
-    object_coeff_id = C.upsert_coefficients(primary_unpacked_provisional_designation , sector_field_names, sector_values)
+    object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
 
     # Now call the query function that we want to test
-    result_dict = C.query_object_coefficients(primary_unpacked_provisional_designation)
+    result_dict = C.query_object_coefficients(unpacked_primary_provisional_designation)
     
     # Check the results are as expected
     assert isinstance(result_dict, dict)
@@ -612,7 +612,7 @@ def test_query_desig_by_object_coeff_id():
     """
     Test the query_desig_by_object_coeff_id
     NB(1): When *query_desig_by_object_coeff_id* is called with a list of object_ids,
-           it returns the associated primary_unpacked_provisional_designations
+           it returns the associated unpacked_primary_provisional_designations
         
     NB(2): Not sure *query_desig_by_object_coeff_id* is ever used any more.
            May be pointtless to keep it.
@@ -660,8 +660,8 @@ def test_query_coefficients_by_jd_hp():
         returns
         -------
         dictionary-of-dictionaries
-        - keys   = primary_unpacked_provisional_designation
-        - values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
+        - keys   = unpacked_primary_provisional_designation
+        - values = list of coeff-dictionaries for each unpacked_primary_provisional_designation
 
     So we will need to pre-populate the tables with values that can give differing results
     depending on the search performed
@@ -719,8 +719,8 @@ def test_query_coefficients_by_jd_hp():
         #returns
         #-------
         #dictionary-of-dictionaries
-        #- keys   = primary_unpacked_provisional_designation
-        #- values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
+        #- keys   = unpacked_primary_provisional_designation
+        #- values = list of coeff-dictionaries for each unpacked_primary_provisional_designation
         result_dict = C.query_coefficients_by_jd_hp(JD, HPlist , sector_numbers = [0,1])
         
         #check
@@ -754,8 +754,8 @@ def test_query_coefficients_by_jd_hp():
         #returns
         #-------
         #dictionary-of-dictionaries
-        #- keys   = primary_unpacked_provisional_designation
-        #- values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
+        #- keys   = unpacked_primary_provisional_designation
+        #- values = list of coeff-dictionaries for each unpacked_primary_provisional_designation
         result_dict = C.query_coefficients_by_jd_hp(JD, HPlist , sector_numbers = [0,1])
 
 
@@ -784,8 +784,8 @@ def test_query_coefficients_by_jd_hp():
         #returns
         #-------
         #dictionary-of-dictionaries
-        #- keys   = primary_unpacked_provisional_designation
-        #- values = list of coeff-dictionaries for each primary_unpacked_provisional_designation
+        #- keys   = unpacked_primary_provisional_designation
+        #- values = list of coeff-dictionaries for each unpacked_primary_provisional_designation
         result_dict = C.query_coefficients_by_jd_hp(JD, HPlist , sector_numbers = [0,1])
 
 
@@ -819,7 +819,7 @@ def test_queries():
     conn = test_func_create_db_and_tables()
 
     # (2) Low level direct inserts to put MSC into db so that we have something to query against!
-    object_id = sql.insert_desig(conn ,MSCs[0].primary_unpacked_provisional_designation )
+    object_id = sql.insert_desig(conn ,MSCs[0].unpacked_primary_provisional_designation )
     sql.upsert_MSC(conn ,M , object_id )
 
     # (3) Execute the query
@@ -865,7 +865,7 @@ def test_healpix():
     conn = test_func_create_db_and_tables()
 
     # (2) Low level direct inserts to put MSC into db so that we have something to query against!
-    object_id = sql.insert_desig(conn ,MSCs[0].primary_unpacked_provisional_designation )
+    object_id = sql.insert_desig(conn ,MSCs[0].unpacked_primary_provisional_designation )
     sql.upsert_MSC(conn ,M , object_id )
 
     # (3) Explicitly evaluate the HP functionality to get the appropriate HP for each date

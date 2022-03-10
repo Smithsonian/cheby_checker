@@ -98,7 +98,7 @@ def test_nbody_A():
         N.save_output_file   == None  and \
         N.verbose            == False  and \
         N.CHECK_EPOCHS       == True  and \
-        N.unpacked_primary_provisional_designation == None and \
+        N.unpacked_primary_provisional_designation_list == [] and \
         N.helio_ecl_vec_EXISTS   == False  and \
         N.helio_ecl_vec          == None  and \
         N.helio_ecl_cov_EXISTS   == False  and \
@@ -140,7 +140,7 @@ def test_parse_orbfit_json_A(data_file):
     assert N.helio_ecl_cov_EXISTS   is False
     assert N.helio_ecl_cov is None
     assert N.integration_epoch  == None
-    assert N.unpacked_primary_provisional_designation == None
+    assert N.unpacked_primary_provisional_designation_list == []
     
     # call _parse_orbfit_json [this is the function we are testing]
     N._parse_orbfit_json( os.path.join(std_json_dir , data_file) )
@@ -156,9 +156,9 @@ def test_parse_orbfit_json_A(data_file):
     assert N.helio_ecl_cov.ndim == 3
     assert N.helio_ecl_cov.shape in [(1,6,6),(1,7,7),(1,8,8),(1,9,9)]
     
-    # This designation check may not work for arbitrary inpu files
+    # This designation check may not work for arbitrary input files
     # But it should work for the 2000SR210.json , 2010LE128.json , 2010SV.json & 2012TC114.json files
-    assert N.unpacked_primary_provisional_designation == data_file[:4] +' '+data_file[4:-5]
+    assert N.unpacked_primary_provisional_designation_list == [ data_file[:4] +' '+data_file[4:-5] ]
     
     # Check that some of the numerical values are as expeected...
     with open(os.path.join(std_json_dir , data_file)) as f:
@@ -224,7 +224,7 @@ def test_parse_inputs_run_mpcorb_A():
 
     # This designation check may not work for arbitrary inpu files
     # But it should work for the 2000SR210.json , 2010LE128.json , 2010SV.json & 2012TC114.json files
-    assert N.unpacked_primary_provisional_designation == data_file[:4] +' '+data_file[4:-5]
+    assert N.unpacked_primary_provisional_designation_list == [ data_file[:4] +' '+data_file[4:-5] ]
 
     # Check that some of the numerical values are as expected...
     # - We expect the helio_ecl_vec to be the same as the data_file -> data_dict["CAR"]["elements"].values()

@@ -169,11 +169,7 @@ def test_from_coord_arrays_A(  ):
     '''
     # The file that we will use as the source of the data
     mpc_orb_json_filepath = mpc_orb_json_files[0]
-    
-    # Do a local read of the json (using MPCORB) as it's useful to be able to read the name of the object
-    M = MPCORB(mpc_orb_json_filepath)
-    primary_unpacked_provisional_designation = M.designation_data["unpacked_primary_provisional_designation"]
-    
+        
     # Instantiate Nbody Object, Run NBody Simulation, and return populated Object
     N = convenience_call_to_nbody_run_mpcorb(mpc_orb_json_filepath)
     
@@ -185,7 +181,7 @@ def test_from_coord_arrays_A(  ):
     # NB1: This attempts to load from arrays ...
     # NB2: Need to do array slicing that will be taken care of within MSC_Loader in practical operation
     # ## ### #### #####
-    M.from_coord_arrays(primary_unpacked_provisional_designation, N.output_times , N.output_states[:,0,:] )
+    M.from_coord_arrays(N.unpacked_primary_provisional_designation_list[0], N.output_times , N.output_states[:,0,:] )
 
     # check that the expected attributes have been set
     for attr in ["TDB_init", "TDB_final", "sector_init", "sector_final", "sector_coeffs"]:
@@ -251,14 +247,11 @@ def test_from_coord_arrays_B(  ):
     for mpc_orb_json_filepath in mpc_orb_json_files:
         print('\n','--'*22)
         print(mpc_orb_json_filepath)
+        
         # Instantiate Nbody Object, Run NBody Simulation, and return populated Object
         N = convenience_call_to_nbody_run_mpcorb(mpc_orb_json_filepath)
         #print('N.output_times=',N.output_times)
         
-        # Do a local read of the json (using MPCORB) as it's useful to be able to read the name of the object
-        M = MPCORB(mpc_orb_json_filepath)
-        primary_unpacked_provisional_designation = M.designation_data["unpacked_primary_provisional_designation"]
-
         # Instantiate MSC object
         M=orbit_cheby.MSC()
 
@@ -267,7 +260,7 @@ def test_from_coord_arrays_B(  ):
         # NB1: This attempts to load from arrays ...
         # NB2: Need to do array slicing that will be taken care of within MSC_Loader in practical operation
         # ## ### #### #####
-        M.from_coord_arrays(primary_unpacked_provisional_designation, N.output_times , N.output_states[:,0,:] )
+        M.from_coord_arrays(N.unpacked_primary_provisional_designation_list[0], N.output_times , N.output_states[:,0,:] )
 
         # check that the expected attributes have been set
         for attr in ["TDB_init", "TDB_final", "sector_init", "sector_final", "sector_coeffs"]:
@@ -344,20 +337,17 @@ def test_loader_from_arrays():
 
     # The file that we will use as the source of the data
     mpc_orb_json_filepath = mpc_orb_json_files[0]
-    
-    # Do a local read of the json (using MPCORB) as it's useful to be able to read the name of the object
-    M = MPCORB(mpc_orb_json_filepath)
-    primary_unpacked_provisional_designation = M.designation_data["unpacked_primary_provisional_designation"]
-    
+        
     # Instantiate Nbody Object, Run NBody Simulation, and return populated Object
     N = convenience_call_to_nbody_run_mpcorb(mpc_orb_json_filepath)
 
     
     # Attempt to instantiate MSC via MSC_Loader
     MSCs = orbit_cheby.MSC_Loader(
-                                  primary_unpacked_provisional_designations = primary_unpacked_provisional_designation,
-                                  times_TDB = N.output_times,
-                                  statearray = N.output_states).MSCs
+                                    unpacked_primary_provisional_designation_list = N.unpacked_primary_provisional_designation_list,
+                                    times_TDB = N.output_times,
+                                    statearray = N.output_states).MSCs
+                                    
     assert isinstance(MSCs , list)
     assert len(MSCs) == 1
     
@@ -389,3 +379,4 @@ def test_loader_from_nbodysim():
     
     return MSCs
 
+test_loader_from_nbodysim()
