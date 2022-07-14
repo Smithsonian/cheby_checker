@@ -3,7 +3,7 @@
 
 """
     --------------------------------------------------------------
-    cheby_checker's sqlite module.
+    cheby_checker's postgresql module.
 
     Aug 2020
     Matt Payne
@@ -22,9 +22,7 @@
 # --------------------------------------------------------------
 import sys, os
 import numpy as np
-import sqlite3
-from sqlite3 import Error
-import pickle
+import psycopg
 
 # Import neighboring packages
 # --------------------------------------------------------------
@@ -43,7 +41,7 @@ class DB:
     """
     Class to handle basic database connections & locations
 
-    Currently uses sqlite3 db
+    Currently uses postgresql db
     """
     def __init__(self):
         self.db_file = self.fetch_db_filepath()
@@ -57,7 +55,8 @@ class DB:
 
     def create_connection(self):
         """
-        Create a database connection to the SQLite database specified by db_file
+        Create a database connection to the Postgresql database using the
+        credentials stored in the local system's environment variables.
 
         inputs:
         -------
@@ -69,7 +68,13 @@ class DB:
         """
         conn = None
         try:
-            conn = sqlite3.connect(self.db_file)
+            # Get the credentials from the localhost's environment
+            username = os.getenv("CHEBY_DB_USER")
+            dbname =  os.getenv("CHEBY_DB_NAME")
+            password =  os.getenv("CHEBY_DB_PASSWORD")
+            host =  os.getenv("CHEBY_DB_HOST")
+            port =  os.getenv("CHEBY_DB_PORT")
+            conn = psycopg.connect(dbname=dbname, user=username, password=password, host=host, port=port)
             return conn
         except Error as e:
             print(e)
@@ -103,7 +108,7 @@ class SQLChecker(DB):
     This includes table creation, data inserts/upserts/removals, and
     data queries
 
-    Currently uses sqlite3 db
+    Currently uses postgresql db
 
     """
 
@@ -287,7 +292,7 @@ class SQLChecker(DB):
         records = [ (int(jd), int(hp), object_id) for jd,hp in zip(JDlist,HPlist) ]
         
         # (b) construct sql string
-        sqlstr = '''INSERT INTO objects_by_jdhp(jd,hp,object_coeff_id) VALUES(?,?,?);'''
+        sqlstr = '''INSERT INTO objects_by_jdhp(jd,hp,object_coeff_id) VALUES(%s,%s,%s);'''
         
         # (c) Insert
         cur.executemany(sqlstr, records)
@@ -307,7 +312,7 @@ class SQLChecker(DB):
         # Construct & execute the sql query
         # - This is matching/joining on object-id# and then deleting only from objects_by_jdhp
         #   (and leaving the entry in object_desig)
-        cur.execute( " DELETE FROM objects_by_jdhp WHERE object_coeff_id=?;", (int(object_coeff_id),) )
+        cur.execute(f" DELETE FROM objects_by_jdhp WHERE object_coeff_id={int(object_coeff_id)};")
         self.conn.commit()
 
     # --------------------------------------------------------
@@ -346,7 +351,7 @@ class SQLChecker(DB):
                                                                                             Base().map_sector_number_to_sector_start_JD(np.atleast_1d(sector_numbers) ,\
                                                                                             Base().standard_MJDmin))})
         # Construct & execute the sql query
-        sqlstr = "SELECT " + ", ".join( sector_field_names ) + " FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
+        sqlstr = "SELECT " + ", ".join( sector_field_names ) + " FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
         cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
 
         # Parse the result ...
@@ -371,7 +376,7 @@ class SQLChecker(DB):
         """
         # Get the object_id & return it
         cur = self.conn.cursor()
-        cur.execute(f'''SELECT object_coeff_id, unpacked_primary_provisional_designation FROM object_coefficients WHERE object_coeff_id in ({','.join(['?']*len(object_coeff_ids))});''', (*(int(_) for _ in object_coeff_ids),) )
+        cur.execute(f'''SELECT object_coeff_id, unpacked_primary_provisional_designation FROM object_coefficients WHERE object_coeff_id in ({','.join(['%s']*len(object_coeff_ids))});''', (*(int(_) for _ in object_coeff_ids),) )
         
         # key is object_coeff_id, value is desig
         return {_[0]:_[1] for _ in cur.fetchall()}
@@ -411,7 +416,7 @@ class SQLChecker(DB):
         # Construct & execute the sql query
         sqlstr =    "SELECT object_coefficients.unpacked_primary_provisional_designation," + \
                     ", ".join( sector_field_names ) + \
-                    f" FROM object_coefficients INNER JOIN objects_by_jdhp ON objects_by_jdhp.object_coeff_id = object_coefficients.object_coeff_id WHERE objects_by_jdhp.jd=? and objects_by_jdhp.hp in ({','.join(['?']*len(HPlist))})"
+                    f" FROM object_coefficients INNER JOIN objects_by_jdhp ON objects_by_jdhp.object_coeff_id = object_coefficients.object_coeff_id WHERE objects_by_jdhp.jd=%s and objects_by_jdhp.hp in ({','.join(['%s']*len(HPlist))})"
         cur = self.conn.cursor()
         cur.execute(sqlstr , (int(JD), *(int(_) for _ in HPlist), ))
 
@@ -437,7 +442,7 @@ class SQLChecker(DB):
         # I hate this fucking query for many reasons ...
         # (i) Why the fuck do I need to force any input numpy-integers, to be integers ???
         #(ii) Why the fuck do I need to explicitly expand the number of "?" in the "in ()" statement ???
-        cur.execute(f"SELECT object_coeff_id FROM objects_by_jdhp WHERE jd=? and hp in ({','.join(['?']*len(HPlist))});", (int(JD), *(int(_) for _ in HPlist), ) )
+        cur.execute(f"SELECT object_coeff_id FROM objects_by_jdhp WHERE jd=%s and hp in ({','.join(['%s']*len(HPlist))});", (int(JD), *(int(_) for _ in HPlist), ) )
         #object_ids = [_[0] for _ in cur.fetchall()]
         return [_[0] for _ in cur.fetchall()]
 
@@ -449,7 +454,7 @@ class SQLSifter(DB):
     This includes table creation, data inserts/upserts/removals, and
     data queries
 
-    Currently uses sqlite3 db
+    Currently uses postgresql db
 
     *** PROBABLY HAS NOT BEEN PROPERLY TESTED WITHIN test_sql.py AS YET (Nov 2021) ***
 
@@ -533,11 +538,11 @@ class SQLSifter(DB):
         
         # Construct sql for tracklet insert ...
         sql =  ''' INSERT OR REPLACE INTO tracklets(jd,hp,tracklet_name,tracklet)
-            VALUES(?,?,?,?)
+            VALUES(%s,%s,%s,%s)
             '''
         
         # Insert
-        cur.execute(sql, (jd, hp, tracklet_name, sqlite3.Binary( pickle.dumps(tracklet_dict, pickle.HIGHEST_PROTOCOL) ),))
+        cur.execute(sql, (jd, hp, tracklet_name, psycopg2.Binary( pickle.dumps(tracklet_dict, pickle.HIGHEST_PROTOCOL) ),))
 
         # remember to commit ...
         conn.commit()
@@ -570,11 +575,11 @@ class SQLSifter(DB):
 
         # construct "records" variable which is apparently ammenable to single insert statement ...
         # https://pythonexamples.org/python-sqlite3-insert-multiple-records-into-table/
-        records = [ (int(jd), int(hp), tracklet_name, sqlite3.Binary(pickle.dumps(tracklet_dict, pickle.HIGHEST_PROTOCOL))) \
+        records = [ (int(jd), int(hp), tracklet_name, psycopg2.Binary(pickle.dumps(tracklet_dict, pickle.HIGHEST_PROTOCOL))) \
                    for jd, hp, tracklet_name, tracklet_dict \
                    in zip(jd_list, hp_list, tracklet_name_list, tracklet_dict_list) ]
 
-        sql = '''INSERT OR REPLACE INTO tracklets(jd,hp,tracklet_name,tracklet) VALUES(?,?,?,?);'''
+        sql = '''INSERT OR REPLACE INTO tracklets(jd,hp,tracklet_name,tracklet) VALUES(%s,%s,%s,%s);'''
 
         # Insert
         cur.executemany(sql, records)
@@ -599,7 +604,7 @@ class SQLSifter(DB):
             
             
         """
-        sql = 'DELETE FROM tracklets WHERE tracklet_name=?'
+        sql = 'DELETE FROM tracklets WHERE tracklet_name=%s'
         cur = conn.cursor()
         cur.execute(sql, (tracklet_name,))
         conn.commit()
@@ -618,7 +623,7 @@ class SQLSifter(DB):
             
             
             """
-        sql = '''DELETE FROM tracklets WHERE tracklet_name IN (?);'''
+        sql = '''DELETE FROM tracklets WHERE tracklet_name IN (%s);'''
         records = [ (tracklet_name,) for tracklet_name in tracklet_name_list ]
         cur = conn.cursor()
         cur.executemany(sql, records)
@@ -643,7 +648,7 @@ class SQLSifter(DB):
 
         """
         cur = conn.cursor()
-        cur.execute("SELECT tracklet_name, tracklet FROM tracklets WHERE jd=? AND hp=?", ( int(JD), int(HP) , ))
+        cur.execute("SELECT tracklet_name, tracklet FROM tracklets WHERE jd=%s AND hp=%s", ( int(JD), int(HP) , ))
         
         # return a list-of-tuples: (tracklet_name, tracklet_dictionary)
         return [ (row[0] , pickle.loads( row[1] ) ) for row in cur.fetchall() ]
@@ -671,7 +676,7 @@ class SQLSifter(DB):
         # Set up query:
         #N.B. https://stackoverflow.com/questions/18363276/how-do-you-do-an-in-query-that-has-multiple-columns-in-sqlite
         for sql in ['''CREATE TEMPORARY TABLE lookup(jd, hp);''',
-                    '''INSERT OR REPLACE INTO lookup(jd,hp) VALUES(?,?);''',
+                    '''INSERT OR REPLACE INTO lookup(jd,hp) VALUES(%s,%s);''',
                     '''CREATE INDEX lookup_jd_hp ON lookup(jd, hp);''',
                     '''SELECT tracklet_name, tracklet FROM tracklets JOIN lookup ON tracklets.jd = lookup.jd AND tracklets.hp = lookup.hp;''']:
             
