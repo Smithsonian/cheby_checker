@@ -22,7 +22,7 @@
 # --------------------------------------------------------------
 import sys, os
 import numpy as np
-import psycopg
+import psycopg2
 
 # Import neighboring packages
 # --------------------------------------------------------------
@@ -74,7 +74,7 @@ class DB:
             password =  os.getenv("CHEBY_DB_PASSWORD")
             host =  os.getenv("CHEBY_DB_HOST")
             port =  os.getenv("CHEBY_DB_PORT")
-            conn = psycopg.connect(dbname=dbname, user=username, password=password, host=host, port=port)
+            conn = psycopg2.connect(dbname=dbname, user=username, password=password, host=host, port=port)
             return conn
         except Error as e:
             print(e)
