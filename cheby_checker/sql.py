@@ -174,8 +174,8 @@ class SQLChecker(DB):
             
             Created table has columns that look like
                             jdhp_id     : integer
-                            jd          : integer
-                            hp          : integer
+                            jd          : integer <<-- This is the julian date (as integer)
+                            hp          : integer <<-- This is the healpix
                             object_coeff_id   : integer
                 
             """
@@ -247,7 +247,19 @@ class SQLChecker(DB):
         # NB(2): It completely deletes the initial row, then replaces it with the new stuff
         columns      = ', '.join(insert_dict.keys())
         placeholders = ':'+', :'.join(insert_dict.keys())
-        query = 'REPLACE INTO object_coefficients (%s) VALUES (%s)' % (columns, placeholders)
+        
+        # Commenting-out due to likely failure in postgres (REPLACE is only in SQLITE)
+        #query = 'REPLACE INTO object_coefficients (%s) VALUES (%s)' % (columns, placeholders)
+        
+        # Construct a "set-string" to handle the "update" option for the query below
+        set_str = ""
+        for n,v in zip(sector_names, sector_values):
+          set_str += f"{n} = {v}, "
+        set_str = set_str[:-2]
+        
+        # See URL below for guidance on ...CONFLICT...
+        # https://www.postgresqltutorial.com/postgresql-tutorial/postgresql-upsert/
+        query = "INSERT INTO object_coefficients (%s) VALUES (%s) ON CONFLICT (unpacked_primary_provisional_designation) DO UPDATE SET ' + set_str + ';'
 
         # Execute the upsert ...
         cur = self.conn.cursor()
@@ -303,6 +315,34 @@ class SQLChecker(DB):
     # --------------------------------------------------------
     # --- Funcs to delete data
     # --------------------------------------------------------
+    def deletion_wrapper(self, unpacked_primary_provisional_designation):
+        """
+        Convenience wrapper to do all necessary deletions
+         - Assumes that the orbfit-Results table has already had the designation-row removed
+           (triggering the need to perform these subsequent deletions)
+
+            *** WARNING: UNTESTED!! ***
+
+        """
+        # Delete single-row from coefficients table
+        object_coeff_id = self.delete_object_from_object_coefficients_table(unpacked_primary_provisional_designation)
+        # Delete many rows from jdhp table
+        self.delete_JDHP_by_object_coeff_id(object_coeff_id)
+        
+    def delete_object_from_object_coefficients_table(self, unpacked_primary_provisional_designation):
+        """
+            Delete a single row from the object_coefficients_table
+            
+            *** WARNING: UNTESTED!! ***
+        """
+        cur = self.conn.cursor()
+
+        # Construct & execute the sql query
+        cur.execute(f" DELETE FROM object_coefficients WHERE unpacked_primary_provisional_designation='{unpacked_primary_provisional_designation}' RETURN object_coeff_id ;")
+        self.conn.commit()
+        object_coeff_id = cur.fetchall()[0]
+        return object_coeff_id
+
     def delete_JDHP_by_object_coeff_id(self, object_coeff_id):
         """
             Delete all rows from "objects_by_jdhp" that match the supplied "object_coeff_id"

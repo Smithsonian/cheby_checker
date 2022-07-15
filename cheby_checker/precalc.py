@@ -94,6 +94,7 @@ class PreCalc(cheby_checker.Base , obs_pos.ObsPos, sql.SQLChecker):
         N.run_mpcorb(tstart=self.standard_MJDmin , tstop=self.standard_MJDmax, mpcorb_list = filenames )
         
         # Use the MSC_Loader to do all of the work to declare and populate a list of MSC objects
+        # - This is the step that creates the checbyshev coefficients!
         MSCs = orbit_cheby.MSC_Loader(NbodySim = N).MSCs
                                         
         # Do the precalculations and upsert
