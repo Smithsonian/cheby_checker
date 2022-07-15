@@ -7,6 +7,7 @@ novas_de405
 numpy
 pytest
 scipy
+psycopg2-binary
 
 # GitHub Packages
 # git+https://github.com/path/to/package-two@master#egg=package-two
