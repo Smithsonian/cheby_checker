@@ -23,6 +23,7 @@
 import sys, os
 import numpy as np
 import psycopg2
+from psycopg2 import sql
 
 # Import neighboring packages
 # --------------------------------------------------------------
@@ -44,14 +45,9 @@ class DB:
     Currently uses postgresql db
     """
     def __init__(self):
-        self.db_file = self.fetch_db_filepath()
-        self.conn    = self.create_connection()
+        self.conn, self.cur = self.create_connection()
+        self.dbname = os.getenv("CHEBY_DB_NAME")
 
-    @staticmethod
-    def fetch_db_filepath():
-        B = Base()
-        db_dir = B._fetch_data_directory()
-        return os.path.join(db_dir , B.db_filename)
 
     def create_connection(self):
         """
@@ -67,19 +63,29 @@ class DB:
         Connection object or None
         """
         conn = None
+        cur = None
         try:
             # Get the credentials from the localhost's environment
             username = os.getenv("CHEBY_DB_USER")
-            dbname =  os.getenv("CHEBY_DB_NAME")
-            password =  os.getenv("CHEBY_DB_PASSWORD")
-            host =  os.getenv("CHEBY_DB_HOST")
-            port =  os.getenv("CHEBY_DB_PORT")
-            conn = psycopg2.connect(dbname=dbname, user=username, password=password, host=host, port=port)
-            return conn
-        except Error as e:
-            print(e)
-        
-        return conn
+            password = os.getenv("CHEBY_DB_PASSWORD")
+            host = os.getenv("CHEBY_DB_HOST")
+            port = os.getenv("CHEBY_DB_PORT")
+            conn = psycopg2.connect(dbname=self.dbname, user=username, password=password, host=host, port=port)
+            conn.autocommit = True
+            cur = conn.cursor()
+
+        except psycopg2.OperationalError as error:
+            print(error)
+
+        return conn, cur
+
+    def clear_database(self):
+        try:
+            self.cur.execute(f"DROP DATABASE {self.dbname};")
+            self.cur.execute(f"CREATE DATABASE {self.dbname};")
+        except psycopg2.OperationalError as error:
+            print(error)
+
 
     def create_table(self, create_table_sql):
         """
@@ -259,7 +265,7 @@ class SQLChecker(DB):
         
         # See URL below for guidance on ...CONFLICT...
         # https://www.postgresqltutorial.com/postgresql-tutorial/postgresql-upsert/
-        query = "INSERT INTO object_coefficients (%s) VALUES (%s) ON CONFLICT (unpacked_primary_provisional_designation) DO UPDATE SET ' + set_str + ';'
+        query = "INSERT INTO object_coefficients (%s) VALUES (%s) ON CONFLICT (unpacked_primary_provisional_designation) DO UPDATE SET ' + set_str + ';'"
 
         # Execute the upsert ...
         cur = self.conn.cursor()
