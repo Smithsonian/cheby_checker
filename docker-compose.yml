@@ -1,0 +1,16 @@
+version: '3.9'
+
+services:
+
+  postgres:
+    restart: always
+    image: "postgres:9.6"
+
+  cheby_checker:
+    restart: always
+    build: ./cheby_container/
+
+    depends_on:
+      - postgres
+    links:
+      - postgres
