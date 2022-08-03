@@ -19,3 +19,5 @@ services:
       - postgres
     links:
       - postgres
+    volumes:
+      - .:/cheby_checker/
