@@ -5,11 +5,16 @@ services:
   postgres:
     restart: always
     image: "postgres:9.6"
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=cheby
+      - POSTGRES_USER=cheby_user
+      - POSTGRES_PASSWORD=cheby_password
 
   cheby_checker:
     restart: always
     build: ./cheby_container/
-
     depends_on:
       - postgres
     links:
