@@ -8,3 +8,6 @@ pythonLog
 
 # PyCharm
 .idea
+
+# OS
+.DS_Store
