@@ -101,8 +101,7 @@ class DB:
         -------
         """
         try:
-            c = self.conn.cursor()
-            c.execute(create_table_sql)
+            self.cur.execute(create_table_sql)
         except Error as e:
             print(e)
 

@@ -16,7 +16,6 @@ import numpy as np
 import sys, os
 from astropy_healpix import healpy
 import pytest
-import sqlite3
 import pickle
 
 # Import neighboring packages
@@ -50,7 +49,6 @@ def test_DB(db):
     Test the basic operation of the "DB" class object.
     
     The sql.DB class handles basic database connections & locations
-     - Currently uses sqlite3 db
     
     N.B. (1)
     Instantiation invoves the following two functions,
@@ -87,7 +85,7 @@ def test_DB(db):
     
     # Check that table creation worked by getting the count of tables with the name
     # - if the count is 1, then table exists
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "test_table_name"')
+    cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' AND table_name='test_table_name';")
     assert len(cur.fetchone()) == 1 , 'test_table_name table does not exist'
     
 
@@ -112,22 +110,11 @@ def test_SQLChecker(db):
     db = sql.SQLChecker()
     
     # Check has the expected function-attributes
-    assert hasattr(db,'fetch_db_filepath')
     assert hasattr(db,'create_connection')
     assert hasattr(db,'create_table')
     
     # Check has the expected variable-attributes
-    assert hasattr(db,'db_file')
     assert hasattr(db,'conn')
-    
-    # Check that we can get a sqlite cursor
-    cur  = db.conn.cursor()
-    assert isinstance( cur, sqlite3.Cursor )
-        
-    # Check db exists
-    # ( if no db exists, the above instantiation
-    #   should have created one)
-    assert os.path.isfile( db.db_file )
     
     # Attempt to create a table in the database using the ** function
     sql_statement = """
