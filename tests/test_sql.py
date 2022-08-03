@@ -36,40 +36,16 @@ filenames = [os.path.join(DATA_DIR, file)
 # --------------------------------------------------------------
 
 
-def db_handler(func):
-    '''
-    Using decorators to do the db cleaning ...
-     - This deletes any extant db before the test
-     - And deletes any extant db after the test
-    '''
-    
-    def inner_function(*args, **kwargs):
-    
-        # Delete db if any exists for any reason
-        filepath = sql.DB.fetch_db_filepath()
-        if os.path.isfile(filepath):
-            os.remove(filepath)
-            
-        # Run test function
-        result = func(*args, **kwargs)
-
-        # Delete the db
-        if os.path.isfile(filepath):
-            os.remove(filepath)
-        
-        # Return any result
-        return result
-
-    return inner_function
-
-
+@pytest.fixture()
+def db():
+    db = sql.DB()
+    db.clear_database()
+    return db
 
 # --------------------------------------------------------------
 # Tests of class instantiation ...
 # --------------------------------------------------------------
-
-@db_handler
-def test_DB():
+def test_DB(db):
     '''
     Test the basic operation of the "DB" class object.
     
@@ -90,26 +66,16 @@ def test_DB():
 
     '''
     
-    # Instantiate DB object
-    db = sql.DB()
-    
     # Check has the expected function-attributes
-    assert hasattr(db,'fetch_db_filepath')
     assert hasattr(db,'create_connection')
     assert hasattr(db,'create_table')
     
     # Check has the expected variable-attributes
-    assert hasattr(db,'db_file')
     assert hasattr(db,'conn')
-    
-    # Check that we can get a sqlite cursor
-    cur  = db.conn.cursor()
-    assert isinstance( cur, sqlite3.Cursor )
+    assert hasattr(db, 'cur')
         
-    # Check db exists
-    # ( if no db exists, the above instantiation
-    #   should have created one)
-    assert os.path.isfile( db.db_file )
+    # Check db is connected.
+    assert not db.conn.closed
     
     # Attempt to create a table in the database using the *create_table* function
     sql_statement = """
@@ -125,8 +91,7 @@ def test_DB():
     assert len(cur.fetchone()) == 1 , 'test_table_name table does not exist'
     
 
-@db_handler
-def test_SQLChecker():
+def test_SQLChecker(db):
     """
     Test the basic operation of the "SQLChecker" class object:
      - SQLChecker handles all database interactions required by cheby_checker
@@ -183,8 +148,7 @@ def test_SQLChecker():
 # --------------------------------------------------------------
 # Tests of sector field names ...
 # --------------------------------------------------------------
-@db_handler
-def test_SQLChecker_generate_sector_field_names():
+def test_SQLChecker_generate_sector_field_names(db):
     """
     Test the *generate_sector_field_names* function(s) in "SQLChecker"
     
@@ -215,8 +179,7 @@ def test_SQLChecker_generate_sector_field_names():
 # Tests of table creation ...
 # --------------------------------------------------------------
 
-@db_handler
-def test_SQLChecker_TableCreation():
+def test_SQLChecker_TableCreation(db):
     """
     Test the table creation function(s) in "SQLChecker"
      - These are convenience functions that create the three tables I/we expect to be required to
@@ -254,8 +217,7 @@ def test_SQLChecker_TableCreation():
 # Tests of basic data-insert routines ...
 # --------------------------------------------------------------
 
-@db_handler
-def test_upsert_coefficients():
+def test_upsert_coefficients(db):
     """
     Test the insertion of coefficients into the coeff table
     NB:
@@ -371,8 +333,7 @@ def test_upsert_coefficients():
 
 
 
-@db_handler
-def test_insert_HP():
+def test_insert_HP(db):
     """
     TEST THE FUNCTION THAT INSERTS LISTS OF JD & HP
     
@@ -518,8 +479,7 @@ def test_inserts():
 # Tests of basic query routines ...
 # --------------------------------------------------------------
 
-@db_handler
-def test_query_object_coefficients():
+def test_query_object_coefficients(db):
     """
     Test the convenience query that searches the object_coefficients and returns the (unpickled) data
     """
@@ -607,8 +567,7 @@ def test_query_object_coefficients():
 
 
 
-@db_handler
-def test_query_desig_by_object_coeff_id():
+def test_query_desig_by_object_coeff_id(db):
     """
     Test the query_desig_by_object_coeff_id
     NB(1): When *query_desig_by_object_coeff_id* is called with a list of object_ids,
@@ -651,8 +610,7 @@ def test_query_desig_by_object_coeff_id():
                 f"{i},{desig}\nresult_dict={result_dict}"
 
 
-@db_handler
-def test_query_coefficients_by_jd_hp():
+def test_query_coefficients_by_jd_hp(db):
     """
     The coefficients_by_jd_hp function is designed to report back the coefficients for
     any objects in the given JD & HPlist

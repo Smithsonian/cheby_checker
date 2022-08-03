@@ -83,4 +83,5 @@ jobs:
         git lfs pull
         # Set up the server for sockets tests
         python tests/sockets_server_starter_DO_NOT_DELETE.py & 
-        pytest tests
+#        pytest tests
+        pytest tests/test_sql.py
