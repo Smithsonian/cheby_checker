@@ -29,6 +29,16 @@ import psycopg2
 from .cheby_checker import Base
 
 
+def deletion_wrapper(unpacked_desig):
+    """
+    Wrapper called from outside cheby_checker (in Flask app for orbfit_results_replication DELETE events.)
+
+    :param unpacked_desig:
+    :return:
+    """
+    sql_checker = SQLChecker()
+    sql_checker.deletion_helper(unpacked_desig)
+
 
 # Data classes/methods
 #
@@ -316,7 +326,7 @@ class SQLChecker(DB):
     # --------------------------------------------------------
     # --- Funcs to delete data
     # --------------------------------------------------------
-    def deletion_wrapper(self, unpacked_primary_provisional_designation):
+    def deletion_helper(self, unpacked_primary_provisional_designation):
         """
         Convenience wrapper to do all necessary deletions
          - Assumes that the orbfit-Results table has already had the designation-row removed

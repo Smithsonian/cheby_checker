@@ -151,9 +151,9 @@ class PreCalc(cheby_checker.Base , obs_pos.ObsPos, sql.SQLChecker):
         # N.B. (2) This obs-posn code likely takes a long time to execute in its draft/old version
         # This gets the position of the center of the earth at a particular time.
         t = Time(self.JDlist, format='jd', scale='tdb')
-        t_utc = t.utc  # <<-- This converts to utc (from tdb, above)
         t_tdb = t.tdb  # <<-- Convert to TDB
         if helio_eq_observatoryXYZ is None:
+            t_utc = t.utc  # <<-- This converts to utc (from tdb, above)
             # TODO: This line can be improved by caching or another way. Likely using fixed JDs from a fixed list.
             helio_eq_observatoryXYZ = np.array([
                 self.get_heliocentric_equatorial_xyz(jd, obsCode="500", verbose=False) for jd in t_utc.jd
