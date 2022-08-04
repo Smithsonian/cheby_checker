@@ -18,7 +18,8 @@ RUN apt-get -y update && apt-get install -y \
     wget \
     bzip2 \
     vim \
-    sudo
+    sudo \
+    libpq-dev
 
 # --- REBOUND INSTALLS ----------
 #RUN git clone https://github.com/hannorein/rebound.git
@@ -49,12 +50,12 @@ RUN git clone https://github.com/matthewjohnpayne/mpc_orb.git
 RUN python3.6 -m pip install -e mpc_orb/.
 
 # --- PYTHON INSTALLS -----------
-RUN python3.6 -m pip install numpy pytest astropy astropy_healpix astroquery scipy novas novas_de405 jplephem
+# RUN python3.6 -m pip install numpy pytest astropy astropy_healpix astroquery scipy novas novas_de405 jplephem
 # TODO: Use requirements.txt -- may require switching to docker-compose and possibly deprecating build_container?
     # May have implications on the local binding (ln. 64)
-#WORKDIR /
-#COPY ./requirements.txt .
-#RUN python3.6 -m pip install -r requirements.txt
+WORKDIR /
+COPY ./requirements.txt .
+RUN python3.6 -m pip install -r ./requirements.txt
 
 # Install mpcpp
 # TODO: repo is not public and can't be installed w/o credentials
