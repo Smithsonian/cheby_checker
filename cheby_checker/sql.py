@@ -45,8 +45,8 @@ class DB:
     Currently uses postgresql db
     """
     def __init__(self):
-        self.conn, self.cur = self.create_connection()
         self.dbname = os.getenv("CHEBY_DB_NAME")
+        self.conn, self.cur = self.create_connection()
 
 
     def create_connection(self):
@@ -70,6 +70,7 @@ class DB:
             password = os.getenv("CHEBY_DB_PASSWORD")
             host = os.getenv("CHEBY_DB_HOST")
             port = os.getenv("CHEBY_DB_PORT")
+            print("DEBUG INFO********", username, password, host, port)
             conn = psycopg2.connect(dbname=self.dbname, user=username, password=password, host=host, port=port)
             conn.autocommit = True
             cur = conn.cursor()
@@ -81,11 +82,19 @@ class DB:
 
     def clear_database(self):
         try:
+            # You can't be connected to a database and drop it, so switch to the default "postgres" db.
+            self.conn.close()
+            self.conn = psycopg2.connect(dbname="postgres", user="cheby_user", password="cheby_password", host="db", port="5432")
+            self.conn.autocommit = True
+            self.cur = self.conn.cursor()
             self.cur.execute(f"DROP DATABASE {self.dbname};")
             self.cur.execute(f"CREATE DATABASE {self.dbname};")
+
+            # Reconnect to the cheby databse.
+            self.conn, self.cur = self.create_connection()
+
         except psycopg2.OperationalError as error:
             print(error)
-
 
     def create_table(self, create_table_sql):
         """
@@ -102,7 +111,7 @@ class DB:
         """
         try:
             self.cur.execute(create_table_sql)
-        except Error as e:
+        except Exception as e:
             print(e)
 
 
@@ -144,7 +153,7 @@ class SQLChecker(DB):
             Created table has columns that look like
                 object_coeff_id                             : integer
                 unpacked_primary_provisional_designation    : text
-                sector_%d_%d                                : text blob      <<-- *MANY* of these sectors
+                sector_%d_%d                                : text bytea      <<-- *MANY* of these sectors
                 
                 
             *** WHY DO WE WANT/NEED THE TABLE TO HAVE MANY MANY SECTOR FIELSD ???***
@@ -157,21 +166,21 @@ class SQLChecker(DB):
         #  - Dynamically generate the field-specs that will be required for the coeffs-by-sector ...
         #  - This will look like ... sector_0_2440000 blob , sector_1_2440032 blob, ...
         sector_names = self.generate_sector_field_names()
-        sector_spec  = " blob, ".join( sector_names )
-        sector_spec  = sector_spec + " blob"
+        sector_spec = " bytea, ".join( sector_names )
+        sector_spec = sector_spec + " bytea"
         
         sql_statement = """
             CREATE TABLE IF NOT EXISTS object_coefficients (
             object_coeff_id INTEGER PRIMARY KEY,
             unpacked_primary_provisional_designation TEXT UNIQUE NOT NULL,""" + \
                 sector_spec + "); "   # <<-- Lots of extra fields in here!!!
-            
+
         if self.conn is not None:
             # Create table
-            self.create_table( sql_statement )
+            self.create_table(sql_statement)
             
             # Create indicex on designation
-            createSecondaryIndex =  "CREATE INDEX index_desig ON object_coefficients (unpacked_primary_provisional_designation);"
+            createSecondaryIndex = "CREATE INDEX index_desig ON object_coefficients (unpacked_primary_provisional_designation)"
             self.conn.cursor().execute(createSecondaryIndex)
 
     def create_objects_by_jdhp_table(self,):

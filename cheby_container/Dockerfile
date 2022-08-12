@@ -46,16 +46,18 @@ COPY sb441-n16.bsp /reboundx/examples/ephem_forces/sb441-n16.bsp
 # --- MPC_ORB INSTALL (from GitHub) --------
 # This is used to facilitate the reading of mpc_orb.json format orbits data
 WORKDIR /
-RUN git clone https://github.com/matthewjohnpayne/mpc_orb.git
+RUN git clone https://github.com/Smithsonian/mpc_orb.git
 RUN python3.6 -m pip install -e mpc_orb/.
 
 # --- PYTHON INSTALLS -----------
-# RUN python3.6 -m pip install numpy pytest astropy astropy_healpix astroquery scipy novas novas_de405 jplephem
+RUN python3.6 -m pip install numpy pytest astropy astropy_healpix astroquery scipy novas novas_de405 jplephem psycopg2-binary
 # TODO: Use requirements.txt -- may require switching to docker-compose and possibly deprecating build_container?
     # May have implications on the local binding (ln. 64)
-WORKDIR /
-COPY ./requirements.txt .
-RUN python3.6 -m pip install -r ./requirements.txt
+
+
+#WORKDIR /
+#COPY ./requirements.txt .
+#RUN python3.6 -m pip install -r ./requirements.txt
 
 # Install mpcpp
 # TODO: repo is not public and can't be installed w/o credentials
@@ -66,7 +68,7 @@ RUN python3.6 -m pip install -r ./requirements.txt
 # While in development, will bind a local version (see build_container.py)
 #WORKDIR /
 #RUN git clone https://github.com/matthewjohnpayne/cheby_checker.git
-WORKDIR /cheby_checker
+#WORKDIR /cheby_checker
 #RUN python3.6 -m pip install -e .
 
 # --- Run deployment code on entry :

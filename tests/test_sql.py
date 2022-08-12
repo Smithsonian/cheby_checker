@@ -41,6 +41,7 @@ def db():
     db.clear_database()
     return db
 
+
 # --------------------------------------------------------------
 # Tests of class instantiation ...
 # --------------------------------------------------------------
@@ -85,8 +86,8 @@ def test_DB(db):
     
     # Check that table creation worked by getting the count of tables with the name
     # - if the count is 1, then table exists
-    cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' AND table_name='test_table_name';")
-    assert len(cur.fetchone()) == 1 , 'test_table_name table does not exist'
+    db.cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' AND table_name='test_table_name';")
+    assert len(db.cur.fetchone()) == 1 , 'test_table_name table does not exist'
     
 
 def test_SQLChecker(db):
@@ -122,12 +123,12 @@ def test_SQLChecker(db):
             object_id integer PRIMARY KEY,
             unpacked_primary_provisional_designation TEXT UNIQUE);
     """
-    db.create_table( sql_statement)
+    db.create_table(sql_statement)
     
     # Check that table creation worked by getting the count of tables with the name
     # - if the count is 1, then table exists
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "test_table_name"')
-    assert len(cur.fetchone()) == 1 , 'test_table_name table does not exist'
+    db.cur.execute("SELECT table_name from information_schema.tables WHERE table_name = 'test_table_name'")
+    assert len(db.cur.fetchone()) == 1, 'test_table_name table does not exist'
     
 
 
@@ -182,10 +183,11 @@ def test_SQLChecker_TableCreation(db):
 
     # Double-check that this worked by getting the count of tables with the name
     # - if the count is 1, then table exists
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "objects_by_jdhp"')
-    assert len(cur.fetchone()) == 1 , 'jdhp table does not exist'
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "object_coefficients"')
-    assert len(cur.fetchone()) == 1 , 'coeff table does not exist'
+
+    cur.execute("SELECT table_name from information_schema.tables WHERE table_name = 'objects_by_jdhp'")
+    assert len(cur.fetchone()) == 1, 'jdhp table does not exist'
+    cur.execute("SELECT table_name from information_schema.tables WHERE table_name = 'object_coefficients'")
+    assert len(cur.fetchone()) == 1, 'coeff table does not exist'
 
     # Test that the expected column names are in the *object_coefficients* table
     cur.execute("SELECT * FROM object_coefficients ")

@@ -14,7 +14,7 @@ env:
   CHEBY_DB_USER: cheby_user
   CHEBY_DB_PASSWORD: cheby_password
   CHEBY_DB_NAME: cheby
-  CHEBY_DB_HOST: localhost
+  CHEBY_DB_HOST: db
   CHEBY_DB_PORT: 5432
 
 jobs:
