@@ -40,6 +40,7 @@ import pickle
 # --------------------------------------------------------------
 from . import orbit_cheby
 from . import sql
+from . import obs_pos
 from . import nbody
 from . import coco
 from . import cheby_checker
@@ -62,7 +63,7 @@ def end_to_end_precalc_wrapper(mpc_orb_jsonb):
 # various pre-calculated quantities
 # --------------------------------------------------------
 
-class PreCalc(cheby_checker.Base, sql.SQLChecker):
+class PreCalc(cheby_checker.Base , obs_pos.ObsPos, sql.SQLChecker):
     """
         Primary External Class for accessing ChebyChecker's
         pre-calculated data
@@ -78,6 +79,7 @@ class PreCalc(cheby_checker.Base, sql.SQLChecker):
 
         # Give access to "Base" & "ObsPos" methods & attributes
         cheby_checker.Base.__init__(self)
+        obs_pos.ObsPos.__init__(self)
         sql.SQLChecker.__init__(self)
 
         # connect to db
