@@ -39,7 +39,8 @@ filenames = [os.path.join(DATA_DIR, file)
 def db():
     db = sql.DB()
     db.clear_database()
-    return db
+    yield db
+    # db.clear_database()
 
 
 # --------------------------------------------------------------
