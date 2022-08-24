@@ -82,16 +82,18 @@ class DB:
 
     def clear_database(self):
         try:
-            # You can't be connected to a database and drop it, so switch to the default "postgres" db.
-            self.conn.close()
-            self.conn = psycopg2.connect(dbname="postgres", user="cheby_user", password="cheby_password", host="db", port="5432")
-            self.conn.autocommit = True
-            self.cur = self.conn.cursor()
-            self.cur.execute(f"DROP DATABASE {self.dbname};")
-            self.cur.execute(f"CREATE DATABASE {self.dbname};")
-
-            # Reconnect to the cheby databse.
-            self.conn, self.cur = self.create_connection()
+            # Command to delete all public tables, so the tests start fresh each time.
+            drop_sql_cmd = """DO $$
+                            DECLARE
+                                r record;
+                            BEGIN
+                                FOR r IN SELECT quote_ident(tablename) AS tablename, quote_ident(schemaname) AS schemaname FROM pg_tables WHERE schemaname = 'public'
+                                LOOP
+                                    RAISE INFO 'Dropping table %.%', r.schemaname, r.tablename;
+                                    EXECUTE format('DROP TABLE IF EXISTS %I.%I CASCADE', r.schemaname, r.tablename);
+                                END LOOP;
+                            END$$;"""
+            self.cur.execute(drop_sql_cmd)
 
         except psycopg2.OperationalError as error:
             print(error)
