@@ -223,11 +223,15 @@ def test_upsert_coefficients(db):
     # --------------------------------
     # Define some data to be inserted
     # NB: These will be used to store pickled dictionaries, so let's test that ...
+
+
     unpacked_primary_provisional_designation = '2020 AB'
     sector_field_names = C.generate_sector_field_names()[:2]
-    sector_values_raw  = [ np.array([[n,n],[n,n]]) for n, _ in enumerate(sector_field_names) ]
-    sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
-    
+    # sector_values_raw  = [ np.array([[n,n],[n,n]]) for n, _ in enumerate(sector_field_names) ]
+    # sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+    sector_values_raw = [np.array2string(np.array([[17*n,17*n],[17*n,17*n]])) for n, _ in enumerate(sector_field_names)]
+    sector_values = sector_values_raw
+
     # Call upsert function
     object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
 
@@ -236,7 +240,7 @@ def test_upsert_coefficients(db):
     assert object_coeff_id == 1
     
     # Query the database and see what the returned data looks like
-    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
+    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
     cur = C.conn.cursor()
     cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
     result_raw     = cur.fetchall()[0]
@@ -244,7 +248,7 @@ def test_upsert_coefficients(db):
     # Check that the returned results are the same as the inserted values
     result_object_coeff_id  = result_raw[0]
     result_desig            = result_raw[1]
-    result_sectors          = [ pickle.loads( _ ) for _ in result_raw if _ != None and not isinstance(_,(str,int))]
+    result_sectors          = [ _ for _ in result_raw[2:] if _ != None ]
     assert result_object_coeff_id == object_coeff_id
     assert result_desig == unpacked_primary_provisional_designation
     assert np.all( [ a==b for a,b in zip(sector_values_raw , result_sectors) ] )
@@ -257,8 +261,8 @@ def test_upsert_coefficients(db):
     # --------------------------------
     unpacked_primary_provisional_designation = '2021 XY'
     sector_field_names = C.generate_sector_field_names()[:3]
-    sector_values_raw  = [ np.array([[n,n],[n,n]]) for n, _ in enumerate(sector_field_names) ]
-    sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+    sector_values_raw  = [np.array2string(np.array([[17*n,17*n],[17*n,17*n]])) for n, _ in enumerate(sector_field_names)]
+    sector_values      = [ _ for _ in sector_values_raw]
     
     # Call upsert function
     object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
@@ -268,7 +272,7 @@ def test_upsert_coefficients(db):
     assert object_coeff_id == 2
     
     # Query the database and see what the returned data looks like
-    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
+    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
     cur = C.conn.cursor()
     cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
     result_raw     = cur.fetchall()[0]
@@ -276,7 +280,7 @@ def test_upsert_coefficients(db):
     # Check that the returned results are the same as the inserted values
     result_object_coeff_id  = result_raw[0]
     result_desig            = result_raw[1]
-    result_sectors          = [ pickle.loads( _ ) for _ in result_raw if _ != None and not isinstance(_,(str,int))]
+    result_sectors          = [ _ for _ in result_raw[2:] if _ != None ]
     assert result_object_coeff_id == object_coeff_id
     assert result_desig == unpacked_primary_provisional_designation
     assert np.all( [ a==b for a,b in zip(sector_values_raw , result_sectors) ] )
@@ -292,8 +296,8 @@ def test_upsert_coefficients(db):
 
     unpacked_primary_provisional_designation = '2021 XY'
     sector_field_names = C.generate_sector_field_names()[:2]
-    sector_values_raw  = [ np.array([[17*n,17*n],[17*n,17*n]]) for n, _ in enumerate(sector_field_names) ]
-    sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+    sector_values_raw = [np.array2string(np.array([[17 * n, 17 * n], [17 * n, 17 * n]])) for n, _ in enumerate(sector_field_names)]
+    sector_values      = [ _ for _ in sector_values_raw]
     
     # Call upsert function
     object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
@@ -308,7 +312,7 @@ def test_upsert_coefficients(db):
     assert len(cur.fetchall()) == 2
     
     # Query the database and see what the returned data looks like
-    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
+    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
     cur = C.conn.cursor()
     cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
     result_raw     = cur.fetchall()[0]
@@ -316,7 +320,7 @@ def test_upsert_coefficients(db):
     # Check that the retuurned coefficients are the same as this update and NOT like those inserted in ---2---
     result_object_coeff_id  = result_raw[0]
     result_desig            = result_raw[1]
-    result_sectors          = [ pickle.loads( _ ) for _ in result_raw if _ != None and not isinstance(_,(str,int))]
+    result_sectors          = [ _ for _ in result_raw[2:] if _ != None ]
     assert len(result_sectors) == 2
     assert np.all( [ a==b for a,b in zip(sector_values_raw , result_sectors) ] )
 
@@ -348,7 +352,7 @@ def test_insert_HP(db):
     C.insert_HP( JDlist, HPlist, object_coeff_id )
 
     # Query the db and examine the results
-    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=?"
+    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=%s"
     cur = C.conn.cursor()
     cur.execute(sqlstr , ( object_coeff_id, ))
     result_raw     = cur.fetchall()
@@ -371,7 +375,7 @@ def test_insert_HP(db):
     C.insert_HP( JDlist, HPlist, object_coeff_id )
 
     # Query the db and examine the results
-    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=?"
+    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=%s"
     cur = C.conn.cursor()
     cur.execute(sqlstr , ( object_coeff_id, ))
     result_raw     = cur.fetchall()
@@ -397,7 +401,7 @@ def test_insert_HP(db):
     C.insert_HP( JDlist, HPlist, object_coeff_id )
 
     # Query the db and examine the results
-    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=?"
+    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=%s"
     cur = C.conn.cursor()
     cur.execute(sqlstr , ( object_coeff_id, ))
     result_raw     = cur.fetchall()

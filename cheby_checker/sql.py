@@ -27,6 +27,8 @@ from psycopg2 import sql
 
 # Import neighboring packages
 # --------------------------------------------------------------
+from psycopg2._psycopg import AsIs
+
 from .cheby_checker import Base
 
 
@@ -168,12 +170,12 @@ class SQLChecker(DB):
         #  - Dynamically generate the field-specs that will be required for the coeffs-by-sector ...
         #  - This will look like ... sector_0_2440000 blob , sector_1_2440032 blob, ...
         sector_names = self.generate_sector_field_names()
-        sector_spec = " bytea, ".join( sector_names )
-        sector_spec = sector_spec + " bytea"
+        sector_spec = " varchar, ".join( sector_names )
+        sector_spec = sector_spec + " varchar"
         
         sql_statement = """
             CREATE TABLE IF NOT EXISTS object_coefficients (
-            object_coeff_id INTEGER PRIMARY KEY,
+            object_coeff_id SERIAL PRIMARY KEY,
             unpacked_primary_provisional_designation TEXT UNIQUE NOT NULL,""" + \
                 sector_spec + "); "   # <<-- Lots of extra fields in here!!!
 
@@ -198,7 +200,7 @@ class SQLChecker(DB):
 
         # Create table ...
         sql_statement = """ CREATE TABLE IF NOT EXISTS objects_by_jdhp (
-            jdhp_id INTEGER PRIMARY KEY,
+            jdhp_id SERIAL PRIMARY KEY,
             jd INTEGER NOT NULL,
             hp INTEGER NOT NULL,
             object_coeff_id INTEGER NOT NULL
@@ -249,41 +251,68 @@ class SQLChecker(DB):
         # Make a default insert disct that contains ...
         # (a) the designation
         # (b) all the sector fields with "None" values
-        insert_dict = {'unpacked_primary_provisional_designation':unpacked_primary_provisional_designation}
-        
+        insert_dict = {"unpacked_primary_provisional_designation": unpacked_primary_provisional_designation}
+
+        # Adding dummy data just to get something to work.
+        #sector_0_2440000 blob, sector_1_2440032 blob,
+        # insert_dict["sector_0_2440000"] = 1.0001
+        # insert_dict["sector_1_2440032"] = 2.0002
+
         # Check inputs ...
-        assert isinstance(unpacked_primary_provisional_designation, str) \
-            and len(sector_names)==len(sector_values)
+        # assert isinstance(unpacked_primary_provisional_designation, str) \
+        #     and len(sector_names)==len(sector_values)
         
         # Update the coeff dict using the input values
         insert_dict.update( {k:v for k,v in zip(sector_names, sector_values) } )
-        
+        print("*&^(*&^(*^%*****************", insert_dict)
         # Construct an sql insert statement
         # NB(1): Because the unpacked_primary_provisional_designation field is unique, this should enforce replacement on duplication
         # NB(2): It completely deletes the initial row, then replaces it with the new stuff
-        columns      = ', '.join(insert_dict.keys())
-        placeholders = ':'+', :'.join(insert_dict.keys())
+        #columns      = ', '.join(insert_dict.keys())
+        #placeholders = ':'+', :'.join(insert_dict.keys())
         
         # Commenting-out due to likely failure in postgres (REPLACE is only in SQLITE)
         #query = 'REPLACE INTO object_coefficients (%s) VALUES (%s)' % (columns, placeholders)
         
         # Construct a "set-string" to handle the "update" option for the query below
-        set_str = ""
-        for n,v in zip(sector_names, sector_values):
-          set_str += f"{n} = {v}, "
-        set_str = set_str[:-2]
+        # set_str = f"unpacked_primary_provisional_designation='{unpacked_primary_provisional_designation}',"
+        # for n,v in zip(sector_names, sector_values):
+        #   set_str += f"{n} = ARRAY[{v}], "
+        # set_str = set_str[:-2]
+        col_str = f"unpacked_primary_provisional_designation"
+        for name in sector_names:
+            col_str += ", " + name
+
+        val_str = f"'{unpacked_primary_provisional_designation}'"
+        for val in sector_values:
+            val_str += f", '{val}'"
         
         # See URL below for guidance on ...CONFLICT...
         # https://www.postgresqltutorial.com/postgresql-tutorial/postgresql-upsert/
-        query = "INSERT INTO object_coefficients (%s) VALUES (%s) ON CONFLICT (unpacked_primary_provisional_designation) DO UPDATE SET ' + set_str + ';'"
+
+        # query = "INSERT INTO object_coefficients (%s) VALUES (%s);"
+        #'''insert into song_table (''' +','.join(list(song.keys()))+''') values '''+ str(tuple(song.values()))
+
+        # query_part3 = str(tuple(f"ARRAY[{x}]" for x in insert_dict.values()))
+
+        print("****col_str", col_str)
+        print("****val_str", val_str)
+
+        # INSERT INTO table_name(column1, column2, …) VALUES(value1, value2, …);
+
+        query_part2 = f"insert into object_coefficients({col_str}) VALUES({val_str}) RETURNING object_coeff_id;"
+        print("***QUERY2", query_part2)
+        query = f"delete from object_coefficients where unpacked_primary_provisional_designation = '{unpacked_primary_provisional_designation}'; " + query_part2
 
         # Execute the upsert ...
-        cur = self.conn.cursor()
-        cur.execute(query, insert_dict)
+        # cur.execute(query, (AsIs(','.join(insert_dict.keys())), tuple(insert_dict.values())))
+        self.cur.execute(query)
+        # for key in insert_dict.keys():
+        #     cur.execute(f"INSERT INTO object_coefficients (%s) VALUES (%s);")
         self.conn.commit()
         
         # Return the id of the row inserted
-        object_coeff_id = cur.lastrowid
+        object_coeff_id = self.cur.fetchone()[0]
         return object_coeff_id
 
     def insert_HP(self, JDlist, HPlist, object_id ):
@@ -542,7 +571,7 @@ class SQLSifter(DB):
         # Note that I am deliberately setting up the stored *tracklet* data as a "blob"
         # - Because not yet sure what will be in it!
         sql_create_tracklets_table = """ CREATE TABLE IF NOT EXISTS tracklets (
-            id integer PRIMARY KEY,
+            id serial PRIMARY KEY,
             jd integer NOT NULL,
             hp integer NOT NULL,
             tracklet_name text NOT NULL,
