@@ -67,10 +67,9 @@ RUN python3.6 -m pip install numpy pytest astropy astropy_healpix astroquery sci
 # --- CHEBY_CHECKER INSTALLS ----
 # While in development, will bind a local version (see build_container.py)
 #WORKDIR /
-#RUN git clone https://github.com/matthewjohnpayne/cheby_checker.git
-#WORKDIR /cheby_checker
-#RUN python3.6 -m pip install -e .
+RUN git clone https://github.com/matthewjohnpayne/cheby_checker.git
+WORKDIR /cheby_checker
+RUN python3.6 -m pip install -e .
 
 # --- Run deployment code on entry :
-COPY pythonServer.py /pythonServer.py
-ENTRYPOINT ["python3.6", "/pythonServer.py"]
+ENTRYPOINT ["tail", "-f", "/dev/null"]
