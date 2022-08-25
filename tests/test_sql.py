@@ -16,7 +16,6 @@ import numpy as np
 import sys, os
 from astropy_healpix import healpy
 import pytest
-import sqlite3
 import pickle
 
 # Import neighboring packages
@@ -36,45 +35,22 @@ filenames = [os.path.join(DATA_DIR, file)
 # --------------------------------------------------------------
 
 
-def db_handler(func):
-    '''
-    Using decorators to do the db cleaning ...
-     - This deletes any extant db before the test
-     - And deletes any extant db after the test
-    '''
-    
-    def inner_function(*args, **kwargs):
-    
-        # Delete db if any exists for any reason
-        filepath = sql.DB.fetch_db_filepath()
-        if os.path.isfile(filepath):
-            os.remove(filepath)
-            
-        # Run test function
-        result = func(*args, **kwargs)
-
-        # Delete the db
-        if os.path.isfile(filepath):
-            os.remove(filepath)
-        
-        # Return any result
-        return result
-
-    return inner_function
-
+@pytest.fixture()
+def db():
+    db = sql.DB()
+    db.clear_database()
+    yield db
+    # db.clear_database()
 
 
 # --------------------------------------------------------------
 # Tests of class instantiation ...
 # --------------------------------------------------------------
-
-@db_handler
-def test_DB():
+def test_DB(db):
     '''
     Test the basic operation of the "DB" class object.
     
     The sql.DB class handles basic database connections & locations
-     - Currently uses sqlite3 db
     
     N.B. (1)
     Instantiation invoves the following two functions,
@@ -90,26 +66,16 @@ def test_DB():
 
     '''
     
-    # Instantiate DB object
-    db = sql.DB()
-    
     # Check has the expected function-attributes
-    assert hasattr(db,'fetch_db_filepath')
     assert hasattr(db,'create_connection')
     assert hasattr(db,'create_table')
     
     # Check has the expected variable-attributes
-    assert hasattr(db,'db_file')
     assert hasattr(db,'conn')
-    
-    # Check that we can get a sqlite cursor
-    cur  = db.conn.cursor()
-    assert isinstance( cur, sqlite3.Cursor )
+    assert hasattr(db, 'cur')
         
-    # Check db exists
-    # ( if no db exists, the above instantiation
-    #   should have created one)
-    assert os.path.isfile( db.db_file )
+    # Check db is connected.
+    assert not db.conn.closed
     
     # Attempt to create a table in the database using the *create_table* function
     sql_statement = """
@@ -121,12 +87,11 @@ def test_DB():
     
     # Check that table creation worked by getting the count of tables with the name
     # - if the count is 1, then table exists
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "test_table_name"')
-    assert len(cur.fetchone()) == 1 , 'test_table_name table does not exist'
+    db.cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' AND table_name='test_table_name';")
+    assert len(db.cur.fetchone()) == 1 , 'test_table_name table does not exist'
     
 
-@db_handler
-def test_SQLChecker():
+def test_SQLChecker(db):
     """
     Test the basic operation of the "SQLChecker" class object:
      - SQLChecker handles all database interactions required by cheby_checker
@@ -147,22 +112,11 @@ def test_SQLChecker():
     db = sql.SQLChecker()
     
     # Check has the expected function-attributes
-    assert hasattr(db,'fetch_db_filepath')
     assert hasattr(db,'create_connection')
     assert hasattr(db,'create_table')
     
     # Check has the expected variable-attributes
-    assert hasattr(db,'db_file')
     assert hasattr(db,'conn')
-    
-    # Check that we can get a sqlite cursor
-    cur  = db.conn.cursor()
-    assert isinstance( cur, sqlite3.Cursor )
-        
-    # Check db exists
-    # ( if no db exists, the above instantiation
-    #   should have created one)
-    assert os.path.isfile( db.db_file )
     
     # Attempt to create a table in the database using the ** function
     sql_statement = """
@@ -170,12 +124,12 @@ def test_SQLChecker():
             object_id integer PRIMARY KEY,
             unpacked_primary_provisional_designation TEXT UNIQUE);
     """
-    db.create_table( sql_statement)
+    db.create_table(sql_statement)
     
     # Check that table creation worked by getting the count of tables with the name
     # - if the count is 1, then table exists
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "test_table_name"')
-    assert len(cur.fetchone()) == 1 , 'test_table_name table does not exist'
+    db.cur.execute("SELECT table_name from information_schema.tables WHERE table_name = 'test_table_name'")
+    assert len(db.cur.fetchone()) == 1, 'test_table_name table does not exist'
     
 
 
@@ -183,8 +137,7 @@ def test_SQLChecker():
 # --------------------------------------------------------------
 # Tests of sector field names ...
 # --------------------------------------------------------------
-@db_handler
-def test_SQLChecker_generate_sector_field_names():
+def test_SQLChecker_generate_sector_field_names(db):
     """
     Test the *generate_sector_field_names* function(s) in "SQLChecker"
     
@@ -215,8 +168,7 @@ def test_SQLChecker_generate_sector_field_names():
 # Tests of table creation ...
 # --------------------------------------------------------------
 
-@db_handler
-def test_SQLChecker_TableCreation():
+def test_SQLChecker_TableCreation(db):
     """
     Test the table creation function(s) in "SQLChecker"
      - These are convenience functions that create the three tables I/we expect to be required to
@@ -232,10 +184,11 @@ def test_SQLChecker_TableCreation():
 
     # Double-check that this worked by getting the count of tables with the name
     # - if the count is 1, then table exists
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "objects_by_jdhp"')
-    assert len(cur.fetchone()) == 1 , 'jdhp table does not exist'
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "object_coefficients"')
-    assert len(cur.fetchone()) == 1 , 'coeff table does not exist'
+
+    cur.execute("SELECT table_name from information_schema.tables WHERE table_name = 'objects_by_jdhp'")
+    assert len(cur.fetchone()) == 1, 'jdhp table does not exist'
+    cur.execute("SELECT table_name from information_schema.tables WHERE table_name = 'object_coefficients'")
+    assert len(cur.fetchone()) == 1, 'coeff table does not exist'
 
     # Test that the expected column names are in the *object_coefficients* table
     cur.execute("SELECT * FROM object_coefficients ")
@@ -254,8 +207,7 @@ def test_SQLChecker_TableCreation():
 # Tests of basic data-insert routines ...
 # --------------------------------------------------------------
 
-@db_handler
-def test_upsert_coefficients():
+def test_upsert_coefficients(db):
     """
     Test the insertion of coefficients into the coeff table
     NB:
@@ -270,12 +222,13 @@ def test_upsert_coefficients():
     # Simple test of insert
     # --------------------------------
     # Define some data to be inserted
-    # NB: These will be used to store pickled dictionaries, so let's test that ...
+    # Sector values are a multidimensional array to mimic the type of data we plan to store.
+
     unpacked_primary_provisional_designation = '2020 AB'
     sector_field_names = C.generate_sector_field_names()[:2]
-    sector_values_raw  = [ np.array([[n,n],[n,n]]) for n, _ in enumerate(sector_field_names) ]
-    sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
-    
+    sector_values_raw = [np.array([[17*n,17*n],[17*n,17*n]]) for n, _ in enumerate(sector_field_names)]
+    sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
+
     # Call upsert function
     object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
 
@@ -284,29 +237,27 @@ def test_upsert_coefficients():
     assert object_coeff_id == 1
     
     # Query the database and see what the returned data looks like
-    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
-    cur = C.conn.cursor()
-    cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
-    result_raw     = cur.fetchall()[0]
+    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
+    C.cur.execute(sqlstr, (unpacked_primary_provisional_designation, ))
+    result_raw = C.cur.fetchall()[0]
     
     # Check that the returned results are the same as the inserted values
     result_object_coeff_id  = result_raw[0]
     result_desig            = result_raw[1]
-    result_sectors          = [ pickle.loads( _ ) for _ in result_raw if _ != None and not isinstance(_,(str,int))]
+    result_sectors_string          = [ _ for _ in result_raw[2:] if _ != None ]
+    result_sectors_array          = [eval('np.array(' + item + ')') for item in result_sectors_string]
     assert result_object_coeff_id == object_coeff_id
     assert result_desig == unpacked_primary_provisional_designation
-    assert np.all( [ a==b for a,b in zip(sector_values_raw , result_sectors) ] )
-
-
-
+    assert np.all( [ a==b for a,b in zip(sector_values, result_sectors_string) ] )
+    assert np.all( [ a==b for a,b in zip(sector_values_raw, result_sectors_array) ] )
 
     # ------------- 2 ----------------
     # Simple test of additional data insert
     # --------------------------------
     unpacked_primary_provisional_designation = '2021 XY'
     sector_field_names = C.generate_sector_field_names()[:3]
-    sector_values_raw  = [ np.array([[n,n],[n,n]]) for n, _ in enumerate(sector_field_names) ]
-    sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+    sector_values_raw = [np.array([[17*n,17*n],[17*n,17*n]]) for n, _ in enumerate(sector_field_names)]
+    sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
     
     # Call upsert function
     object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
@@ -316,7 +267,7 @@ def test_upsert_coefficients():
     assert object_coeff_id == 2
     
     # Query the database and see what the returned data looks like
-    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
+    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
     cur = C.conn.cursor()
     cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
     result_raw     = cur.fetchall()[0]
@@ -324,13 +275,12 @@ def test_upsert_coefficients():
     # Check that the returned results are the same as the inserted values
     result_object_coeff_id  = result_raw[0]
     result_desig            = result_raw[1]
-    result_sectors          = [ pickle.loads( _ ) for _ in result_raw if _ != None and not isinstance(_,(str,int))]
+    result_sectors_string          = [ _ for _ in result_raw[2:] if _ != None ]
+    result_sectors_array          = [eval('np.array(' + item + ')') for item in result_sectors_string]
     assert result_object_coeff_id == object_coeff_id
     assert result_desig == unpacked_primary_provisional_designation
-    assert np.all( [ a==b for a,b in zip(sector_values_raw , result_sectors) ] )
-
-
-    
+    assert np.all( [ a==b for a,b in zip(sector_values, result_sectors_string) ] )
+    assert np.all( [ a==b for a,b in zip(sector_values_raw, result_sectors_array) ] )
 
     # ------------- 3 ----------------
     # Now we try to re-insert / update the same '2021 XY' object as in ---2--- above
@@ -340,8 +290,8 @@ def test_upsert_coefficients():
 
     unpacked_primary_provisional_designation = '2021 XY'
     sector_field_names = C.generate_sector_field_names()[:2]
-    sector_values_raw  = [ np.array([[17*n,17*n],[17*n,17*n]]) for n, _ in enumerate(sector_field_names) ]
-    sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+    sector_values_raw = [np.array([[17*n,17*n],[17*n,17*n]]) for n, _ in enumerate(sector_field_names)]
+    sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
     
     # Call upsert function
     object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
@@ -356,7 +306,7 @@ def test_upsert_coefficients():
     assert len(cur.fetchall()) == 2
     
     # Query the database and see what the returned data looks like
-    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
+    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
     cur = C.conn.cursor()
     cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
     result_raw     = cur.fetchall()[0]
@@ -364,15 +314,14 @@ def test_upsert_coefficients():
     # Check that the retuurned coefficients are the same as this update and NOT like those inserted in ---2---
     result_object_coeff_id  = result_raw[0]
     result_desig            = result_raw[1]
-    result_sectors          = [ pickle.loads( _ ) for _ in result_raw if _ != None and not isinstance(_,(str,int))]
-    assert len(result_sectors) == 2
-    assert np.all( [ a==b for a,b in zip(sector_values_raw , result_sectors) ] )
+    result_sectors_string          = [ _ for _ in result_raw[2:] if _ != None ]
+    result_sectors_array          = [eval('np.array(' + item + ')') for item in result_sectors_string]
+    assert result_object_coeff_id == object_coeff_id
+    assert result_desig == unpacked_primary_provisional_designation
+    assert np.all( [ a==b for a,b in zip(sector_values, result_sectors_string) ] )
+    assert np.all( [ a==b for a,b in zip(sector_values_raw, result_sectors_array) ] )
 
-
-
-
-@db_handler
-def test_insert_HP():
+def test_insert_HP(db):
     """
     TEST THE FUNCTION THAT INSERTS LISTS OF JD & HP
     
@@ -397,7 +346,7 @@ def test_insert_HP():
     C.insert_HP( JDlist, HPlist, object_coeff_id )
 
     # Query the db and examine the results
-    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=?"
+    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=%s"
     cur = C.conn.cursor()
     cur.execute(sqlstr , ( object_coeff_id, ))
     result_raw     = cur.fetchall()
@@ -420,7 +369,7 @@ def test_insert_HP():
     C.insert_HP( JDlist, HPlist, object_coeff_id )
 
     # Query the db and examine the results
-    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=?"
+    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=%s"
     cur = C.conn.cursor()
     cur.execute(sqlstr , ( object_coeff_id, ))
     result_raw     = cur.fetchall()
@@ -446,7 +395,7 @@ def test_insert_HP():
     C.insert_HP( JDlist, HPlist, object_coeff_id )
 
     # Query the db and examine the results
-    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=?"
+    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=%s"
     cur = C.conn.cursor()
     cur.execute(sqlstr , ( object_coeff_id, ))
     result_raw     = cur.fetchall()
@@ -518,8 +467,7 @@ def test_inserts():
 # Tests of basic query routines ...
 # --------------------------------------------------------------
 
-@db_handler
-def test_query_object_coefficients():
+def test_query_object_coefficients(db):
     """
     Test the convenience query that searches the object_coefficients and returns the (unpickled) data
     """
@@ -536,8 +484,8 @@ def test_query_object_coefficients():
     #     so we need to supply pickled data ...
     unpacked_primary_provisional_designation = '2020 AB'
     sector_field_names = C.generate_sector_field_names()[:2]
-    sector_values_raw  = [ np.array([[n,n],[n,n]]) for n, _ in enumerate(sector_field_names) ]
-    sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+    sector_values_raw = [np.array([[17*n,17*n],[17*n,17*n]]) for n, _ in enumerate(sector_field_names)]
+    sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
     
     # Call the convenient upsert function (tested above)
     object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
@@ -551,8 +499,8 @@ def test_query_object_coefficients():
         assert n in result_dict
         assert np.all( v == result_dict[n] )
     for k,v in result_dict.items():
-        if k not in sector_field_names:
-            assert v is None
+        assert k in sector_field_names
+        assert v is not None
 
     # ------------- 2 ----------------
     # Simple test of query
@@ -561,8 +509,8 @@ def test_query_object_coefficients():
     # Define some data to be inserted
     unpacked_primary_provisional_designation = '2021 XY'
     sector_field_names = C.generate_sector_field_names()[:2]
-    sector_values_raw  = [ np.array([[2*n,2*n],[2*n,2*n]]) for n, _ in enumerate(sector_field_names) ]
-    sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+    sector_values_raw = [np.array([[17*n,17*n],[17*n,17*n]]) for n, _ in enumerate(sector_field_names)]
+    sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
     
     # Call the convenient upsert function (tested above)
     object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
@@ -576,8 +524,8 @@ def test_query_object_coefficients():
         assert n in result_dict
         assert np.all( v == result_dict[n] )
     for k,v in result_dict.items():
-        if k not in sector_field_names:
-            assert v is None
+        assert k in sector_field_names
+        assert v is not None
 
 
     # ------------- 3 ----------------
@@ -587,8 +535,8 @@ def test_query_object_coefficients():
     # Define some data to be inserted
     unpacked_primary_provisional_designation = '2020 AB'
     sector_field_names = C.generate_sector_field_names()[:2]
-    sector_values_raw  = [ np.array([[3*n,3*n],[3*n,3*n]]) for n, _ in enumerate(sector_field_names) ]
-    sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+    sector_values_raw = [np.array([[17*n,17*n],[17*n,17*n]]) for n, _ in enumerate(sector_field_names)]
+    sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
     
     # Call the convenient upsert function (tested above)
     object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
@@ -602,13 +550,11 @@ def test_query_object_coefficients():
         assert n in result_dict
         assert np.all( v == result_dict[n] )
     for k,v in result_dict.items():
-        if k not in sector_field_names:
-            assert v is None
+        assert k in sector_field_names
+        assert v is not None
 
 
-
-@db_handler
-def test_query_desig_by_object_coeff_id():
+def test_query_desig_by_object_coeff_id(db):
     """
     Test the query_desig_by_object_coeff_id
     NB(1): When *query_desig_by_object_coeff_id* is called with a list of object_ids,
@@ -651,8 +597,7 @@ def test_query_desig_by_object_coeff_id():
                 f"{i},{desig}\nresult_dict={result_dict}"
 
 
-@db_handler
-def test_query_coefficients_by_jd_hp():
+def test_query_coefficients_by_jd_hp(db):
     """
     The coefficients_by_jd_hp function is designed to report back the coefficients for
     any objects in the given JD & HPlist
@@ -688,7 +633,7 @@ def test_query_coefficients_by_jd_hp():
         # Continue to define the data to be inserted ...
         sector_field_names = C.generate_sector_field_names()[:2]
         sector_values_raw  = [ np.array([[i + 2*n,i + 2*n],[i + 2*n,i + 2*n]]) for n, _ in enumerate(sector_field_names) ]
-        sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+        sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
 
         # Call the convenient upsert functions (tested above) to insert the data into the object_coefficients & objects_by_jdhp tables
         object_coeff_id = C.upsert_coefficients(desig , sector_field_names, sector_values)
@@ -696,8 +641,6 @@ def test_query_coefficients_by_jd_hp():
 
         # Save the inputs in a convenient dictionary to help with the query-verification below
         save_dict[desig] = { sfn:svr for sfn,svr in zip(sector_field_names, sector_values_raw) }
-
-
 
     # Query the data & verify the returned data is as expected
     # Loop over the possible days

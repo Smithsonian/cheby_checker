@@ -135,21 +135,22 @@ class NbodySim():
                                 mpcorb_list = [],
                                 )
         """
-        
+
         # Parse the provided input and populate the appropriate internal variables.
         # Also checks that all necessary variables have been provided
         self._parse_inputs_run_mpcorb(**kwargs)
 
         # Populate barycentric quantities from the input heliocentric quantities
+        # Simple coordinate transformations here.
         self.make_bary_equatorial()
 
-        # Run the Integration
+        # Run the (intensive) Integration
         self._run_integration()
-        
+
         # Save output if requested
         #if save_output:
         #    self.save_output()
-            
+
         return True
 
     # --------------------------------------------
@@ -158,13 +159,13 @@ class NbodySim():
     #@timer
     def _parse_inputs_run_mpcorb(self, **kwargs):
         """ Parse inputs based on mpc_orb.json format
-        
+
         Inputs/Requires:
         -------
 
         Populates:
         --------
-        
+
         Example:
         --------
 
@@ -174,25 +175,23 @@ class NbodySim():
         for key in critical_inputs:
             assert key in kwargs and  kwargs[key] is not None
             self.__dict__[key] = kwargs[key]
-            
+
         assert isinstance(self.tstart,(float,int))
         assert isinstance(self.tstop, (float,int))
         assert isinstance(self.mpcorb_list, (list,tuple,np.ndarray) )
 
         # Get the number of particles
         self.input_n_particles = len(self.mpcorb_list)
-        assert self.input_n_particles, f'self.input_n_particles={self.input_n_particles}'
-        
+        assert self.input_n_particles, f'ERROR: self.input_n_particles={self.input_n_particles}'
+
         # Parse the mpc_orb.json input ...
         for _ in self.mpcorb_list:
+            # Populates class variables for the N-body sim.
             self._parse_orbfit_json( _ )
 
         # Basic error-checking ...
-        if (self.input_n_particles is None) or (self.input_n_particles == 0) or (self.helio_ecl_vec is None) :
-            raise TypeError("Error parsing from input ")
-            
-        # Don't need to return anything ...
-        return True
+        if self.helio_ecl_vec is None:
+            raise TypeError(f"Error parsing from input helio_ecl_vec: {self.helio_ecl_vec}")
 
     #@timer
     def _parse_orbfit_json(self, mpcorb_file_or_dict):
@@ -222,7 +221,7 @@ class NbodySim():
         # NB(1): This parses & validates ...
         # NB(2): MPCORB Handles either FILE or DICTIONARY input
         M = MPCORB(mpcorb_file_or_dict)
-        
+
         # ----------- DESIGNATION -------------------------
         self.unpacked_primary_provisional_designation_list.append( M.designation_data["unpacked_primary_provisional_designation"] )
 
@@ -230,17 +229,17 @@ class NbodySim():
         # Using Astropy.time for time conversion,
         # because life's too short for timezones and time scales.
         epoch,timesystem    = M.epoch_data["epoch"],M.epoch_data["timesystem"]
-        
+
         allowed_timesystems = {'TDT':'tt'}
         assert timesystem in allowed_timesystems
         this_mpcorb_epoch = Time(float(epoch), format='mjd', scale=allowed_timesystems[timesystem] )
 
         # In production, we likely want to be using "standard-epochs" ending in 00.
         # - This will allow multiple objects to be simultaneously integrated
-        if self.CHECK_EPOCHS==True and "00." not in str(epoch):
+        if self.CHECK_EPOCHS and "00." not in str(epoch):
             raise TypeError("Supplied file may not contain standard epochs:"
                             f"epoch= {epoch}")
-        
+
         # If we are processing multiple files, then
         # check that all supplied epochs are the same
         if self.integration_epoch is None :
@@ -273,7 +272,7 @@ class NbodySim():
         I should check for that and emit an error/warning ...
         '''
 
-        
+
         # ----------- COVARIANCE  -------------------
         # Parse jsonfile_dictionary to get the cartesian covariance matrix
         # The cov matrix will be of dimension N^2, with N>=6, as the non-gravs are incluuded
@@ -284,12 +283,12 @@ class NbodySim():
         else :
             self.helio_ecl_cov = np.append( self.helio_ecl_cov, local_helio_ecl_cov, axis=0)
 
-                
+
         # ----------- NONGRAVS -----------------------
         self.non_grav_dict_list.append( M.nongrav_data )
         self.non_grav_EXISTS = np.any( _["non_gravs"] for _ in self.non_grav_dict_list )
-        
-        
+
+
         # ----------- return -----------------------
         return True
 
@@ -327,15 +326,15 @@ class NbodySim():
             # Only need to do a rotation for the CoV
             # MJP 2022-02-05 : Need to "slice" to ensure only grav-components get rotated
             self.bary_eq_cov = coco.ecliptic_to_equatorial(self.helio_ecl_cov)
-        
+
             # Set booleans as well (not sure if we'll really use these ...)
             self.bary_eq_cov_EXISTS = True
 
         if not self.helio_ecl_vec_EXISTS and not self.helio_ecl_cov_EXISTS:
             raise TypeError("There does not seem to be any valid helio_ecl to transform into bary_eq")
-            
+
         return True
-        
+
     """
     def _parse_input_type(self,input):
         '''
@@ -460,7 +459,7 @@ class NbodySim():
                     f"felfile_contents={felfile_contents}\n"
                     f"e = {e}\n")
     """
-    
+
     # --------------------------------------------
     # Functions to run NBody integration & parse results
     # --------------------------------------------
@@ -516,8 +515,8 @@ class NbodySim():
          - number of time outputs
         n_particles_out     = integer,
          - number of output particles (different why?)
-         
-         
+
+
         *** NOTES ON PROBLEMS WITH MULTI-PARTICLE INPUT ***
         When testing on 4-particle input, I found that the integration ran wild,
         with the solutions zooming off to 10,000au (individually they stayed @ 3au)
@@ -530,7 +529,7 @@ class NbodySim():
         how that is translated to C
         SPECULATION : Is it something to do with bary_eq_vec being reshaped / reduced in dimension
         at some point in the preceeding code? Does this affect memory layout?
-        
+
         hardpasted = np.array(
         [[ 2.4260322844717380e-01, -3.0090867545871860e+00, -1.1363474792630044e+00,
            9.1908324088463677e-03,  2.0472935970702337e-04, -1.5374992052716444e-03],
@@ -570,12 +569,12 @@ class NbodySim():
          ---ccc--- -0.0003305550323891 -0.0078839265248181 -0.0015374992052716 -0.0007876089983894 0.0009707806427468 -0.0034116741888536
 
         """
-        
+
         # Now run the nbody integrator:
         if self.verbose:
             print(f"self.tstart={self.tstart}, self.tstop={self.tstop}, epoch=float(self.integration_epoch.tdb.to_value('jd'))={float(self.integration_epoch.tdb.to_value('jd'))},")
 
-            
+
         self.output_times, self.output_states, partial_derivatives_wrt_state, partial_derivatives_wrt_NG, return_value = \
             production_integration_function_wrapper(    self.tstart,
                                                         self.tstop,
@@ -591,8 +590,8 @@ class NbodySim():
         # Reshape the partial derivative arrays
         partial_derivatives_wrt_state, partial_derivatives_wrt_NG = self.reshape_partial_deriv_arrays(  partial_derivatives_wrt_state,partial_derivatives_wrt_NG)
         self.partial_derivatives_wrt_state = partial_derivatives_wrt_state
-        
-        
+
+
         # Calculate the covariance matrix (at each timestep) from the \partial X / \partial X_0 data
         if self.bary_eq_cov_EXISTS is not None:
             self.output_covar = self._get_covariance_from_tangent_vectors(  self.bary_eq_cov,
@@ -600,9 +599,9 @@ class NbodySim():
                                                                                 partial_derivatives_wrt_NG = partial_derivatives_wrt_NG )
         else:
             self.output_covar = None
-        
+
         return True
-                
+
     #@timer
     def reshape_partial_deriv_arrays( self,  partial_derivatives_wrt_state,  partial_derivatives_wrt_NG):
         """
@@ -618,7 +617,7 @@ class NbodySim():
         partial_derivatives_wrt_state = partial_derivatives_wrt_state.reshape(partial_derivatives_wrt_state.shape[0],-1,6,6)
         #print('partial_derivatives_wrt_state: final shape = ', partial_derivatives_wrt_state.shape)
         #print(partial_derivatives_wrt_state[-1])
-        
+
         # (2)
         if partial_derivatives_wrt_NG is not None:
             raise Error('Have not coded partial_derivatives_wrt_NG into _get_covariance_from_tangent_vectors ')
@@ -656,7 +655,7 @@ class NbodySim():
         # NB, The "(0,1,3,2)" tuple fixes dimensions 0 & 1 , but indicates that dimensions 2 & 3 will be swapped/transposed
         #     Because this just swaps the 6x6 dimensions, the shape remains == (#times, #particles, 6, 6)
         pds_transposed  = partial_derivatives_wrt_state.transpose( (0,1,3,2) )
-        
+
         # Do matrix multiplication: using the pd's to get the CoV as a func of time
         # NB matmul/@ automagically knows how to work on a stack of matricees
         # - https://stackoverflow.com/questions/34142485/difference-between-numpy-dot-and-python-3-5-matrix-multiplication
@@ -727,7 +726,7 @@ class NbodySim():
         outfile.write("trange 600.\n")
         outfile.write("geocentric 0\n")
         outfile.write("state\n")
-        
+
         # For whatever reason, we are writing this over two lines
         # - perhaps to compare against JPL?
         for vec in self.bary_eq_vec:
@@ -790,7 +789,7 @@ class NbodySim():
              - time, state, triangular-cov
         """
         if os.path.isfile( text_filepath ):
-            
+
             # Simple read of file -> array
             array =  np.loadtxt(text_filepath)
 
@@ -826,23 +825,23 @@ class NbodySim():
             #
 
         """
-        
+
         # times
         times = np.arange(40000, 60000, 1)
-        
+
         # Set up empty array and put times into zeroth element
         a = np.zeros( ( len(times) , nFields)  )
         a[:,0] = times
-        
+
         # Fake some slowly varying coordinate data
         r = np.random.uniform(low=2.5, high=3.5)
         p_days = r**(3./2.) * 365.25
         a[:,1] = r*np.cos( 2.*np.pi * times/p_days )
         a[:,2] = r*np.sin( 2.*np.pi * times/p_days )
-        
+
         # Leave z == 0 to check whether zeros cause problems for cheby
         #a[3]
-        
+
         # Populate vel & CoVar components
         for n, v in enumerate(['vx','vy','vz']):
             a[:,4+n]  = 0.1*n*a[:,1]

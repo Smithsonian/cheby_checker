@@ -4,7 +4,7 @@
 """
     --------------------------------------------------------------
     cheby_checker's orbit_cheby module.
-    
+
     2020 - 2022
     Matt Payne & Margaret Pan & Mike Alexandersen
 
@@ -62,6 +62,9 @@ class MSC_Loader(Base):
 
     # allow different init depending on source ...
     def __init__(self, **kwargs):
+        """
+        If NbodySim is provided, takes an N-body simulation and creates MSCs.
+        """
         print('INIT MSC_Loader...')
 
         # Give access to "Base" methods & attributes
@@ -69,23 +72,23 @@ class MSC_Loader(Base):
 
         # Initialization of default standard PARAMETERS / OPTIONS we use for chebyshevs, etc
         # - These may be overwritten by kwargs
-        
+
         self.filepath       = None                                  # : Ingest method (From textfile)
 
         self.unpacked_primary_provisional_designation_list = []     # : Ingest method (From np.array)
         self.times_TDB      = None                                  # : Ingest method (From np.array)
         self.statearray     = None                                  # : Ingest method (From np.array)
-        
+
         self.NbodySim       = None                                  # : Ingest method (From nbody.NbodySim)
 
         self.FROM_DB        = None                                  # : Ingest method (From sqlite db)
         self.dict_of_dicts  = None                                  # : Ingest method (From sqlite db)
-        
+
         # The list of MSCs that will be instantiated & returned
         self.MSCs           = []
-        
+
         # Do a loop over the parameters and see if any attributes need updating (because they were supplied)
-        # I.e. This looks through kwargs for (e.g.) 'filepath', 'NbodySim', 'FROM_DB', etc etc 
+        # I.e. This looks through kwargs for (e.g.) 'filepath', 'NbodySim', 'FROM_DB', etc etc
         for attribute, value in kwargs.items():
             if hasattr(self, attribute):
                 setattr(self, attribute, value)
@@ -97,7 +100,7 @@ class MSC_Loader(Base):
             self._populate_from_database( self.dict_of_dicts )
 
         # (ii) From nbody.NbodySim
-        elif self.NbodySim is not None :
+        elif self.NbodySim is not None:
             if "unpacked_primary_provisional_designation_list" not in self.NbodySim.__dict__:
                 self.NbodySim.unpacked_primary_provisional_designation_list = [ str(_) for _ in range(self.NbodySim.input_n_particles)]
                 print(f'Populating from NbodySim : ***NO*** designation information : Using {self.NbodySim.unpacked_primary_provisional_designations}')
@@ -119,7 +122,7 @@ class MSC_Loader(Base):
         # (v) An empty instance ...
         else:
             self._generate_empty()
-                
+
     def _generate_empty(self,  ):
         """  """
         # TODO: Use logging here and elsewhere
@@ -183,12 +186,12 @@ class MSC_Loader(Base):
             --------
 
         """
-        
 
-       
+
+
         # Ensure the passed desig variable is array-like
         self.unpacked_primary_provisional_designation_list = np.atleast_1d(unpacked_primary_provisional_designation_list)
-        
+
 
 
         # Check that the dimensionality of the inputs is consistent
@@ -200,7 +203,7 @@ class MSC_Loader(Base):
         #        Nt = Number of times
         #        Nc = Number of particles
         #        Np = Number of coords/components being fitted: should be in [6,7,8,9]
- 
+
         # Check for consistent times & array dimensions
         assert len(times_TDB) == states.shape[0]
         assert covariances is None or len(self.unpacked_primary_provisional_designation_list) == covariances.shape[0]
@@ -215,7 +218,7 @@ class MSC_Loader(Base):
 
         # Loop over each of the objects and create an MSC-object for each ...
         for i, unpacked in enumerate(self.unpacked_primary_provisional_designation_list):
-                        
+
             # Create the MSC (using the appropriate *from_coord_arrays()* function )
             # NB: We need to extract the appropriate slice of states corresponding to the particular named object
             M = MSC()
@@ -240,11 +243,11 @@ class MSC_Loader(Base):
             list of MSC objects
 
         """
-        
+
         # Loop over objects and make list of MSCs
         MSCs = []
         for unpacked_primary_provisional_designation in np.atleast_1d(unpacked_primary_provisional_designation_list) :
-        
+
             # Create the MSC (using the appropriate *from_database()* function )
             M = MSC()
             M.from_database( unpacked_primary_provisional_designation )
@@ -260,7 +263,7 @@ class MSC(Base):
     Will hold chebyshev coefficients for a **SINGLE** object
     """
     def __init__(self, **kwargs):
-    
+
         # Give access to "Base" methods & attributes
         Base.__init__(self)
 
@@ -268,12 +271,12 @@ class MSC(Base):
         self.minorder       = 5                                     # : Fitting Chebys
         self.maxorder       = 125                                   # : Fitting Chebys
         self.maxerr         = 1e-9                                 # : Fitting Chebys
-        
+
         # It's probably going to be useful to track the number of components
         # (the various covariance calculations & reshapings can get complicated)
         self.n_coordinates = None
         self.covar_bool    = False
-        
+
         # Fundamental identifiying data for MSC
         self.unpacked_primary_provisional_designation   = None # Designation of object
         self.sector_coeffs                              = {}   # the all-important cheby-coeffs
@@ -300,7 +303,7 @@ class MSC(Base):
             populates:
             ----------
             self.unpacked_primary_provisional_designation : string
-            
+
             self.sector_coeffs : dict
 
             self.sector_init : int
@@ -313,49 +316,49 @@ class MSC(Base):
         """
         # unpacked primary provID of the object (e.g. 2020 AA)
         self.unpacked_primary_provisional_designation = unpacked_primary_provisional_designation
-        
+
         # query the database for the required sector coefficients
         coeff_dict = precalc.get_specific_object(unpacked_primary_provisional_designation ,
                                                  sector_numbers = sector_numbers)
-    
+
         # create the entries in the sector_coeffs dict (N.B. have to transform the keys)
         self.sector_coeffs = { int(k.split("_")[1]) : v for k,v in coeff_dict.items() }
-        
+
         # set the min & max supported times / sectors
         self.sector_init, self.sector_final = np.min(list(self.sector_coeffs.keys())), np.max(list(self.sector_coeffs.keys()))
         self.TDB_init = Base.map_sector_number_to_sector_start_JD(self.sector_init, self.standard_MJDmin)
         self.TDB_final = Base.map_sector_number_to_sector_start_JD(self.sector_final, self.standard_MJDmin) \
                          + self.sector_length_days - self.epsilon
-    
+
         # check things are as expected
         assert self.TDB_init >= self.standard_MJDmin and self.TDB_final <= self.standard_MJDmax, \
             'Problem with limits in from_database: self.TDB_init = [%f] , self.standard_MJDmin = [%f] self.TDB_final = [%f], self.standard_MJDmax = [%f]' % (self.TDB_init , self.standard_MJDmin , self.TDB_final , self.standard_MJDmax)
-    
+
 
     def from_coord_arrays(self, unpacked_primary_provisional_designation, times_TDB , states , covariances = None ):
         """
            Populate the MSC starting from supplied numpy-arrays
            Expected to be used when passing in the data from an NBody integration (REBOUNDX)
-            
+
             inputs:
             -------
-            unpacked_primary_provisional_designation : 
-            - 
-            
+            unpacked_primary_provisional_designation :
+            -
+
             TDB_init :
             -
-            
+
             TDB_final :
             -
-            
+
             times_TDB :
             -
-            
+
             states: np.array
              - This should be ONLY the main fitted variables (e.g. 3-posn, 3-vel, + N-non-grav-coeffs)
              - Expect shape == ( Nt ,  Nc ), where Nc in [6,7,8,9]
              - IN early development, assume Nc == 6 (gravity-only)
-             
+
             covariances: np.array
              - This should be the covariances corresponding to the states, so dimension should be (Nt, Nc, Nc)
 
@@ -386,7 +389,7 @@ class MSC(Base):
         True
         - Doesn't directly return, just populates the MSC object
         """
-        
+
         # Store name
         self.unpacked_primary_provisional_designation = unpacked_primary_provisional_designation
 
@@ -401,13 +404,13 @@ class MSC(Base):
         # Useful quantities & mappings ...
         self.n_coordinates = states.shape[1]
         self._define_locations()
-        
+
         # Reduce the input square covariance matrix down to triangular form
         triangular = None if covariances is None else self._take_triangular(covariances)
-        
+
         # Generate *RELATIVE* times within sectors (each sector starts from t=0)
         sector_numbers , sector_relative_times = self.map_JDtimes_to_relative_times(times_TDB)
-        
+
         # Go through sector-numbers & populate "sector_coeffs" dict
         sector_numbers = sorted(sector_numbers)
         for sector_number in set(sector_numbers) :
@@ -432,7 +435,7 @@ class MSC(Base):
             # Check that the maxFitErr is within acceptable bounds
             if maxFitErr > self.maxerr:
                 sys.exit(f'MSC.from_coord_arrays: maxFitErr = {maxFitErr} (i.e. > self.maxerr = {self.maxerr})')
-            
+
             # Check that the sector is "well covered"
             # - I.e. N_points >= N_cheb_coeffs  &   t[0] < sector_gap  &  t[-1] > sector_length_days - sector_gap
             # N.B. I have not yet investigated/justified these values
@@ -441,10 +444,10 @@ class MSC(Base):
             elif    states[indicees].shape[0]               >= cheb_coeffs.shape[0] \
                     and sector_relative_times[indicees][0]  < self.sector_gap \
                     and sector_relative_times[indicees][-1] > self.sector_length_days - self.sector_gap :
-            
+
                 # Save the fitted coefficients into the sector_coeff dict
                 self.sector_coeffs[sector_number] = cheb_coeffs
-                    
+
             else:
                 if sector_number not in [sector_numbers[0], sector_numbers[-1]]:
                     print(f'*** Warning : sector_number {sector_number} is not well covered')
@@ -480,21 +483,21 @@ class MSC(Base):
         """
         """
         assert self.n_coordinates >=6 and self.n_coordinates <=9
-        
+
         self.triangular_mapping = {21:6, 28:7, 36:8, 45:9}
-        
+
         # Create name:location map for states ...
         self.coord_map = { 'x':0,'y':1,'z':2,'vx':3,'vy':4,'vz':5}
         for n in range(6, self.n_coordinates): self.coord_map[ ['ng1','ng2','ng3'][n-6] ] = n
         assert self.n_coordinates == len(self.coord_map)
-        
+
         self.inv_map = { v:k for k,v in self.coord_map.items()}
-                
+
         # name:location map covariance reduced to triangular form
         self.tri_map = { "_".join([ self.inv_map[i], self.inv_map[j]]):True for i in range(len(self.coord_map))
                                                                              for j in range(i,len(self.coord_map))}
         self.tri_map = {k:n+self.n_coordinates for n,k in enumerate(self.tri_map)}
-        
+
         # name:location map when we have combined states with triangular covariance
         self.combi_map = {}
         self.combi_map.update(self.coord_map)
@@ -526,35 +529,35 @@ class MSC(Base):
             -Returned object is of shape (Nt, 21) [assuming input shape == (Nt,6,6)
                 6->21 , 7->28 , 8->36 , 9->45
         """
-        
+
         # check the shape is correct
         assert covariances.ndim == 3
         assert covariances.shape[1] == covariances.shape[2] == self.n_coordinates
-        
+
         # get upper-triangular elemenet at each time slice
         # NB1: There may be a better (more numpy-like) way of doing this iteration over the firt dimension
         # NB2: Returned object is of shape (Nt, 21) [assuming input shape == (Nt,6,6)
         #      6->21 , 7->28 , 8->36 , 9->45
         i = np.triu_indices(self.n_coordinates)
         return np.array( [_[i] for _ in covariances ] )
-        
+
     def _make_square( self, covariances_tri ):
         """
         Take a stack of triangular components and reconstruct a stack of square matricees
         Does the opposite of _take_triangular
         """
-        
+
         # check the shape is correct
         assert covariances_tri.ndim == 2
         assert covariances_tri.shape[1] in self.triangular_mapping
-        
+
         # Set up indicees
         sq_dim = self.triangular_mapping[covariances_tri.shape[1]]
         i, j = np.triu_indices( sq_dim )
 
         # Create empty array
         M = np.empty((covariances_tri.shape[0] , sq_dim, sq_dim))
-        
+
         # Populate array
         for n,_ in enumerate(covariances_tri):
             M[n,i,j] = _
@@ -565,12 +568,12 @@ class MSC(Base):
     # Function(s) to fit supplied chebys to coords/data
     # --------------------------------------------------------------
     def generate_cheb_for_sector(self, t, y, order=None):
-        
+
         """
             Get lowest order accurate Chebyshev polynomial fit for a single sector
-            
+
             Note recursion
-            
+
             Inputs:
             --------
             t: np.array
@@ -578,17 +581,17 @@ class MSC(Base):
              - t.shape = (Nt,), where Nt is the number of times being evaluated
              - to try and improve accuracy, assume times relative to SECTOR-ZERO TIME
                   ***** I.E. EXPECT THAT 0 < t < Base.sector_length_days *****
-             
+
             y: np.array
              - dep. var. for which we fit cheby-polynomials
              - y.shape = (Nt, Nc), where Nt is defined above and Nc is the number of components being fitted
-            
+
             Returns:
             --------
             np.array
-             - shape = (No, Nc), 
+             - shape = (No, Nc),
              - where Nc is defined above and No is 1+order (and note that "order" can iterate upwards)
-            
+
         """
         # EXPECT THAT 0 < t < Base.sector_length_days (keep times <~32 days)
         assert np.all( t < self.sector_length_days )
@@ -597,11 +600,11 @@ class MSC(Base):
         chebCandidate   = np.polynomial.chebyshev.chebfit(t, y, int(np.ceil(order)) )
         quickEval       = np.polynomial.chebyshev.chebval(t, chebCandidate).T
         maxFitErr       = np.max( np.abs(quickEval - y) )
-        
+
         # If fit errors are small, we can finish
         if maxFitErr <= self.maxerr:
             return chebCandidate, maxFitErr
-    
+
         # If we have maxed out the fitting-order, finish but issue warning
         elif int(np.ceil(order)) == this_maxorder :
             print(f'\n\t ***WARNING [orbit_cheby.generate_cheb_for_sector]***')
@@ -609,7 +612,7 @@ class MSC(Base):
             print(f'\t t.shape, y.shape : {t.shape, y.shape}')
             print(f'\t t[:3]...t[-3:] : {t[:3]}...{t[-3:]} ')
             return chebCandidate, maxFitErr
-        
+
         # If fit errors are large, try increasing the order of the fit
         else:
            return self.generate_cheb_for_sector(t, y, order + int(np.ceil((this_maxorder - order) / 2)))
@@ -638,7 +641,7 @@ class MSC(Base):
             - Observatory positions at times_tdb
             - Everything in orbit_cheby.MSC needs BARYCENTRIC EQUATORIAL coords
             - shape = ( len(times_tdb), 3)
-            
+
 
             APPROX: boolean
             - Allow approximate calc ( *no* LTT-correction) of unit-vector
@@ -652,8 +655,8 @@ class MSC(Base):
             - length of returned array = len(times)
 
             """
-        
-        
+
+
         # Get the unit vector from observatory to object: Is of shape = (len(times_tdb) , 3)
         UV = self.generate_UnitVector(  times_tdb ,
                                         observatoryXYZ,
@@ -680,7 +683,7 @@ class MSC(Base):
             observatoryXYZ: np.array
             - Observatory positions at times_tdb
             - shape = (len(times_tdb) , 3)
-            
+
             delta: np.array
              - Assume
 
@@ -696,7 +699,7 @@ class MSC(Base):
         # Get the LTT-corrected position
         # - We allow for the possibility of *NOT* iterating (i.e. doing an approx calc.)
         n_iterations    = 1 if APPROX else 3
-        
+
         # Init light-delay to 0
         lightDelay      = np.zeros( len(times_tdb) )
 
@@ -705,7 +708,7 @@ class MSC(Base):
             # Calculate delayed time (of emission)
             # N.B. delayedTimes.shape = (len(times_tdb) )
             delayedTimes    = times_tdb if i == 0 else times_tdb - lightDelay
-            
+
             # Extract posn of objects at each delayed-time
             # N.B. objectXYZ.shape    = (len(times_tdb) , 3)
             objectXYZ       = self.generate_XYZ( delayedTimes )
@@ -713,7 +716,7 @@ class MSC(Base):
             if DELTASWITCH_XYZ :
                 '''XYZ: Assume simple translation: shift@delayedTimes == shift@times_tdb'''
                 objectXYZ += np.stack([delta for i in range(objectXYZ.shape[0])], axis=1)
-            
+
             # Calculate relative sepn-vector from observatory-to-object
             sepn_vectors    = objectXYZ - observatoryXYZ
 
@@ -761,7 +764,7 @@ class MSC(Base):
                -self.generate_UnitVector( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([0, 0,-d]) ) )
 
         return np.stack(np.array( (_dX, _dY, _dZ, _dU, _dV, _dW) ), axis=1).T / (2*d)
-    
+
     def covUV(self, times_tdb , observatoryXYZ ):
         """
             Evaluate the covariance in unit vectors
@@ -804,7 +807,7 @@ class MSC(Base):
                                       DELTASWITCH_XYZ=DELTASWITCH_XYZ,
                                       DELTASWITCH_UVW=DELTASWITCH_UVW,
                                       delta = delta)
-        
+
         # Convert from unit-vector to RA, Dec and then return
         # NB: Taking transpose, T, makes retuurned shape ==  ( len(times_tdb) , 2)
         return np.array(healpy.vec2ang( UV , lonlat = True )).T
@@ -837,7 +840,7 @@ class MSC(Base):
                -self.generate_RaDec( times_tdb , observatoryXYZ, APPROX = True , DELTASWITCH_UVW = True, delta=np.array([0, 0,-d]) ) )
 
         return np.stack(np.array( (_dX, _dY, _dZ, _dU, _dV, _dW) ), axis=1).T / (2*d)
-    
+
     def covRaDec(self, times_tdb , observatoryXYZ ):
         """
             Evaluate the covariance in RA, Dec
@@ -845,7 +848,7 @@ class MSC(Base):
         """
         dRaDecdXYZUVW   = self.dRaDecdXYZUVW( times_tdb , observatoryXYZ )
         covXYZUVW       = self.covXYZUVW( times_tdb  )
-        
+
         # Is there a way to make this more efficient?
         # - Similar to the nbody code ...
         # - CoV_t = np.linalg.inv( GammaStack_t )
@@ -870,7 +873,7 @@ class MSC(Base):
              - NB2: no need for N_particle dimension, as MSC is only for single object
         """
         return self.evaluate_components( times_tdb  , component_slice_spec=self.XYZ_slice_spec )
-        
+
     def generate_XYZUVW( self, times_tdb  ):
         """
             Evaluate the XYZUVW components at the supplied times
@@ -893,7 +896,7 @@ class MSC(Base):
         """
         # Select/evaluate the appropriate covariance components*                              *
         cov = self.evaluate_components( times_tdb , component_slice_spec = self.covXYZUVW_slice_spec  )
-        
+
         # Reshape to get square matrix for each time
         return self._make_square(cov)
 
@@ -908,39 +911,39 @@ class MSC(Base):
         #
         # dt~1e-5 => ~1sec
         return ( self.generate_XYZ( times_tdb + dt ) - self.generate_XYZ( times_tdb - dt ) ) / (2*dt)
-    
+
     def evaluate_components( self, times_TDB , component_slice_spec=slice(None) ):
         """
-            
+
             inputs:
             -------
             times_TDB : np.array
-            
+
             component_slice_spec:
-            
+
             return:
             -------
             components calculated from coefficient evaluation at times_tdb
              - Making the design decision to return the array in the shape (N_times, N_components)
              - This is to make it as similar as possible to the shape that comes out of reboundx/NbodySim
         """
-        
+
         # Generate relative times within sectors (each sector starts from t=0)
         sector_numbers , sector_relative_times = self.map_JDtimes_to_relative_times(times_TDB)
-        
+
         # Find which single-sector dictionary to use for each given time
         # Then make a dictionary with key=sector-number, and value=list-of-times
         # N.B. we use JD0 = 0 because we have already been supplied with *relative* times
         times_for_each_sector= defaultdict(list)
         for t , s, srt  in zip( times_TDB,  sector_numbers , sector_relative_times ):
             times_for_each_sector[s].append(srt)
-        
+
             # Put in a check for validity here, by asking whether the sectors-calculated here ...
             # ... are actually in the main sector_coeffs-dict
             assert s >= self.sector_init and s<= self.sector_final, \
                 'Sector #%d (for time %f) not supported in sector_coeffs (min,max supported times = %f,%f)' % \
                 (s, t   , self.TDB_init, self.TDB_final)
-        
+
         # Evaluate the chebyshev polynomial
         # - Note we do all of the evaluations for a single sector in one go
         # - So we only need to loop over the sectors
@@ -951,7 +954,7 @@ class MSC(Base):
             else :
                 combinedComponents = np.append( combinedComponents, evaluatedComponents, axis = -1 )
 
-        
+
         # Taking the transpose to return the array in the shape (N_times, N_components)
         # - This is to make it as similar as possible to the shape that comes out of reboundx/NbodySim
         return combinedComponents.T

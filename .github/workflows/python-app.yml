@@ -6,25 +6,47 @@ name: Python application
 
 on:
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    branches:
+      - '**'
+
+# Global enviornment variables that should be accessible to all steps in the workflow.
+env:
+  CHEBY_DB_USER: cheby_user
+  CHEBY_DB_PASSWORD: cheby_password
+  CHEBY_DB_NAME: cheby
+  CHEBY_DB_HOST: db
+  CHEBY_DB_PORT: 5432
 
 jobs:
   build:
 
     runs-on: ubuntu-latest
+    env:
+      CHEBY_DB_USER: cheby_user
+      CHEBY_DB_PASSWORD: cheby_password
+      CHEBY_DB_NAME: cheby
+      CHEBY_DB_HOST: db
+      CHEBY_DB_PORT: 5432
+    services:
+      db:
+        image: postgres:latest
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: cheby
+          POSTGRES_USER: cheby_user
+          POSTGRES_PASSWORD: cheby_password
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python 3.10
+    - name: Set up Python 3.6
       uses: actions/setup-python@v2
       with:
-        python-version: "3.10"
+        python-version: "3.6"
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 pytest
+        pip install pytest
         pip install -r requirements.txt
         cd ..
         # Install rebound TODO: Use cache (https://github.com/flat35hd99/cache-make)
@@ -42,12 +64,6 @@ jobs:
         export JPL_SB_EPHEM=$REBX_DIR/examples/ephem_forces/sb441-n16.bsp
         cd cheby_checker
         cp cheby_container/sb441-n16.bsp $REBX_DIR/examples/ephem_forces
-    #- name: Lint with flake8
-    #  run: |
-    #    # stop the build if there are Python syntax errors or undefined names
-    #    flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-    #    # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-    #    flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
         export WORK_DIR=/home/runner/work/cheby_checker
@@ -62,6 +78,4 @@ jobs:
         # get LFS files!
         git lfs install
         git lfs pull
-        # Set up the server for sockets tests
-        python tests/sockets_server_starter_DO_NOT_DELETE.py & 
-        pytest tests
+        pytest tests/test_sql.py

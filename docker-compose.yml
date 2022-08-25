@@ -1,0 +1,30 @@
+version: '3.9'
+
+services:
+
+  postgres:
+    hostname: db
+    restart: always
+    image: "postgres:9.6"
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=cheby
+      - POSTGRES_USER=cheby_user
+      - POSTGRES_PASSWORD=cheby_password
+
+  cheby_checker:
+    environment:
+      CHEBY_DB_USER: cheby_user
+      CHEBY_DB_PASSWORD: cheby_password
+      CHEBY_DB_NAME: cheby
+      CHEBY_DB_HOST: db
+      CHEBY_DB_PORT: 5432
+    restart: always
+    build: ./cheby_container/
+    depends_on:
+      - postgres
+    links:
+      - postgres
+    volumes:
+      - .:/cheby_checker/
