@@ -21,12 +21,21 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
+    env:
+      CHEBY_DB_USER: cheby_user
+      CHEBY_DB_PASSWORD: cheby_password
+      CHEBY_DB_NAME: cheby
+      CHEBY_DB_HOST: db
+      CHEBY_DB_PORT: 5432
     services:
-      postgres:
+      db:
         image: postgres:latest
         ports:
           - 5432:5432
+        env:
+          POSTGRES_DB: cheby
+          POSTGRES_USER: cheby_user
+          POSTGRES_PASSWORD: cheby_password
 
     steps:
     - uses: actions/checkout@v2
