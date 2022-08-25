@@ -7,7 +7,7 @@ services:
     restart: always
     image: "postgres:9.6"
     ports:
-      - "5432:5432"
+      - "5430:5432"
     environment:
       - POSTGRES_DB=cheby
       - POSTGRES_USER=cheby_user
