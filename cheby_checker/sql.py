@@ -72,7 +72,6 @@ class DB:
             password = os.getenv("CHEBY_DB_PASSWORD")
             host = os.getenv("CHEBY_DB_HOST")
             port = os.getenv("CHEBY_DB_PORT")
-            print("DEBUG INFO********", username, password, host, port)
             conn = psycopg2.connect(dbname=self.dbname, user=username, password=password, host=host, port=port)
             conn.autocommit = True
             cur = conn.cursor()
@@ -398,8 +397,10 @@ class SQLChecker(DB):
         cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
 
         # Parse the result ...
-        result = cur.fetchall()[0]
-        return { sfn:pickle.loads( coeff )  for sfn, coeff in zip(sector_field_names, result) if coeff != None }
+        result_sectors_string = cur.fetchall()[0]
+        result_sectors_array = {sector_field_name: eval('np.array(' + item + ')') for sector_field_name, item in zip(sector_field_names, result_sectors_string) if item != None}
+
+        return result_sectors_array
 
     def query_desig_by_object_coeff_id(self, object_coeff_ids):
         """
@@ -467,7 +468,8 @@ class SQLChecker(DB):
         # - Outer dict is key-ed on unpacked_primary_provisional_designation
         # - Inner dicts are key-ed on sector
         results      = cur.fetchall()
-        return { r[0] : { sfn:pickle.loads( coeff )  for sfn, coeff in zip(sector_field_names, r[1:]) if coeff != None } \
+
+        return { r[0] : { sfn:eval('np.array(' + coeff + ')') for sfn, coeff in zip(sector_field_names, r[1:]) if coeff != None } \
                 for r in results}
 
     def query_jd_hp(self, JD, HPlist):

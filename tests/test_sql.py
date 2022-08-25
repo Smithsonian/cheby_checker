@@ -484,8 +484,8 @@ def test_query_object_coefficients(db):
     #     so we need to supply pickled data ...
     unpacked_primary_provisional_designation = '2020 AB'
     sector_field_names = C.generate_sector_field_names()[:2]
-    sector_values_raw  = [ np.array([[n,n],[n,n]]) for n, _ in enumerate(sector_field_names) ]
-    sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+    sector_values_raw = [np.array([[17*n,17*n],[17*n,17*n]]) for n, _ in enumerate(sector_field_names)]
+    sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
     
     # Call the convenient upsert function (tested above)
     object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
@@ -499,8 +499,8 @@ def test_query_object_coefficients(db):
         assert n in result_dict
         assert np.all( v == result_dict[n] )
     for k,v in result_dict.items():
-        if k not in sector_field_names:
-            assert v is None
+        assert k in sector_field_names
+        assert v is not None
 
     # ------------- 2 ----------------
     # Simple test of query
@@ -509,8 +509,8 @@ def test_query_object_coefficients(db):
     # Define some data to be inserted
     unpacked_primary_provisional_designation = '2021 XY'
     sector_field_names = C.generate_sector_field_names()[:2]
-    sector_values_raw  = [ np.array([[2*n,2*n],[2*n,2*n]]) for n, _ in enumerate(sector_field_names) ]
-    sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+    sector_values_raw = [np.array([[17*n,17*n],[17*n,17*n]]) for n, _ in enumerate(sector_field_names)]
+    sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
     
     # Call the convenient upsert function (tested above)
     object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
@@ -524,8 +524,8 @@ def test_query_object_coefficients(db):
         assert n in result_dict
         assert np.all( v == result_dict[n] )
     for k,v in result_dict.items():
-        if k not in sector_field_names:
-            assert v is None
+        assert k in sector_field_names
+        assert v is not None
 
 
     # ------------- 3 ----------------
@@ -535,8 +535,8 @@ def test_query_object_coefficients(db):
     # Define some data to be inserted
     unpacked_primary_provisional_designation = '2020 AB'
     sector_field_names = C.generate_sector_field_names()[:2]
-    sector_values_raw  = [ np.array([[3*n,3*n],[3*n,3*n]]) for n, _ in enumerate(sector_field_names) ]
-    sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+    sector_values_raw = [np.array([[17*n,17*n],[17*n,17*n]]) for n, _ in enumerate(sector_field_names)]
+    sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
     
     # Call the convenient upsert function (tested above)
     object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
@@ -550,9 +550,8 @@ def test_query_object_coefficients(db):
         assert n in result_dict
         assert np.all( v == result_dict[n] )
     for k,v in result_dict.items():
-        if k not in sector_field_names:
-            assert v is None
-
+        assert k in sector_field_names
+        assert v is not None
 
 
 def test_query_desig_by_object_coeff_id(db):
@@ -634,7 +633,7 @@ def test_query_coefficients_by_jd_hp(db):
         # Continue to define the data to be inserted ...
         sector_field_names = C.generate_sector_field_names()[:2]
         sector_values_raw  = [ np.array([[i + 2*n,i + 2*n],[i + 2*n,i + 2*n]]) for n, _ in enumerate(sector_field_names) ]
-        sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
+        sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
 
         # Call the convenient upsert functions (tested above) to insert the data into the object_coefficients & objects_by_jdhp tables
         object_coeff_id = C.upsert_coefficients(desig , sector_field_names, sector_values)
@@ -642,8 +641,6 @@ def test_query_coefficients_by_jd_hp(db):
 
         # Save the inputs in a convenient dictionary to help with the query-verification below
         save_dict[desig] = { sfn:svr for sfn,svr in zip(sector_field_names, sector_values_raw) }
-
-
 
     # Query the data & verify the returned data is as expected
     # Loop over the possible days
