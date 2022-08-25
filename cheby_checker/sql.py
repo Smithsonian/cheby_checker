@@ -248,67 +248,25 @@ class SQLChecker(DB):
             -------
             
         """
-        # Make a default insert disct that contains ...
+        # Make a default insert dict that contains ...
         # (a) the designation
         # (b) all the sector fields with "None" values
         insert_dict = {"unpacked_primary_provisional_designation": unpacked_primary_provisional_designation}
 
-        # Adding dummy data just to get something to work.
-        #sector_0_2440000 blob, sector_1_2440032 blob,
-        # insert_dict["sector_0_2440000"] = 1.0001
-        # insert_dict["sector_1_2440032"] = 2.0002
-
-        # Check inputs ...
-        # assert isinstance(unpacked_primary_provisional_designation, str) \
-        #     and len(sector_names)==len(sector_values)
-        
         # Update the coeff dict using the input values
         insert_dict.update( {k:v for k,v in zip(sector_names, sector_values) } )
-        print("*&^(*&^(*^%*****************", insert_dict)
+
         # Construct an sql insert statement
         # NB(1): Because the unpacked_primary_provisional_designation field is unique, this should enforce replacement on duplication
         # NB(2): It completely deletes the initial row, then replaces it with the new stuff
-        #columns      = ', '.join(insert_dict.keys())
-        #placeholders = ':'+', :'.join(insert_dict.keys())
-        
-        # Commenting-out due to likely failure in postgres (REPLACE is only in SQLITE)
-        #query = 'REPLACE INTO object_coefficients (%s) VALUES (%s)' % (columns, placeholders)
-        
-        # Construct a "set-string" to handle the "update" option for the query below
-        # set_str = f"unpacked_primary_provisional_designation='{unpacked_primary_provisional_designation}',"
-        # for n,v in zip(sector_names, sector_values):
-        #   set_str += f"{n} = ARRAY[{v}], "
-        # set_str = set_str[:-2]
-        col_str = f"unpacked_primary_provisional_designation"
-        for name in sector_names:
-            col_str += ", " + name
+        columns = AsIs(','.join(insert_dict.keys()))
+        values = tuple(insert_dict.values())
 
-        val_str = f"'{unpacked_primary_provisional_designation}'"
-        for val in sector_values:
-            val_str += f", '{val}'"
-        
-        # See URL below for guidance on ...CONFLICT...
-        # https://www.postgresqltutorial.com/postgresql-tutorial/postgresql-upsert/
-
-        # query = "INSERT INTO object_coefficients (%s) VALUES (%s);"
-        #'''insert into song_table (''' +','.join(list(song.keys()))+''') values '''+ str(tuple(song.values()))
-
-        # query_part3 = str(tuple(f"ARRAY[{x}]" for x in insert_dict.values()))
-
-        print("****col_str", col_str)
-        print("****val_str", val_str)
-
-        # INSERT INTO table_name(column1, column2, …) VALUES(value1, value2, …);
-
-        query_part2 = f"insert into object_coefficients({col_str}) VALUES({val_str}) RETURNING object_coeff_id;"
-        print("***QUERY2", query_part2)
+        query_part2 = 'insert into object_coefficients (%s) values %s RETURNING object_coeff_id;'
         query = f"delete from object_coefficients where unpacked_primary_provisional_designation = '{unpacked_primary_provisional_designation}'; " + query_part2
 
         # Execute the upsert ...
-        # cur.execute(query, (AsIs(','.join(insert_dict.keys())), tuple(insert_dict.values())))
-        self.cur.execute(query)
-        # for key in insert_dict.keys():
-        #     cur.execute(f"INSERT INTO object_coefficients (%s) VALUES (%s);")
+        self.cur.execute(query, (columns, values))
         self.conn.commit()
         
         # Return the id of the row inserted
