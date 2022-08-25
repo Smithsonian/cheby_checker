@@ -32,6 +32,16 @@ from psycopg2._psycopg import AsIs
 from .cheby_checker import Base
 
 
+def deletion_wrapper(unpacked_desig):
+    """
+    Wrapper called from outside cheby_checker (in Flask app for orbfit_results_replication DELETE events.)
+
+    :param unpacked_desig:
+    :return:
+    """
+    sql_checker = SQLChecker()
+    sql_checker.deletion_helper(unpacked_desig)
+
 
 # Data classes/methods
 #
@@ -149,21 +159,20 @@ class SQLChecker(DB):
     def create_all_checker_tables(self,):
         self.create_object_coefficients_table()
         self.create_objects_by_jdhp_table()
-        
+
     def create_object_coefficients_table(self,):
         """ Create the object_coefficients table(s) that we need for ephemeris calcultions
-            
+
             Created table has columns that look like
                 object_coeff_id                             : integer
                 unpacked_primary_provisional_designation    : text
-                sector_%d_%d                                : text bytea      <<-- *MANY* of these sectors
-                
-                
+                sector_%d_%d                                : text varchar      <<-- *MANY* of these sectors
+
             *** WHY DO WE WANT/NEED THE TABLE TO HAVE MANY MANY SECTOR FIELSD ???***
             *** WHY NOT JUST HAVE 3 FIELDS: (a) SECTOR #/ID, (b) desig, AND (c) COEFFICIENTS ???      ***
             """
-        
-        
+
+
         # Create table ...
         # Needs many fields, one per coefficient-set
         #  - Dynamically generate the field-specs that will be required for the coeffs-by-sector ...
@@ -171,7 +180,6 @@ class SQLChecker(DB):
         sector_names = self.generate_sector_field_names()
         sector_spec = " varchar, ".join( sector_names )
         sector_spec = sector_spec + " varchar"
-        
         sql_statement = """
             CREATE TABLE IF NOT EXISTS object_coefficients (
             object_coeff_id SERIAL PRIMARY KEY,
@@ -181,20 +189,20 @@ class SQLChecker(DB):
         if self.conn is not None:
             # Create table
             self.create_table(sql_statement)
-            
+
             # Create indicex on designation
             createSecondaryIndex = "CREATE INDEX index_desig ON object_coefficients (unpacked_primary_provisional_designation)"
             self.conn.cursor().execute(createSecondaryIndex)
 
     def create_objects_by_jdhp_table(self,):
         """ Create the specific objects_by_jdhp table that we need for *mpchecker2*
-            
+
             Created table has columns that look like
                             jdhp_id     : integer
                             jd          : integer <<-- This is the julian date (as integer)
                             hp          : integer <<-- This is the healpix
                             object_coeff_id   : integer
-                
+
             """
 
         # Create table ...
@@ -204,14 +212,14 @@ class SQLChecker(DB):
             hp INTEGER NOT NULL,
             object_coeff_id INTEGER NOT NULL
             ); """
-        
-        
+
+
         # create table(s)
         if self.conn is not None:
-            
+
             # create tables
             self.create_table( sql_statement )
-            
+
             # Create indicees
             createSecondaryIndex =  "CREATE INDEX index_jdhp ON objects_by_jdhp (jd, hp);"
             self.conn.cursor().execute(createSecondaryIndex)
@@ -224,7 +232,7 @@ class SQLChecker(DB):
     def upsert_coefficients(self, unpacked_primary_provisional_designation , sector_names, sector_values):
         """
             Insert/Update coefficients in the *object_coefficients* table
-            
+
             N.B.
              - I am making the design decision to always replace all of the sectors
              - If *all* sectors are initially populated and then an update wants to update a *subset*, then we
@@ -234,23 +242,24 @@ class SQLChecker(DB):
 
             inputs:
             -------
-            
+
             unpacked_primary_provisional_designation : string
 
             sector_names :
              - column names in *object_coefficients* table that are to be populated
-             
+
             sector_values :
              - column values corresponding to the sector_names in *object_coefficients* table that are to be populated
 
             return:
             -------
-            
+
         """
         # Make a default insert dict that contains ...
         # (a) the designation
         # (b) all the sector fields with "None" values
         insert_dict = {"unpacked_primary_provisional_designation": unpacked_primary_provisional_designation}
+
 
         # Update the coeff dict using the input values
         insert_dict.update( {k:v for k,v in zip(sector_names, sector_values) } )
@@ -258,6 +267,7 @@ class SQLChecker(DB):
         # Construct an sql insert statement
         # NB(1): Because the unpacked_primary_provisional_designation field is unique, this should enforce replacement on duplication
         # NB(2): It completely deletes the initial row, then replaces it with the new stuff
+
         columns = AsIs(','.join(insert_dict.keys()))
         values = tuple(insert_dict.values())
 
@@ -267,7 +277,7 @@ class SQLChecker(DB):
         # Execute the upsert ...
         self.cur.execute(query, (columns, values))
         self.conn.commit()
-        
+
         # Return the id of the row inserted
         object_coeff_id = self.cur.fetchone()[0]
         return object_coeff_id
@@ -279,13 +289,13 @@ class SQLChecker(DB):
                             jd          : integer
                             hp          : integer
                             object_coeff_id   : integer
-                
+
             inputs:
             -------
             JDlist :
-            
+
             HPlist :
-            
+
             object_id : integer
 
         """
@@ -298,26 +308,26 @@ class SQLChecker(DB):
         # - My assumption here is that if we are inserting entries for a known object, we have likely calculated a new orbit
         # - Hence for sanitary reasons we should delete the old ones and replace with the new.
         self.delete_JDHP_by_object_coeff_id( object_id )
-        
+
         # Insert new ...
         # (a) construct "records" variable which is apparently ammenable to single insert statement ...
         # https://pythonexamples.org/python-sqlite3-insert-multiple-records-into-table/
         # Note the use of "int" to force the numpy variables to play nicely with sql
         records = [ (int(jd), int(hp), object_id) for jd,hp in zip(JDlist,HPlist) ]
-        
+
         # (b) construct sql string
         sqlstr = '''INSERT INTO objects_by_jdhp(jd,hp,object_coeff_id) VALUES(%s,%s,%s);'''
-        
+
         # (c) Insert
         cur.executemany(sqlstr, records)
-        
+
         # (d) remember to commit ...
         self.conn.commit()
 
     # --------------------------------------------------------
     # --- Funcs to delete data
     # --------------------------------------------------------
-    def deletion_wrapper(self, unpacked_primary_provisional_designation):
+    def deletion_helper(self, unpacked_primary_provisional_designation):
         """
         Convenience wrapper to do all necessary deletions
          - Assumes that the orbfit-Results table has already had the designation-row removed
@@ -330,11 +340,11 @@ class SQLChecker(DB):
         object_coeff_id = self.delete_object_from_object_coefficients_table(unpacked_primary_provisional_designation)
         # Delete many rows from jdhp table
         self.delete_JDHP_by_object_coeff_id(object_coeff_id)
-        
+
     def delete_object_from_object_coefficients_table(self, unpacked_primary_provisional_designation):
         """
             Delete a single row from the object_coefficients_table
-            
+
             *** WARNING: UNTESTED!! ***
         """
         cur = self.conn.cursor()
@@ -366,14 +376,14 @@ class SQLChecker(DB):
         """
            Define standard query used to get cheby-coeff data for a named object
            Can optionally select only a subset of sectors
-           
+
            inputs:
            -------
             unpacked_primary_provisional_designation: string
-        
+
             sector_numbers: integer
-        
-           
+
+
            return:
            -------
            list of numpy-arrays
@@ -381,7 +391,7 @@ class SQLChecker(DB):
 
         """
         cur = self.conn.cursor()
-        
+
         # What sector numbers are we searching for ?
         # - Default is to get data for all of them
         if sector_numbers is None :
@@ -405,7 +415,7 @@ class SQLChecker(DB):
     def query_desig_by_object_coeff_id(self, object_coeff_ids):
         """
         Given a list of object_ids, return the associated unpacked_primary_provisional_designations
-        
+
         *** THIS FUNCTION SEEMS TO BE OF LITTLE USE ***
 
         inputs:
@@ -421,7 +431,7 @@ class SQLChecker(DB):
         # Get the object_id & return it
         cur = self.conn.cursor()
         cur.execute(f'''SELECT object_coeff_id, unpacked_primary_provisional_designation FROM object_coefficients WHERE object_coeff_id in ({','.join(['%s']*len(object_coeff_ids))});''', (*(int(_) for _ in object_coeff_ids),) )
-        
+
         # key is object_coeff_id, value is desig
         return {_[0]:_[1] for _ in cur.fetchall()}
 
@@ -446,7 +456,7 @@ class SQLChecker(DB):
             - values = list of coeff-dictionaries for each unpacked_primary_provisional_designation
 
         """
-        
+
         # What sector numbers are we searching for ?
         # - Default is to get data for all of them
         if sector_numbers is None :
@@ -537,7 +547,7 @@ class SQLSifter(DB):
             tracklet_name text NOT NULL,
             tracklet blob
             ); """
-        
+
         # create table(s)
         if conn is not None:
             self.conn = conn
@@ -547,7 +557,7 @@ class SQLSifter(DB):
             # Create compound/combined index on the jd & hp columns
             createSecondaryIndex = "CREATE INDEX index_jdhp ON tracklets (jd, hp);"
             conn.cursor().execute(createSecondaryIndex)
-        
+
         # remember to commit ...
         conn.commit()
 
@@ -558,7 +568,7 @@ class SQLSifter(DB):
     def upsert_tracklet(conn, jd, hp, tracklet_name, tracklet_dict):
         """
             insert/update tracklet data
-            
+
             N.B ...
             https://stackoverflow.com/questions/198692/can-i-pickle-a-python-dictionary-into-a-sqlite3-text-field
             pdata = cPickle.dumps(data, cPickle.HIGHEST_PROTOCOL)
@@ -567,25 +577,25 @@ class SQLSifter(DB):
             inputs:
             -------
             conn: Connection object
-            
+
             jd :
             hp :
             tracklet_name :
             tracklet_dict :
-            
+
             return:
             -------
-            
+
         """
-        
+
         # Make cursor ...
         cur = conn.cursor()
-        
+
         # Construct sql for tracklet insert ...
         sql =  ''' INSERT OR REPLACE INTO tracklets(jd,hp,tracklet_name,tracklet)
             VALUES(%s,%s,%s,%s)
             '''
-        
+
         # Insert
         cur.execute(sql, (jd, hp, tracklet_name, psycopg2.Binary( pickle.dumps(tracklet_dict, pickle.HIGHEST_PROTOCOL) ),))
 
@@ -596,24 +606,24 @@ class SQLSifter(DB):
     def upsert_tracklets(conn, jd_list, hp_list, tracklet_name_list, tracklet_dict_list):
         """
             insert/update lists of tracklet data
-            
+
             N.B ...
             https://stackoverflow.com/questions/198692/can-i-pickle-a-python-dictionary-into-a-sqlite3-text-field
             pdata = cPickle.dumps(data, cPickle.HIGHEST_PROTOCOL)
             curr.execute("insert into table (data) values (:data)", sqlite3.Binary(pdata))
-            
+
             inputs:
             -------
             conn: Connection object
-            
+
             jd_list :
             hp_list :
             tracklet_name_list :
             tracklet_dict_list :
-            
+
             return:
             -------
-            
+
             """
         # Make cursor ...
         cur = conn.cursor()
@@ -639,15 +649,15 @@ class SQLSifter(DB):
     def delete_tracklet(conn, tracklet_name):
         """
             delete tracklet data
-            
+
             inputs:
             -------
             tracklet_name: string
-            
+
             return:
             -------
-            
-            
+
+
         """
         sql = 'DELETE FROM tracklets WHERE tracklet_name=%s'
         cur = conn.cursor()
@@ -658,15 +668,15 @@ class SQLSifter(DB):
     def delete_tracklets(conn, tracklet_name_list):
         """
             delete list of tracklet data
-            
+
             inputs:
             -------
             tracklet_name: list-of-strings
-            
+
             return:
             -------
-            
-            
+
+
             """
         sql = '''DELETE FROM tracklets WHERE tracklet_name IN (%s);'''
         records = [ (tracklet_name,) for tracklet_name in tracklet_name_list ]
@@ -681,12 +691,12 @@ class SQLSifter(DB):
     def query_tracklets_jdhp(conn, JD, HP):
         """
            Standard query used to find all tracklets for which jd,hp matches input
-           
+
            inputs:
            -------
            JD: integer
            HP: integer
-           
+
            return:
            -------
            list of tracklet_names
@@ -694,7 +704,7 @@ class SQLSifter(DB):
         """
         cur = conn.cursor()
         cur.execute("SELECT tracklet_name, tracklet FROM tracklets WHERE jd=%s AND hp=%s", ( int(JD), int(HP) , ))
-        
+
         # return a list-of-tuples: (tracklet_name, tracklet_dictionary)
         return [ (row[0] , pickle.loads( row[1] ) ) for row in cur.fetchall() ]
 
@@ -702,16 +712,16 @@ class SQLSifter(DB):
     def query_tracklets_jd_hplist(conn, JD, HP_list):
         """
             Standard query used to find all tracklets for which jd,hp_list matches input
-            
+
             inputs:
             -------
             JD: integer
             HP_list: list-of-integers
-            
+
             return:
             -------
             list of tracklet_names
-            
+
             """
         assert isinstance(JD, int) and isinstance(HP_list, list), 'Cannot parse input types in query_tracklets_jd_hplist ... '
 
@@ -724,7 +734,7 @@ class SQLSifter(DB):
                     '''INSERT OR REPLACE INTO lookup(jd,hp) VALUES(%s,%s);''',
                     '''CREATE INDEX lookup_jd_hp ON lookup(jd, hp);''',
                     '''SELECT tracklet_name, tracklet FROM tracklets JOIN lookup ON tracklets.jd = lookup.jd AND tracklets.hp = lookup.hp;''']:
-            
+
             # Execute queries
             print( ' ... = ', sql )
             if 'INSERT' in sql:
