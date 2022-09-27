@@ -28,6 +28,7 @@ from psycopg2 import sql
 # Import neighboring packages
 # --------------------------------------------------------------
 from psycopg2._psycopg import AsIs
+from psycopg2.extras import execute_values
 
 from .cheby_checker import Base
 
@@ -177,14 +178,12 @@ class SQLChecker(DB):
         # Needs many fields, one per coefficient-set
         #  - Dynamically generate the field-specs that will be required for the coeffs-by-sector ...
         #  - This will look like ... sector_0_2440000 blob , sector_1_2440032 blob, ...
-        sector_names = self.generate_sector_field_names()
-        sector_spec = " varchar, ".join( sector_names )
-        sector_spec = sector_spec + " varchar"
         sql_statement = """
             CREATE TABLE IF NOT EXISTS object_coefficients (
             object_coeff_id SERIAL PRIMARY KEY,
-            unpacked_primary_provisional_designation TEXT UNIQUE NOT NULL,""" + \
-                sector_spec + "); "   # <<-- Lots of extra fields in here!!!
+            unpacked_primary_provisional_designation TEXT NOT NULL,
+            sector_name TEXT, 
+            sector_coefficients TEXT)"""
 
         if self.conn is not None:
             # Create table
@@ -192,7 +191,9 @@ class SQLChecker(DB):
 
             # Create indicex on designation
             createSecondaryIndex = "CREATE INDEX index_desig ON object_coefficients (unpacked_primary_provisional_designation)"
-            self.conn.cursor().execute(createSecondaryIndex)
+            createSectorNameIndex = "CREATE INDEX index_sector_name ON object_coefficients (sector_name)"
+            self.cur.execute(createSecondaryIndex)
+            self.cur.execute(createSectorNameIndex)
 
     def create_objects_by_jdhp_table(self,):
         """ Create the specific objects_by_jdhp table that we need for *mpchecker2*
@@ -201,7 +202,7 @@ class SQLChecker(DB):
                             jdhp_id     : integer
                             jd          : integer <<-- This is the julian date (as integer)
                             hp          : integer <<-- This is the healpix
-                            object_coeff_id   : integer
+                            unpacked_primary_provisional_designation   : TEXT
 
             """
 
@@ -210,7 +211,7 @@ class SQLChecker(DB):
             jdhp_id SERIAL PRIMARY KEY,
             jd INTEGER NOT NULL,
             hp INTEGER NOT NULL,
-            object_coeff_id INTEGER NOT NULL
+            unpacked_primary_provisional_designation TEXT NOT NULL
             ); """
 
 
@@ -223,7 +224,7 @@ class SQLChecker(DB):
             # Create indicees
             createSecondaryIndex =  "CREATE INDEX index_jdhp ON objects_by_jdhp (jd, hp);"
             self.conn.cursor().execute(createSecondaryIndex)
-            createSecondaryIndex =  "CREATE INDEX index_object_coeff_id ON objects_by_jdhp (object_coeff_id);"
+            createSecondaryIndex =  "CREATE INDEX index_unpacked_primary_provisional_designation ON objects_by_jdhp (unpacked_primary_provisional_designation);"
             self.conn.cursor().execute(createSecondaryIndex)
 
     # --------------------------------------------------------
@@ -255,40 +256,27 @@ class SQLChecker(DB):
             -------
 
         """
-        # Make a default insert dict that contains ...
-        # (a) the designation
-        # (b) all the sector fields with "None" values
-        insert_dict = {"unpacked_primary_provisional_designation": unpacked_primary_provisional_designation}
-
-
-        # Update the coeff dict using the input values
-        insert_dict.update( {k:v for k,v in zip(sector_names, sector_values) } )
-
-        # Construct an sql insert statement
-        # NB(1): Because the unpacked_primary_provisional_designation field is unique, this should enforce replacement on duplication
-        # NB(2): It completely deletes the initial row, then replaces it with the new stuff
-
-        columns = AsIs(','.join(insert_dict.keys()))
-        values = tuple(insert_dict.values())
-
-        query_part2 = 'insert into object_coefficients (%s) values %s RETURNING object_coeff_id;'
-        query = f"delete from object_coefficients where unpacked_primary_provisional_designation = '{unpacked_primary_provisional_designation}'; " + query_part2
-
-        # Execute the upsert ...
-        self.cur.execute(query, (columns, values))
+        # Execute delete.
+        query = f"delete from object_coefficients where unpacked_primary_provisional_designation = '{unpacked_primary_provisional_designation}'; "
+        self.cur.execute(query)
         self.conn.commit()
 
-        # Return the id of the row inserted
-        object_coeff_id = self.cur.fetchone()[0]
-        return object_coeff_id
+        data_list = [[unpacked_primary_provisional_designation,k,v] for k,v in zip(sector_names, sector_values)]
+        execute_values(self.cur,
+                       "INSERT INTO object_coefficients (unpacked_primary_provisional_designation, sector_name, sector_coefficients) VALUES %s",
+                       data_list)
 
-    def insert_HP(self, JDlist, HPlist, object_id ):
+        # Return the id of the row inserted
+        # object_coeff_id = self.cur.fetchone()[0]
+        return 0
+
+    def insert_HP(self, JDlist, HPlist, unpacked_primary_provisional_designation):
         """
             objects_by_jdhp is structured like ...
                             jdhp_id     : integer
                             jd          : integer
                             hp          : integer
-                            object_coeff_id   : integer
+                            unpacked_primary_provisional_designation   : str
 
             inputs:
             -------
@@ -296,10 +284,9 @@ class SQLChecker(DB):
 
             HPlist :
 
-            object_id : integer
+            unpacked_primary_provisional_designation : str
 
         """
-        cur = self.conn.cursor()
 
         # Sense-check
         assert len(JDlist)==len(HPlist), 'len(JDlist)!=len(HPlist) [%d != %d] in insert_HP' % (len(JDlist),len(HPlist))
@@ -307,64 +294,32 @@ class SQLChecker(DB):
         # *** Delete old entries ***
         # - My assumption here is that if we are inserting entries for a known object, we have likely calculated a new orbit
         # - Hence for sanitary reasons we should delete the old ones and replace with the new.
-        self.delete_JDHP_by_object_coeff_id( object_id )
+        self.delete_JDHP_by_unpacked_primary_provisional_designation(unpacked_primary_provisional_designation)
 
         # Insert new ...
         # (a) construct "records" variable which is apparently ammenable to single insert statement ...
         # https://pythonexamples.org/python-sqlite3-insert-multiple-records-into-table/
         # Note the use of "int" to force the numpy variables to play nicely with sql
-        records = [ (int(jd), int(hp), object_id) for jd,hp in zip(JDlist,HPlist) ]
+        records = [ (int(jd), int(hp), unpacked_primary_provisional_designation) for jd,hp in zip(JDlist,HPlist) ]
 
-        # (b) construct sql string
-        sqlstr = '''INSERT INTO objects_by_jdhp(jd,hp,object_coeff_id) VALUES(%s,%s,%s);'''
+        # (b) Insert
+        execute_values(self.cur,
+                       "INSERT INTO objects_by_jdhp (jd,hp,unpacked_primary_provisional_designation) VALUES %s",
+                       records)
 
-        # (c) Insert
-        cur.executemany(sqlstr, records)
-
-        # (d) remember to commit ...
+        # (c) remember to commit ...
         self.conn.commit()
 
-    # --------------------------------------------------------
-    # --- Funcs to delete data
-    # --------------------------------------------------------
-    def deletion_helper(self, unpacked_primary_provisional_designation):
+    def delete_JDHP_by_unpacked_primary_provisional_designation(self, unpacked_primary_provisional_designation):
         """
-        Convenience wrapper to do all necessary deletions
-         - Assumes that the orbfit-Results table has already had the designation-row removed
-           (triggering the need to perform these subsequent deletions)
-
-            *** WARNING: UNTESTED!! ***
-
+            Delete all rows from "objects_by_jdhp" that match the supplied "unpacked_primary_provisional_designation"
         """
-        # Delete single-row from coefficients table
-        object_coeff_id = self.delete_object_from_object_coefficients_table(unpacked_primary_provisional_designation)
-        # Delete many rows from jdhp table
-        self.delete_JDHP_by_object_coeff_id(object_coeff_id)
-
-    def delete_object_from_object_coefficients_table(self, unpacked_primary_provisional_designation):
-        """
-            Delete a single row from the object_coefficients_table
-
-            *** WARNING: UNTESTED!! ***
-        """
-        cur = self.conn.cursor()
 
         # Construct & execute the sql query
-        cur.execute(f" DELETE FROM object_coefficients WHERE unpacked_primary_provisional_designation='{unpacked_primary_provisional_designation}' RETURN object_coeff_id ;")
-        self.conn.commit()
-        object_coeff_id = cur.fetchall()[0]
-        return object_coeff_id
-
-    def delete_JDHP_by_object_coeff_id(self, object_coeff_id):
-        """
-            Delete all rows from "objects_by_jdhp" that match the supplied "object_coeff_id"
-        """
-        cur = self.conn.cursor()
-
-        # Construct & execute the sql query
-        # - This is matching/joining on object-id# and then deleting only from objects_by_jdhp
+        # - This is matching/joining on unpacked_primary_provisional_designation
+        #   and then deleting only from objects_by_jdhp
         #   (and leaving the entry in object_desig)
-        cur.execute(f" DELETE FROM objects_by_jdhp WHERE object_coeff_id={int(object_coeff_id)};")
+        self.cur.execute(f"DELETE FROM objects_by_jdhp WHERE unpacked_primary_provisional_designation='{unpacked_primary_provisional_designation}';")
         self.conn.commit()
 
     # --------------------------------------------------------
@@ -390,27 +345,18 @@ class SQLChecker(DB):
             - Each numpy-array item is a set of cheby-coeffs for a specific sector
 
         """
-        cur = self.conn.cursor()
 
-        # What sector numbers are we searching for ?
-        # - Default is to get data for all of them
-        if sector_numbers is None :
-            sector_field_names = self.generate_sector_field_names()
-        else:
-            sector_field_names = self.generate_sector_field_names( sector_dict = {
-                                                                sector_num: sector_JD for \
-                                                                sector_num, sector_JD in zip(sector_numbers ,
-                                                                                            Base().map_sector_number_to_sector_start_JD(np.atleast_1d(sector_numbers) ,\
-                                                                                            Base().standard_MJDmin))})
         # Construct & execute the sql query
-        sqlstr = "SELECT " + ", ".join( sector_field_names ) + " FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
-        cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
+        sqlstr = f"SELECT sector_name, sector_coefficients FROM object_coefficients WHERE unpacked_primary_provisional_designation='{unpacked_primary_provisional_designation}'"
+        self.cur.execute(sqlstr)
 
         # Parse the result ...
-        result_sectors_string = cur.fetchall()[0]
-        result_sectors_array = {sector_field_name: eval('np.array(' + item + ')') for sector_field_name, item in zip(sector_field_names, result_sectors_string) if item != None}
+        results_dict = {row[0]: eval('np.array(' + row[1] + ')') for row in self.cur.fetchall() if row[1] is not None}
+        # results_dict = {row[0]: row[1] for row in self.cur.fetchall() if row[1] is not None}
 
-        return result_sectors_array
+        # result_sectors_array = {sector_field_name: eval('np.array(' + item + ')') for sector_field_name, item in zip(sector_field_names, result_sectors_string) if item is not None}
+
+        return results_dict
 
     def query_desig_by_object_coeff_id(self, object_coeff_ids):
         """
@@ -456,50 +402,24 @@ class SQLChecker(DB):
             - values = list of coeff-dictionaries for each unpacked_primary_provisional_designation
 
         """
-
-        # What sector numbers are we searching for ?
-        # - Default is to get data for all of them
-        if sector_numbers is None :
-            sector_field_names = self.generate_sector_field_names()
-        else:
-            sector_field_names = self.generate_sector_field_names( sector_dict = {
-                                                             sector_num: sector_JD for \
-                                                             sector_num, sector_JD in zip(sector_numbers ,
-                                                                                          Base().map_sector_number_to_sector_start_JD(np.atleast_1d(sector_numbers) ,\
-                                                                                                                                                  Base().standard_MJDmin))})
         # Construct & execute the sql query
-        sqlstr =    "SELECT object_coefficients.unpacked_primary_provisional_designation," + \
-                    ", ".join( sector_field_names ) + \
-                    f" FROM object_coefficients INNER JOIN objects_by_jdhp ON objects_by_jdhp.object_coeff_id = object_coefficients.object_coeff_id WHERE objects_by_jdhp.jd=%s and objects_by_jdhp.hp in ({','.join(['%s']*len(HPlist))})"
-        cur = self.conn.cursor()
-        cur.execute(sqlstr , (int(JD), *(int(_) for _ in HPlist), ))
+        sqlstr =    f"""SELECT object_coefficients.unpacked_primary_provisional_designation, sector_name, sector_coefficients FROM
+                    object_coefficients INNER JOIN objects_by_jdhp ON objects_by_jdhp.unpacked_primary_provisional_designation = object_coefficients.unpacked_primary_provisional_designation WHERE objects_by_jdhp.jd=%s and objects_by_jdhp.hp in ({','.join(['%s']*len(HPlist))})"""
+        self.cur.execute(sqlstr , (int(JD), *(int(_) for _ in HPlist), ))
 
         # Parse the result into a dict-of-dicts
         # - Outer dict is key-ed on unpacked_primary_provisional_designation
         # - Inner dicts are key-ed on sector
-        results      = cur.fetchall()
+        results_dict = {}
+        for row in self.cur.fetchall():
+            unpacked_primary_provisional_designation = row[0]
+            if unpacked_primary_provisional_designation not in results_dict:
+                results_dict[unpacked_primary_provisional_designation] = {}
 
-        return { r[0] : { sfn:eval('np.array(' + coeff + ')') for sfn, coeff in zip(sector_field_names, r[1:]) if coeff != None } \
-                for r in results}
+            # if sector_numbers is None or (sector_numbers is not None and row[1] in sector_numbers):
+            results_dict[unpacked_primary_provisional_designation][row[1]] = eval('np.array(' + row[2] + ')')
 
-    def query_jd_hp(self, JD, HPlist):
-        """
-            For a given (single) JD and list of Healpix,
-            the query returns the relevant object_coeff_ids
-
-            May be of little use in practice, but helpful for development
-
-        """
-        # Connection cursor
-        cur = self.conn.cursor()
-
-        # This will get the unique object-IDs
-        # I hate this fucking query for many reasons ...
-        # (i) Why the fuck do I need to force any input numpy-integers, to be integers ???
-        #(ii) Why the fuck do I need to explicitly expand the number of "?" in the "in ()" statement ???
-        cur.execute(f"SELECT object_coeff_id FROM objects_by_jdhp WHERE jd=%s and hp in ({','.join(['%s']*len(HPlist))});", (int(JD), *(int(_) for _ in HPlist), ) )
-        #object_ids = [_[0] for _ in cur.fetchall()]
-        return [_[0] for _ in cur.fetchall()]
+        return results_dict
 
 
 class SQLSifter(DB):

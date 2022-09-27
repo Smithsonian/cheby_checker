@@ -150,7 +150,6 @@ def test_SQLChecker_generate_sector_field_names(db):
     """
     # Instantiate
     C = sql.SQLChecker()
-    cur = C.conn.cursor()
     
     # Create all checker tables (creates two tables)
     C.create_all_checker_tables()
@@ -193,13 +192,13 @@ def test_SQLChecker_TableCreation(db):
     # Test that the expected column names are in the *object_coefficients* table
     cur.execute("SELECT * FROM object_coefficients ")
     names = [description[0] for description in cur.description]
-    expected_names = ['object_coeff_id', 'unpacked_primary_provisional_designation'] + C.generate_sector_field_names()
+    expected_names = ['object_coeff_id', 'unpacked_primary_provisional_designation', 'sector_name', 'sector_coefficients']
     assert np.all( [n in expected_names for n in names ])
   
     # Test that the expected column names are in the *objects_by_jdhp* table
     cur.execute("SELECT * FROM objects_by_jdhp ")
     names = [description[0] for description in cur.description]
-    expected_names = ['jdhp_id', 'jd', 'hp', 'object_coeff_id']
+    expected_names = ['jdhp_id', 'jd', 'hp', 'unpacked_primary_provisional_designation']
     assert np.all( [n in expected_names for n in names ])
 
 
@@ -230,26 +229,27 @@ def test_upsert_coefficients(db):
     sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
 
     # Call upsert function
-    object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
-
-    # Check that the returned id is an integer:
-    # - Because we have a new db & table for this test, the indexing should start from one (apparently), ...
-    assert object_coeff_id == 1
+    C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
     
     # Query the database and see what the returned data looks like
     sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
     C.cur.execute(sqlstr, (unpacked_primary_provisional_designation, ))
-    result_raw = C.cur.fetchall()[0]
+    result_raw = C.cur.fetchall()
     
     # Check that the returned results are the same as the inserted values
-    result_object_coeff_id  = result_raw[0]
-    result_desig            = result_raw[1]
-    result_sectors_string          = [ _ for _ in result_raw[2:] if _ != None ]
-    result_sectors_array          = [eval('np.array(' + item + ')') for item in result_sectors_string]
-    assert result_object_coeff_id == object_coeff_id
-    assert result_desig == unpacked_primary_provisional_designation
-    assert np.all( [ a==b for a,b in zip(sector_values, result_sectors_string) ] )
-    assert np.all( [ a==b for a,b in zip(sector_values_raw, result_sectors_array) ] )
+    result_desig_list = []
+    result_sector_name_list = []
+    result_coefficient_string_list = []
+    result_coefficient_array_list = []
+    for row in result_raw:
+        result_desig_list.append(row[1])
+        result_sector_name_list.append(row[2])
+        result_coefficient_string_list.append(row[3])
+        result_coefficient_array_list.append(eval('np.array(' + row[3] + ')'))
+
+    assert np.all([item==unpacked_primary_provisional_designation for item in result_desig_list])
+    assert np.all( [ a==b for a,b in zip(sector_values, result_coefficient_string_list) ] )
+    assert np.all( [ a==b for a,b in zip(sector_values_raw, result_coefficient_array_list) ] )
 
     # ------------- 2 ----------------
     # Simple test of additional data insert
@@ -260,27 +260,27 @@ def test_upsert_coefficients(db):
     sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
     
     # Call upsert function
-    object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
+    C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
 
-    # Check that the returned id is an integer:
-    # - This should be the second line ...
-    assert object_coeff_id == 2
-    
     # Query the database and see what the returned data looks like
     sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
-    cur = C.conn.cursor()
-    cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
-    result_raw     = cur.fetchall()[0]
+    C.cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
+    result_raw     = C.cur.fetchall()
     
     # Check that the returned results are the same as the inserted values
-    result_object_coeff_id  = result_raw[0]
-    result_desig            = result_raw[1]
-    result_sectors_string          = [ _ for _ in result_raw[2:] if _ != None ]
-    result_sectors_array          = [eval('np.array(' + item + ')') for item in result_sectors_string]
-    assert result_object_coeff_id == object_coeff_id
-    assert result_desig == unpacked_primary_provisional_designation
-    assert np.all( [ a==b for a,b in zip(sector_values, result_sectors_string) ] )
-    assert np.all( [ a==b for a,b in zip(sector_values_raw, result_sectors_array) ] )
+    result_desig_list = []
+    result_sector_name_list = []
+    result_coefficient_string_list = []
+    result_coefficient_array_list = []
+    for row in result_raw:
+        result_desig_list.append(row[1])
+        result_sector_name_list.append(row[2])
+        result_coefficient_string_list.append(row[3])
+        result_coefficient_array_list.append(eval('np.array(' + row[3] + ')'))
+
+    assert np.all([item==unpacked_primary_provisional_designation for item in result_desig_list])
+    assert np.all( [ a==b for a,b in zip(sector_values, result_coefficient_string_list) ] )
+    assert np.all( [ a==b for a,b in zip(sector_values_raw, result_coefficient_array_list) ] )
 
     # ------------- 3 ----------------
     # Now we try to re-insert / update the same '2021 XY' object as in ---2--- above
@@ -294,32 +294,33 @@ def test_upsert_coefficients(db):
     sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
     
     # Call upsert function
-    object_coeff_id = C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
-    
-    # Check that the returned id is as expected (the index updates)
-    assert object_coeff_id == 3
-    
-    # Check that there's 2 (not 3) rows in the database
+    C.upsert_coefficients(unpacked_primary_provisional_designation , sector_field_names, sector_values)
+
+    # Check that there's 4, and not 7 rows in the db (we should have removed 3).
     sqlstr = "SELECT object_coeff_id,unpacked_primary_provisional_designation FROM object_coefficients"
-    cur    = C.conn.cursor()
-    cur.execute(sqlstr)
-    assert len(cur.fetchall()) == 2
+    C.cur.execute(sqlstr)
+    assert len(C.cur.fetchall()) == 4
     
     # Query the database and see what the returned data looks like
     sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
     cur = C.conn.cursor()
     cur.execute(sqlstr , ( unpacked_primary_provisional_designation, ))
-    result_raw     = cur.fetchall()[0]
+    result_raw     = cur.fetchall()
     
-    # Check that the retuurned coefficients are the same as this update and NOT like those inserted in ---2---
-    result_object_coeff_id  = result_raw[0]
-    result_desig            = result_raw[1]
-    result_sectors_string          = [ _ for _ in result_raw[2:] if _ != None ]
-    result_sectors_array          = [eval('np.array(' + item + ')') for item in result_sectors_string]
-    assert result_object_coeff_id == object_coeff_id
-    assert result_desig == unpacked_primary_provisional_designation
-    assert np.all( [ a==b for a,b in zip(sector_values, result_sectors_string) ] )
-    assert np.all( [ a==b for a,b in zip(sector_values_raw, result_sectors_array) ] )
+    # Check that the returned coefficients are the same as this update and NOT like those inserted in ---2---
+    result_desig_list = []
+    result_sector_name_list = []
+    result_coefficient_string_list = []
+    result_coefficient_array_list = []
+    for row in result_raw:
+        result_desig_list.append(row[1])
+        result_sector_name_list.append(row[2])
+        result_coefficient_string_list.append(row[3])
+        result_coefficient_array_list.append(eval('np.array(' + row[3] + ')'))
+
+    assert np.all([item==unpacked_primary_provisional_designation for item in result_desig_list])
+    assert np.all( [ a==b for a,b in zip(sector_values, result_coefficient_string_list) ] )
+    assert np.all( [ a==b for a,b in zip(sector_values_raw, result_coefficient_array_list) ] )
 
 def test_insert_HP(db):
     """
@@ -340,46 +341,44 @@ def test_insert_HP(db):
     # Create sample inputs
     JDlist = [2440000, 2440001, 2440002]
     HPlist = [17,      17,      18]
-    object_coeff_id = 123
+    unpacked_primary_provisional_designation = 123
     
     # Call the insert function
-    C.insert_HP( JDlist, HPlist, object_coeff_id )
+    C.insert_HP( JDlist, HPlist, unpacked_primary_provisional_designation )
 
     # Query the db and examine the results
-    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=%s"
-    cur = C.conn.cursor()
-    cur.execute(sqlstr , ( object_coeff_id, ))
-    result_raw     = cur.fetchall()
+    sqlstr = f"SELECT * FROM objects_by_jdhp WHERE unpacked_primary_provisional_designation='{unpacked_primary_provisional_designation}'"
+    C.cur.execute(sqlstr)
+    result_raw     = C.cur.fetchall()
 
     # Check the inputs are the same as the outputs
     for n,r in enumerate(result_raw):
-        id,jd,hp,obj_co_id = r
+        id,jd,hp,uppd = r
         assert jd==JDlist[n]
         assert hp==HPlist[n]
-        assert obj_co_id==object_coeff_id
+        assert uppd==str(unpacked_primary_provisional_designation)
 
     # -------------------2---------------------------------
     # Simple test of additional data insert
     # -----------------------------------------------------
     JDlist = [2450000, 2450001, 2450002]
     HPlist = [57,      57,      58]
-    object_coeff_id = 456
+    unpacked_primary_provisional_designation = 456
     
     # Call the insert function
-    C.insert_HP( JDlist, HPlist, object_coeff_id )
+    C.insert_HP( JDlist, HPlist, unpacked_primary_provisional_designation )
 
     # Query the db and examine the results
-    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=%s"
-    cur = C.conn.cursor()
-    cur.execute(sqlstr , ( object_coeff_id, ))
-    result_raw     = cur.fetchall()
+    sqlstr = f"SELECT * FROM objects_by_jdhp WHERE unpacked_primary_provisional_designation='{unpacked_primary_provisional_designation}'"
+    C.cur.execute(sqlstr)
+    result_raw     = C.cur.fetchall()
 
     # Check the inputs are the same as the outputs
     for n,r in enumerate(result_raw):
-        id,jd,hp,obj_co_id = r
+        id,jd,hp,uppd = r
         assert jd==JDlist[n]
         assert hp==HPlist[n]
-        assert obj_co_id==object_coeff_id
+        assert uppd==str(unpacked_primary_provisional_designation)
 
 
     # -------------------3---------------------------------
@@ -389,26 +388,22 @@ def test_insert_HP(db):
     # -----------------------------------------------------
     JDlist = [2440000, 2440001]
     HPlist = [19,      19]
-    object_coeff_id = 123
+    unpacked_primary_provisional_designation = 123
 
     # Call the insert function
-    C.insert_HP( JDlist, HPlist, object_coeff_id )
+    C.insert_HP( JDlist, HPlist, unpacked_primary_provisional_designation )
 
     # Query the db and examine the results
-    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=%s"
-    cur = C.conn.cursor()
-    cur.execute(sqlstr , ( object_coeff_id, ))
-    result_raw     = cur.fetchall()
+    sqlstr = f"SELECT * FROM objects_by_jdhp WHERE unpacked_primary_provisional_designation='{unpacked_primary_provisional_designation}'"
+    C.cur.execute(sqlstr)
+    result_raw     = C.cur.fetchall()
 
     # Check the inputs are the same as the outputs
     for n,r in enumerate(result_raw):
-        id,jd,hp,obj_co_id = r
+        id,jd,hp,uppd = r
         assert jd==JDlist[n]
         assert hp==HPlist[n]
-        assert obj_co_id==object_coeff_id
-
-
-
+        assert uppd==str(unpacked_primary_provisional_designation)
 
 
 """
@@ -553,50 +548,6 @@ def test_query_object_coefficients(db):
         assert k in sector_field_names
         assert v is not None
 
-
-def test_query_desig_by_object_coeff_id(db):
-    """
-    Test the query_desig_by_object_coeff_id
-    NB(1): When *query_desig_by_object_coeff_id* is called with a list of object_ids,
-           it returns the associated unpacked_primary_provisional_designations
-        
-    NB(2): Not sure *query_desig_by_object_coeff_id* is ever used any more.
-           May be pointtless to keep it.
-    
-    """
-
-    # Instantiate & create all checker tables (creates two tables)
-    C = sql.SQLChecker()
-    C.create_all_checker_tables()
-    
-    # Define some data to be inserted
-    expected_desig_by_id = {}
-    desigs = ['2020 AB', '2020 XY', '2021 PQ' ]
-    for i, desig in enumerate( desigs ):
-    
-        sector_field_names = C.generate_sector_field_names()[:2]
-        sector_values_raw  = [ np.array([[i + 2*n,i + 2*n],[i + 2*n,i + 2*n]]) for n, _ in enumerate(sector_field_names) ]
-        sector_values      = [ pickle.dumps( _, pickle.HIGHEST_PROTOCOL) for _ in sector_values_raw]
-    
-        # Call convenience upsert function to get data into the system
-        # NB: *upsert_coefficients* returns the object_coeff_id of the inserted coefficients
-        object_coeff_id = C.upsert_coefficients(desig , sector_field_names, sector_values)
-        
-        # Save object_coeff_id into dict, so that we use the lengthening dict as the basis for a query below
-        expected_desig_by_id[object_coeff_id]=desig
-        
-        # Call the *query_desig_by_object_coeff_id* function that we are trying to test
-        # NB Returned dict has : key is object_coeff_id, value is desig
-        result_dict = C.query_desig_by_object_coeff_id( list(expected_desig_by_id.keys())  )
-        
-        # Check the results
-        assert isinstance(result_dict ,dict)
-        assert len(result_dict) == len(expected_desig_by_id)
-        for id in result_dict:
-            assert result_dict[id] == expected_desig_by_id[id],\
-                f"{i},{desig}\nresult_dict={result_dict}"
-
-
 def test_query_coefficients_by_jd_hp(db):
     """
     The coefficients_by_jd_hp function is designed to report back the coefficients for
@@ -636,8 +587,8 @@ def test_query_coefficients_by_jd_hp(db):
         sector_values = [np.array2string(item, separator=",").replace('\n', '') for item in sector_values_raw]
 
         # Call the convenient upsert functions (tested above) to insert the data into the object_coefficients & objects_by_jdhp tables
-        object_coeff_id = C.upsert_coefficients(desig , sector_field_names, sector_values)
-        C.insert_HP( JDlist, HPlist[i], object_coeff_id )  # <<-- E.g. HPlist[1] == [17,      18,      18,      19]
+        C.upsert_coefficients(desig, sector_field_names, sector_values)
+        C.insert_HP(JDlist, HPlist[i], desig)  # <<-- E.g. HPlist[1] == [17,      18,      18,      19]
 
         # Save the inputs in a convenient dictionary to help with the query-verification below
         save_dict[desig] = { sfn:svr for sfn,svr in zip(sector_field_names, sector_values_raw) }
@@ -670,6 +621,8 @@ def test_query_coefficients_by_jd_hp(db):
         # (a) same number of returns
         assert len(expected_desigs) == len(result_dict), f"expected_desigs={expected_desigs} , result_dict={result_dict}"
         # (b) same ids
+        print("results ", result_dict)
+        print("expected_desigs ", expected_desigs)
         assert np.all( [ ed in result_dict for ed in expected_desigs ])
         # (c) same coefficients [complicated due to the structure of the dictionaries passed around ...]
         for ed in expected_desigs:
