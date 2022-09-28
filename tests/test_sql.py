@@ -621,8 +621,6 @@ def test_query_coefficients_by_jd_hp(db):
         # (a) same number of returns
         assert len(expected_desigs) == len(result_dict), f"expected_desigs={expected_desigs} , result_dict={result_dict}"
         # (b) same ids
-        print("results ", result_dict)
-        print("expected_desigs ", expected_desigs)
         assert np.all( [ ed in result_dict for ed in expected_desigs ])
         # (c) same coefficients [complicated due to the structure of the dictionaries passed around ...]
         for ed in expected_desigs:
