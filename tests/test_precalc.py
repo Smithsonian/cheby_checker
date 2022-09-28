@@ -61,49 +61,22 @@ def similar_xyzuvw(xyzv0, xyzv1, threshold_xyz=1e-13, threshold_v=1e-14): # 15 m
     good_tf = np.abs(error) < np.array([threshold_xyz] * 3 + [threshold_v] * 3)
     return np.all(good_tf), error
 
-def db_handler(func):
-    '''
-    Using decorators to do the db set-up ...
-    
-    NB: This is a similar approach to test_sql.py
+@pytest.fixture()
+def db():
+    db = sql.DB()
+    db.clear_database()
 
-     - This deletes any extant db before the test
-     - Populates the database with empty tables
-     - And deletes any extant db after the test
-     
-    '''
-    
-    def inner_function(*args, **kwargs):
-    
-        # Delete db if any exists for any reason
-        filepath = sql.DB.fetch_db_filepath()
-        if os.path.isfile(filepath):
-            os.remove(filepath)
-            
-        # Create the required empty tables
-        # - See test_sql for tests of this functionality
-        sql.SQLChecker().create_all_checker_tables()
-            
-        # Run test function
-        result = func(*args, **kwargs)
+    # Create the required empty tables
+    # - See test_sql for tests of this functionality
+    sql.SQLChecker().create_all_checker_tables()
 
-        # Delete the db
-        if os.path.isfile(filepath):
-            os.remove(filepath)
-        
-        # Return any result
-        return result
-
-    return inner_function
-
-
+    yield db
+    # db.clear_database()
 
 
 # Tests of PreCalc
 # -----------------------------------------------------------------------------
-
-@db_handler
-def test_PreCalc_A():
+def test_PreCalc_A(db):
     '''
     Test instantiation of PreCalc object
     '''
@@ -140,8 +113,8 @@ def test_PreCalc_A():
 
 
 
-@db_handler
-def test_end_to_end_precalc_A():
+
+def test_end_to_end_precalc_A(db):
     '''
     Test end_to_end_precalc
     
@@ -211,8 +184,8 @@ def test_end_to_end_precalc_A():
         
     print("Passed: test_end_to_end_precalc_A" )
 
-@db_handler
-def test_end_to_end_precalc_B():
+
+def test_end_to_end_precalc_B(db):
     '''
     Test end_to_end_precalc
     
@@ -412,4 +385,4 @@ def test_end_to_end_precalc_C():
 """
     
 
-test_end_to_end_precalc_A()
+# test_end_to_end_precalc_A()
