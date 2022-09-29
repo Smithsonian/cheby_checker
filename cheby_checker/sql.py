@@ -352,9 +352,6 @@ class SQLChecker(DB):
 
         # Parse the result ...
         results_dict = {row[0]: eval('np.array(' + row[1] + ')') for row in self.cur.fetchall() if row[1] is not None}
-        # results_dict = {row[0]: row[1] for row in self.cur.fetchall() if row[1] is not None}
-
-        # result_sectors_array = {sector_field_name: eval('np.array(' + item + ')') for sector_field_name, item in zip(sector_field_names, result_sectors_string) if item is not None}
 
         return results_dict
 

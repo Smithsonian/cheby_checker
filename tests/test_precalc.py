@@ -71,7 +71,6 @@ def db():
     sql.SQLChecker().create_all_checker_tables()
 
     yield db
-    # db.clear_database()
 
 
 # Tests of PreCalc
@@ -84,31 +83,21 @@ def test_PreCalc_A(db):
     P = precalc.PreCalc()
 
     # Check that the expected attributes from Base exist
-    assert \
-        hasattr(P, 'standard_MJDmin') and\
-        hasattr(P, 'standard_MJDmax')
+    assert hasattr(P, 'standard_MJDmin') and hasattr(P, 'standard_MJDmax')
 
     # Check that the expected attributes from ObsPos exist
-    assert \
-        hasattr(P, 'obsCodes')
+    assert hasattr(P, 'obsCodes')
 
     # Check that the expected attributes from SQLChecker exist
-    assert \
-        hasattr(P, 'db_file') and\
-        hasattr(P, 'conn')
-
-    # Check that we can get a sqlite cursor
-    cur  = P.conn.cursor()
-    assert isinstance( cur, sqlite3.Cursor )
+    assert hasattr(P, 'conn') and hasattr(P, 'cur')
 
     # Satisfy ourselves that the @db_handler is working and has created a database with
     # the required empty tables ()
-    # - if the count is 1, then table exists
-    cur = P.conn.cursor()
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "objects_by_jdhp"')
-    assert len(cur.fetchone()) == 1 , 'jdhp table does not exist'
-    cur.execute('SELECT name from sqlite_master WHERE type = "table" AND name = "object_coefficients"')
-    assert len(cur.fetchone()) == 1 , 'coeff table does not exist'
+    P.cur.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename  = 'objects_by_jdhp');")
+    assert P.cur.fetchone()[0] == True
+
+    P.cur.execute("SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename  = 'object_coefficients');")
+    assert P.cur.fetchone()[0] == True
 
 
 
@@ -147,16 +136,23 @@ def test_end_to_end_precalc_A(db):
     # Query the object_coefficients table in the db and see what the returned data looks like
     # ---------------------------------------------------
     C   = sql.SQLChecker()
-    cur = C.conn.cursor()
-    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
-    cur.execute(sqlstr , ( desig, ))
-    result_raw              = cur.fetchall()[0]
-    result_object_coeff_id  = result_raw[0]
-    result_desig            = result_raw[1]
-    result_sectors          = [ pickle.loads( _ ) for _ in result_raw if _ != None and not isinstance(_,(str,int))]
+    sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
+    C.cur.execute(sqlstr , ( desig, ))
+    result_raw = C.cur.fetchall()
+
+    # Check that the returned results are the same as the inserted values
+    result_desig_list = []
+    result_sector_name_list = []
+    result_coefficient_string_list = []
+    result_coefficient_array_list = []
+    for row in result_raw:
+        result_desig_list.append(row[1])
+        result_sector_name_list.append(row[2])
+        result_coefficient_string_list.append(row[3])
+        result_coefficient_array_list.append(eval('np.array(' + row[3] + ')'))
     
     # Check the designation is as expected
-    assert desig == result_desig
+    assert np.all([item==desig for item in result_desig_list])
     
     # Check that the expected number of sectors is returned
     array_of_days = cheby_checker.Base().JDlist
@@ -165,24 +161,21 @@ def test_end_to_end_precalc_A(db):
         n = 1 if s not in count_per_sector else count_per_sector[s] + 1
         count_per_sector[s] = n
     expected_supported_sectors = { k:v for k,v in count_per_sector.items() if v > 4 }
-    assert len(result_sectors) == len(expected_supported_sectors)
+    assert len(result_sector_name_list) == len(expected_supported_sectors)
     
     # Now query the HEALPIX table
     # ---------------------------------------------------
     # Query the db and examine the results
-    sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=?"
-    cur = C.conn.cursor()
-    cur.execute(sqlstr , ( result_object_coeff_id, ))  #<<-- result_object_coeff_id from coefficient query above
-    result_raw     = cur.fetchall()
+    sqlstr = "SELECT * FROM objects_by_jdhp WHERE unpacked_primary_provisional_designation=%s"
+    C.cur.execute(sqlstr , ( desig, ))
+    result_raw     = C.cur.fetchall()
 
     # Check the inputs are the same as the outputs
     # NB: Not testing the healpix here...
     for n,r in enumerate(result_raw):
-        id,jd,hp,obj_co_id = r
+        id,jd,hp,uppd = r
         assert jd==array_of_days[n]
-        assert obj_co_id==result_object_coeff_id
-        
-    print("Passed: test_end_to_end_precalc_A" )
+        assert uppd==str(desig)
 
 
 def test_end_to_end_precalc_B(db):
@@ -216,17 +209,24 @@ def test_end_to_end_precalc_B(db):
 
         # Query the object_coefficients table in the db and see what the returned data looks like
         # ---------------------------------------------------
-        C   = sql.SQLChecker()
-        cur = C.conn.cursor()
-        sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=?"
-        cur.execute(sqlstr , ( desig, ))
-        result_raw              = cur.fetchall()[0]
-        result_object_coeff_id  = result_raw[0]
-        result_desig            = result_raw[1]
-        result_sectors          = [ pickle.loads( _ ) for _ in result_raw if _ != None and not isinstance(_,(str,int))]
+        C = sql.SQLChecker()
+        sqlstr = "SELECT * FROM object_coefficients WHERE unpacked_primary_provisional_designation=%s"
+        C.cur.execute(sqlstr, (desig,))
+        result_raw = C.cur.fetchall()
+
+        # Check that the returned results are the same as the inserted values
+        result_desig_list = []
+        result_sector_name_list = []
+        result_coefficient_string_list = []
+        result_coefficient_array_list = []
+        for row in result_raw:
+            result_desig_list.append(row[1])
+            result_sector_name_list.append(row[2])
+            result_coefficient_string_list.append(row[3])
+            result_coefficient_array_list.append(eval('np.array(' + row[3] + ')'))
         
         # Check the designation is as expected
-        assert desig == result_desig
+        assert np.all([item==desig for item in result_desig_list])
         
         # Check that the expected number of sectors is returned
         array_of_days = cheby_checker.Base().JDlist
@@ -235,24 +235,22 @@ def test_end_to_end_precalc_B(db):
             n = 1 if s not in count_per_sector else count_per_sector[s] + 1
             count_per_sector[s] = n
         expected_supported_sectors = { k:v for k,v in count_per_sector.items() if v > 4 }
-        assert len(result_sectors) == len(expected_supported_sectors)
+        assert len(result_sector_name_list) == len(expected_supported_sectors)
         
         # Now query the HEALPIX table
         # ---------------------------------------------------
         # Query the db and examine the results
-        sqlstr = "SELECT * FROM objects_by_jdhp WHERE object_coeff_id=?"
-        cur = C.conn.cursor()
-        cur.execute(sqlstr , ( result_object_coeff_id, ))  #<<-- result_object_coeff_id from coefficient query above
-        result_raw     = cur.fetchall()
+        sqlstr = "SELECT * FROM objects_by_jdhp WHERE unpacked_primary_provisional_designation=%s"
+        C.cur.execute(sqlstr , ( desig, ))  #<<-- result_object_coeff_id from coefficient query above
+        result_raw     = C.cur.fetchall()
 
         # Check the inputs are the same as the outputs
         # NB: Not testing the healpix here...
         for n,r in enumerate(result_raw):
-            id,jd,hp,obj_co_id = r
+            id,jd,hp,uppd = r
             assert jd==array_of_days[n]
-            assert obj_co_id==result_object_coeff_id
-            
-    print("Passed: test_end_to_end_precalc_B" )
+            assert uppd==str(desig)
+
 
     
 """    *** DELIBERATELY COMMENTING OUT THIS TEST [MJP: 2022-03-10] DUE TO PROBLEMS WITH MULTI-PARTICLE INTEGRATIONS ***

@@ -43,6 +43,7 @@ from . import sql
 from . import nbody
 from . import coco
 from . import cheby_checker
+from . import obs_pos
 
 
 def end_to_end_precalc_wrapper(mpc_orb_jsonb):
@@ -62,7 +63,7 @@ def end_to_end_precalc_wrapper(mpc_orb_jsonb):
 # various pre-calculated quantities
 # --------------------------------------------------------
 
-class PreCalc(cheby_checker.Base, sql.SQLChecker):
+class PreCalc(cheby_checker.Base, sql.SQLChecker, obs_pos.ObsPos):
     """
         Primary External Class for accessing ChebyChecker's
         pre-calculated data
@@ -79,6 +80,7 @@ class PreCalc(cheby_checker.Base, sql.SQLChecker):
         # Give access to "Base" & "ObsPos" methods & attributes
         cheby_checker.Base.__init__(self)
         sql.SQLChecker.__init__(self)
+        obs_pos.ObsPos.__init__(self)
 
         # connect to db
         self.db = sql.SQLChecker()
@@ -243,7 +245,7 @@ class PreCalc(cheby_checker.Base, sql.SQLChecker):
         )
 
         # (ii) Get the coefficients for each sector
-        sector_field_values = [pickle.dumps(coeffs, pickle.HIGHEST_PROTOCOL) for coeffs in M.sector_coeffs.values()]
+        sector_field_values = [np.array2string(item, separator=",").replace('\n', '') for item in M.sector_coeffs.values()]
 
         # (iii) Do the insert
         object_coeff_id = self.upsert_coefficients(M.unpacked_primary_provisional_designation, sector_field_names, sector_field_values)
