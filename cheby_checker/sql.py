@@ -17,45 +17,14 @@
     --------------------------------------------------------------
 """
 
-
-# Import third-party packages
-# --------------------------------------------------------------
-import sys, os
-import numpy as np
+import os
 import psycopg2
-from psycopg2 import sql
-
-# Import neighboring packages
-# --------------------------------------------------------------
-from psycopg2._psycopg import AsIs
 from psycopg2.extras import execute_values
-
 from .cheby_checker import Base
 
-
-def deletion_wrapper(unpacked_desig):
-    """
-    Wrapper called from outside cheby_checker (in Flask app for orbfit_results_replication DELETE events.)
-
-    :param unpacked_desig:
-    :return:
-    """
-    sql_checker = SQLChecker()
-    sql_checker.deletion_helper(unpacked_desig)
-
-
-# Data classes/methods
-#
-# N.B. Many of these sqlite functions are copied straight from
-# https://www.sqlitetutorial.net/sqlite-python/
-# E.g.
-# https://www.sqlitetutorial.net/sqlite-python/creating-database/
-# https://www.sqlitetutorial.net/sqlite-python/create-tables/
 class DB:
     """
-    Class to handle basic database connections & locations
-
-    Currently uses postgresql db
+    Class to handle basic postgresql database connections.
     """
     def __init__(self):
         self.dbname = os.getenv("CHEBY_DB_NAME")
@@ -146,11 +115,11 @@ class SQLChecker(DB):
     # ---------------------------------------------
     # Generic functionalities
     # ---------------------------------------------
-    def generate_sector_field_names(self,  sector_dict = Base().get_required_sector_dict() ):
+    def generate_sector_field_names(self,  sector_dict = Base().get_required_sector_dict()):
         """  Dynamically generate the field-specs that will be required for the coeffs-by-sector  """
         return [ 'sector_%d_%d' % (i, jd) for i, jd in sector_dict.items() ]
 
-    def generate_blank_coefficient_dict(self,  sector_dict = Base().get_required_sector_dict() ):
+    def generate_blank_coefficient_dict(self):
         """  Generate a blank default dictionary for upsert to coeffs table ...  """
         return { _ : None for _ in self.generate_sector_field_names() }
 
@@ -325,9 +294,7 @@ class SQLChecker(DB):
     # --------------------------------------------------------
     # --- Funcs to query db-tables
     # --------------------------------------------------------
-    def query_object_coefficients(self,
-                                    unpacked_primary_provisional_designation,
-                                    sector_numbers = None):
+    def query_object_coefficients(self, unpacked_primary_provisional_designation):
         """
            Define standard query used to get cheby-coeff data for a named object
            Can optionally select only a subset of sectors
@@ -378,7 +345,7 @@ class SQLChecker(DB):
         # key is object_coeff_id, value is desig
         return {_[0]:_[1] for _ in cur.fetchall()}
 
-    def query_coefficients_by_jd_hp(self, JD, HPlist , sector_numbers = None):
+    def query_coefficients_by_jd_hp(self, JD, HPlist):
         """
             For a given (single) JD and list of Healpix,
             the query returns the relevant coefficients from the object_coefficients table
