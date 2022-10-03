@@ -226,9 +226,7 @@ class SQLChecker(DB):
 
         """
         # Execute delete.
-        query = f"delete from object_coefficients where unpacked_primary_provisional_designation = '{unpacked_primary_provisional_designation}'; "
-        self.cur.execute(query)
-        self.conn.commit()
+        self.delete_coefficients_by_unpacked_primary_provisional_designation(unpacked_primary_provisional_designation)
 
         data_list = [[unpacked_primary_provisional_designation,k,v] for k,v in zip(sector_names, sector_values)]
         execute_values(self.cur,
@@ -290,6 +288,18 @@ class SQLChecker(DB):
         #   (and leaving the entry in object_desig)
         self.cur.execute(f"DELETE FROM objects_by_jdhp WHERE unpacked_primary_provisional_designation='{unpacked_primary_provisional_designation}';")
         self.conn.commit()
+
+    def delete_coefficients_by_unpacked_primary_provisional_designation(self, unpacked_primary_provisional_designation):
+        """
+            Delete all rows from "unpacked_primary_provisional_designation"
+        """
+        query = f"delete from object_coefficients where unpacked_primary_provisional_designation = '{unpacked_primary_provisional_designation}'; "
+        self.cur.execute(query)
+        self.conn.commit()
+
+    def delete_all_data_by_unpacked_primary_provisional_designation(self, unpacked_primary_provisional_designation):
+        self.delete_JDHP_by_unpacked_primary_provisional_designation(unpacked_primary_provisional_designation)
+        self.delete_coefficients_by_unpacked_primary_provisional_designation(unpacked_primary_provisional_designation)
 
     # --------------------------------------------------------
     # --- Funcs to query db-tables

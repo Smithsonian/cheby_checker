@@ -31,8 +31,8 @@ jd_start, jd_end, number = eph_manager.ephem_open()
 
 # This sets up DEV_DATA_PATH as the dev_data directory that the 430 ephemlives in.
 import os
-PARENT_PATH = os.path.dirname(os.path.dirname(__file__))
-DATA_PATH = os.path.join(PARENT_PATH, "dev_data")
+
+DATA_PATH = os.getenv('DEV_DATA')
 kernel_path = os.path.join(DATA_PATH, "de440.bsp")
 
 # This loads the jplephem package and loads an ephemeris:

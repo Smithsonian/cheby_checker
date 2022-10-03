@@ -73,6 +73,8 @@ RUN python3.6 -m pip install numpy pytest astropy astropy_healpix astroquery sci
 RUN git clone https://github.com/matthewjohnpayne/cheby_checker.git
 WORKDIR /cheby_checker
 RUN python3.6 -m pip install -e .
+# Set dev_data enviornment variable
+ENV DEV_DATA_DIR=/cheby_checker/dev_data
 
 # --- Run deployment code on entry :
 ENTRYPOINT ["tail", "-f", "/dev/null"]
