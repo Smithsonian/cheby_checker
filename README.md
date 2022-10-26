@@ -1,3 +1,5 @@
+### This repo has been archived in favor of the new [mpc-software repository](https://github.com/Smithsonian/mpc-software).  
+
 # cheby_checker
 Python code related to orbital ephemeris calculations (for solar system objects) using fast Chebyshev polynomial representations. 
 
